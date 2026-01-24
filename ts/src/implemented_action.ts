@@ -1,6 +1,7 @@
 import {createSdk} from "./action_sdk.js";
 import {DefinitionDataType_Variant} from "@code0-tech/tucana/pb/shared.data_type_pb.js";
 import {Struct, Value} from "@code0-tech/tucana/pb/shared.struct_pb.js";
+import {constructValue} from "@code0-tech/tucana/helpers/shared.struct_helper.js";
 
 const sdk = createSdk({
     token: "your_token_here",
@@ -55,6 +56,22 @@ sdk.registerFunctionDefinition({
             documentation: [{
                 code: "en",
                 content: "Provide the Discord member object representing the user to be kicked."
+            }],
+        },
+        {
+            dataTypeIdentifier: {
+                type: {
+                    oneofKind: "dataTypeIdentifier",
+                    dataTypeIdentifier: "string"
+                }
+            },
+            defaultValue: constructValue("No reason provided"),
+            runtimeName: "reason",
+            name: [{code: "en", content: "Reason to Kick"}],
+            description: [{code: "en", content: "The reason for kicking the member"}],
+            documentation: [{
+                code: "en",
+                content: "Optionally provide a reason for kicking the member."
             }],
         }
     ]
