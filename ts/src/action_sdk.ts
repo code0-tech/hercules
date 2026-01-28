@@ -119,7 +119,7 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
                     configuration: {
                         identifier: config.actionId,
                         version: config.version,
-                        functionDefinitions: state.functions,
+                        functionDefinitions: state.functions.map(value => value.definition),
                         dataTypes: state.dataTypes,
                         flowTypes: state.flowTypes,
                         actionConfigurations: state.actionConfigurations
