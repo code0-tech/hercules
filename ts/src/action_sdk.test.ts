@@ -1,5 +1,7 @@
-import {createSdk} from "./action_sdk";
-import {Server, ServerCredentials} from "@grpc/grpc-js"
+import { ActionTransferService, TransferRequest } from "@code0-tech/tucana/pb/aquila.action_pb";
+import { createSdk } from "./action_sdk";
+import { createServer } from "nice-grpc";
+import {TransferResponse} from "@code0-tech/tucana/pb/aquila.action_pb.js";
 
 console.log("Running tests")
 
@@ -12,13 +14,24 @@ const sdk = createSdk(
     }
 )
 
-const server = new Server();
+const server = createServer();
 
 
+server.add(ActionTransferService, {
+    async *Transfer(requests: any, context: any): AsyncIterable<TransferResponse> {
+        console.log("Transfer called");
 
-server.bindAsync("0.0.0.0:50051", ServerCredentials.createInsecure(), (error, port) => {
-    console.log(error, port);
-})
+        for await (const req of requests) {
+            console.log("request", req);
+
+            yield {
+                // TransferResponse fields here
+            };
+        }
+    },
+});
+
+await server.listen("0.0.0.0:50051");
 
 
 sdk.connect()
