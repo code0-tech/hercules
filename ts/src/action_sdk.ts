@@ -5,10 +5,19 @@ import {Struct, Value} from "@code0-tech/tucana/pb/shared.struct_pb.js";
 import {GrpcOptions, GrpcTransport} from "@protobuf-ts/grpc-transport";
 import {ChannelCredentials} from "@grpc/grpc-js";
 import {ActionTransferServiceClient} from "@code0-tech/tucana/pb/aquila.action_pb.client.js";
-import {DuplexStreamingCall, RpcOptions} from "@protobuf-ts/runtime-rpc";
-import {ActionConfiguration, TransferRequest, TransferResponse} from "@code0-tech/tucana/pb/aquila.action_pb.js";
+import {DuplexStreamingCall, MethodInfo, NextUnaryFn, RpcOptions, UnaryCall} from "@protobuf-ts/runtime-rpc";
+import {ExecutionRequest, TransferRequest, TransferResponse} from "@code0-tech/tucana/pb/aquila.action_pb.js";
 import {constructValue} from "@code0-tech/tucana/helpers/shared.struct_helper.js";
-
+import {
+    ActionConfigurationDefinition, ActionConfigurations,
+    ActionProjectConfiguration
+} from "@code0-tech/tucana/pb/shared.action_configuration_pb";
+import {DataTypeServiceClient} from "@code0-tech/tucana/pb/aquila.data_type_pb.client";
+import {DataTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.data_type_pb";
+import {RuntimeFunctionDefinitionServiceClient} from "@code0-tech/tucana/pb/aquila.runtime_function_pb.client";
+import {RuntimeFunctionDefinitionUpdateRequest} from "@code0-tech/tucana/pb/aquila.runtime_function_pb";
+import {FlowTypeServiceClient} from "@code0-tech/tucana/pb/aquila.flow_type_pb.client";
+import {FlowTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.flow_type_pb";
 
 type ActionSdk = {
     config: {
@@ -18,7 +27,7 @@ type ActionSdk = {
         version: string,
     },
     connect: (options?: GrpcOptions) => Promise<void>, // after registering the functions and events
-    registerActionConfiguration: (actionConfiguration: ActionConfiguration) => Promise<void>,
+    registerConfigDefinitions: (actionConfiguration: ActionConfigurationDefinition) => Promise<void>,
     registerDataType: (dataType: Omit<DefinitionDataType, "actionIdentifier">) => Promise<void>,
     registerFlowType: (flowType: Omit<FlowType, "actionIdentifier">) => Promise<void>,
     registerFunctionDefinition: (functionDefinition: Omit<RuntimeFunctionDefinition, "actionIdentifier">, handler: (parameters: Struct) => Promise<Value | void | null | undefined>) => Promise<void>,
@@ -35,7 +44,9 @@ type SdkState = {
     functions: RegisteredFunction[],
     dataTypes: DefinitionDataType[],
     flowTypes: FlowType[],
-    actionConfigurations: ActionConfiguration[],
+    configurationDefinitions: ActionConfigurationDefinition[],
+    projectConfigurations: ActionProjectConfiguration[],
+    transport: GrpcTransport,
     client: ActionTransferServiceClient,
     stream: DuplexStreamingCall<TransferRequest, TransferResponse> | undefined,
 }
@@ -53,7 +64,9 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
         functions: [],
         dataTypes: [],
         flowTypes: [],
-        actionConfigurations: [],
+        configurationDefinitions: [],
+        projectConfigurations: [],
+        transport: transport,
         client: client,
         stream: undefined,
     }
@@ -63,8 +76,8 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
         connect: options => {
             return connect(state, config, options);
         },
-        registerActionConfiguration: async (actionConfiguration) => {
-            state.actionConfigurations.push(actionConfiguration);
+        registerConfigDefinitions: async (actionConfiguration) => {
+            state.configurationDefinitions.push(actionConfiguration);
             return Promise.resolve()
         },
         registerDataType: async (dataType) => {
@@ -93,6 +106,7 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
                     data: {
                         oneofKind: "event",
                         event: {
+                            projectId: BigInt(-1),
                             eventType: eventType,
                             payload: constructValue(payload),
                         }
@@ -110,28 +124,119 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
 }
 
 async function connect(state: SdkState, config: ActionSdk["config"], options?: RpcOptions): Promise<void> {
-    state.stream = state.client.transfer(options);
+    state.stream = state.client.transfer({
+        meta: {
+            "Authorization": config.token,
+        },
+        ...options
+    });
 
-    return await state.stream.requests.send(
+    await state.stream.requests.send(
         TransferRequest.create({
                 data: {
-                    oneofKind: "configuration",
-                    configuration: {
-                        identifier: config.actionId,
+                    oneofKind: "logon",
+                    logon: {
+                        actionIdentifier: config.actionId,
                         version: config.version,
-                        functionDefinitions: state.functions.map(value => value.definition),
-                        dataTypes: state.dataTypes,
-                        flowTypes: state.flowTypes,
-                        actionConfigurations: state.actionConfigurations
+                        actionConfigurations: state.configurationDefinitions
                     }
                 }
             }
-        )
+        ),
     ).catch(reason => {
-        console.error("Failed to send configuration:", reason);
+        console.error("Failed to send logon request:", reason);
         return Promise.reject(reason);
     }).then(() => {
-        console.log("Configuration sent successfully");
-        return Promise.resolve();
+            console.log("Logon request sent successfully");
+        }
+    )
+
+    const dataTypeClient = new DataTypeServiceClient(state.transport)
+    await dataTypeClient.update(DataTypeUpdateRequest.create({
+        dataTypes: [
+            ...state.dataTypes
+        ]
+    })).then(value => {
+        if (value.response.success) {
+            console.log("Data types updated successfully");
+        } else {
+            console.error("Failed to update data types:", value.response);
+            return Promise.reject("Failed to update data types");
+        }
     })
+
+    const runtimeFunctionDefinitionClient = new RuntimeFunctionDefinitionServiceClient(state.transport)
+    await runtimeFunctionDefinitionClient.update(
+        RuntimeFunctionDefinitionUpdateRequest.create(
+            {
+                runtimeFunctions: [
+                    ...state.functions.map(func => ({
+                        ...func.definition,
+                    }))
+                ]
+            }
+        )
+    ).then(value => {
+        if (value.response.success) {
+            console.log("Runtime functions updated successfully");
+        } else {
+            console.error("Failed to update runtime functions:", value.response);
+            return Promise.reject("Failed to update runtime functions");
+        }
+    })
+
+    const flowTypeClient = new FlowTypeServiceClient(state.transport)
+    await flowTypeClient.update(FlowTypeUpdateRequest.create({
+        flowTypes: [
+            ...state.flowTypes
+        ]
+    })).then(value => {
+        if (value.response.success) {
+            console.log("Flow types updated successfully");
+        } else {
+            console.error("Failed to update flow types:", value.response);
+            return Promise.reject("Failed to update flow types");
+        }
+    })
+
+    state.stream.responses.onNext(message => {
+            switch (message?.data.oneofKind) {
+                case "actionConfigurations": {
+                    const configs = message.data.actionConfigurations as ActionConfigurations;
+                    console.log("Received action configurations:", configs);
+                    state.projectConfigurations = configs.actionConfigurations
+                    break;
+                }
+                case "execution": {
+                    const execution = message.data.execution as ExecutionRequest;
+                    const func = state.functions.find(value => value.identifier == execution.functionIdentifier);
+                    if (func) {
+                        func.handler(execution.parameters!).then(async value => {
+                            try {
+                                return await state.stream!.requests.send(
+                                    TransferRequest.create({
+                                        data: {
+                                            oneofKind: "result",
+                                            result: {
+                                                executionIdentifier: execution.executionIdentifier,
+                                                result: value ? constructValue(value) : undefined,
+                                            }
+                                        }
+                                    })
+                                );
+                            } catch (reason) {
+                                console.error("Failed to send execution result:", reason);
+                                return await Promise.reject(reason);
+                            }
+                        })
+                    }
+                    break;
+                }
+            }
+        }
+    )
+
+    return Promise.resolve()
 }
+
+

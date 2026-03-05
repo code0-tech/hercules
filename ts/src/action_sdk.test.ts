@@ -17,20 +17,6 @@ const sdk = createSdk(
 const server = createServer();
 
 
-server.add(ActionTransferService, {
-    async *Transfer(requests: any, context: any): AsyncIterable<TransferResponse> {
-        console.log("Transfer called");
-
-        for await (const req of requests) {
-            console.log("request", req);
-
-            yield {
-                // TransferResponse fields here
-            };
-        }
-    },
-});
-
 await server.listen("0.0.0.0:50051");
 
 
