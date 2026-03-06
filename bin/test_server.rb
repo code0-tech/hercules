@@ -79,49 +79,91 @@ class ActionTransferService < Tucana::Aquila::ActionTransferService::Service
     @sent_configs = []
   end
 
+  def construct_parameters(func)
+    struct = Tucana::Shared::Struct.new
+
+    func.runtime_parameter_definitions.each do |param_def|
+      struct.fields[param_def.runtime_name] = param_def.default_value
+    end
+
+    struct
+  end
+
   def transfer(requests, _call)
     Enumerator.new do |yielder|
       Thread.new do
         loop do
           sleep 5
           @state.action_config_definitions.each do |config|
-            if @sent_configs.include?(config[:identifier])
-              next
-            end
-            puts "Received action config definition: #{config[:action_identifier]} (v#{config[:version]})"
-            puts "Creating mock project config"
-            proj_conf = Tucana::Shared::ActionProjectConfiguration.new(
-              project_id: 128,
-              action_configurations: [
-                Tucana::Shared::ActionConfiguration.new(
-                  identifier: config[:identifier],
-                  value: Tucana::Shared::Value.from_ruby("test value for #{config[:identifier]}")
-                )
-              ]
-            )
+            next if @sent_configs.include?(config[:identifier])
 
-            yielder << Tucana::Aquila::TransferResponse.new({
-                                                               action_configurations:
-                                                                 Tucana::Shared::ActionConfigurations.new(action_configurations: [proj_conf])
-                                                             })
+            puts "Received action config definition: #{config[:action_identifier]} (v#{config[:version]})"
+            count = Random.rand(1..5)
+            puts "Creating #{count} mock project config"
+            proj_conf = []
+
+            count.times do |i|
+              proj_conf << Tucana::Shared::ActionProjectConfiguration.new(
+                project_id: Random.rand(1..1000),
+                action_configurations: [
+                  Tucana::Shared::ActionConfiguration.new(
+                    identifier: config[:identifier],
+                    value: Tucana::Shared::Value.from_ruby("test value for project: #{i}")
+                  )
+                ]
+              )
+            end
+
+            yielder << Tucana::Aquila::TransferResponse.new(
+              {
+                action_configurations:
+                  Tucana::Shared::ActionConfigurations.new(action_configurations: proj_conf),
+              }
+            )
             @sent_configs << config[:identifier]
+          end
+          @state.runtime_functions.each do |func|
+            puts "Sending execute request for: #{func.runtime_name}"
+            exec_identifier = "exec_#{func.runtime_name}_#{Time.now.to_i}"
+            puts "Execution identifier: #{exec_identifier}"
+            yielder << Tucana::Aquila::TransferResponse.new(
+              {
+                execution: Tucana::Aquila::ExecutionRequest.new(
+                  execution_identifier: exec_identifier,
+                  function_identifier: func.runtime_name,
+                  parameters: construct_parameters(func)
+                ),
+              }
+            )
           end
         end
       end
 
       requests.each do |req|
-
-        unless req.logon.nil?
-          logon = req.logon
-
-          @state.add_action_config_definition({
-                                                action_identifier: logon.action_identifier,
-                                                version: logon.version,
-                                                config_definitions: logon.action_configurations
-                                              })
-
-          puts "Action logon received: #{logon.action_identifier} (v#{logon.version})"
+        unless req.result.nil?
+          puts "Received execution result for: #{req.result.execution_identifier}"
+          puts "Result value: #{req.result.result}"
+          next
         end
+
+        unless req.event.nil?
+          puts "Received event: #{req.event.event_type}"
+          puts "Event data: #{req.event.payload}"
+          puts "Project id: #{req.event.project_id}"
+          next
+        end
+
+        next if req.logon.nil?
+
+        logon = req.logon
+
+        @state.add_action_config_definition({
+                                              action_identifier: logon.action_identifier,
+                                              version: logon.version,
+                                              config_definitions: logon.action_configurations,
+                                            })
+
+        puts "Action logon received: #{logon.action_identifier} (v#{logon.version})"
       end
     end
   end

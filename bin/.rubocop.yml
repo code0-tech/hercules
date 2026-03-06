@@ -1,0 +1,26 @@
+AllCops:
+  NewCops: enable
+
+Lint/AmbiguousBlockAssociation:
+  AllowedMethods: [change]
+
+Metrics:
+  Enabled: false
+
+Naming/BlockForwarding:
+  Enabled: false
+
+Naming/MethodParameterName:
+  Enabled: false
+
+Style/ArgumentsForwarding:
+  Enabled: false
+
+Style/Documentation:
+  Enabled: false
+
+Style/HashSyntax:
+  EnforcedShorthandSyntax: never
+
+Style/TrailingCommaInHashLiteral:
+  EnforcedStyleForMultiline: comma

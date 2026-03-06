@@ -1,6 +1,7 @@
-import {createSdk} from "./action_sdk.js";
-import {Struct, Value} from "@code0-tech/tucana/pb/shared.struct_pb.js";
-import {constructValue} from "@code0-tech/tucana/helpers/shared.struct_helper.js";
+import { createSdk } from "./action_sdk.js";
+import { Struct, Value } from "@code0-tech/tucana/pb/shared.struct_pb.js";
+import { constructValue } from "@code0-tech/tucana/helpers/shared.struct_helper.js";
+import { ActionProjectConfiguration } from "@code0-tech/tucana/pb/shared.action_configuration_pb.js";
 
 const sdk = createSdk({
     token: "your_token_here",
@@ -40,8 +41,75 @@ sdk.registerDataType({
     version: "0.0.0",
 })
 
+sdk.registerFunctionDefinition(
+    {
+        signature: "(n: number) => number",
+        definitionSource: "",
+        linkedDataTypeIdentifiers: [],
+        runtimeParameterDefinitions: [
+            {
+                runtimeName: "n",
+                description: [],
+                name: [],
+                documentation: [],
+                defaultValue: constructValue(20),
+            }
+        ],
+        alias: [],
+        deprecationMessage: [],
+        description: [],
+        displayIcon: "",
+        displayMessage: [],
+        documentation: [],
+        name: [],
+        throwsError: false,
+        version: "0.0.0",
+        runtimeName: "fib",
+    },
+    async (params: Struct): Promise<Value> => {
+        console.log("Received parameters:", params);
+        let n = params.fields["n"];
 
-sdk.connect()
+        function fibonacci(num: number): number {
+            if (num <= 1) return num;
+            return fibonacci(num - 1) + fibonacci(num - 2);
+        }
+        if (n && n.kind.oneofKind === "numberValue") {
+            return constructValue(fibonacci(n.kind.numberValue));
+        }
+
+        return constructValue(fibonacci(1));
+    }
+)
+
+sdk.registerFlowType(
+    {
+        documentation: [],
+        description: [],
+        displayIcon: "",
+        displayMessage: [],
+        editable: false,
+        inputTypeIdentifier: "STRING",
+        name: [],
+        alias: [],
+        identifier: "test_flow",
+        settings: [],
+        version: "0.0.0",
+    }
+)
+
+
+sdk.connect().then((configs: ActionProjectConfiguration[]) => {
+    console.log("SDK connected successfully");
+    sdk.dispatchEvent("test_flow", configs[0].projectId, constructValue("Hello, World! Configs loaded: " + configs.length)).then(() => {
+        console.log("Event dispatched successfully");
+    })
+}).catch((error) => {
+    console.error("Error connecting SDK:", error);
+})
+
+
+//
 //
 // type Member = {
 //     id: string,
