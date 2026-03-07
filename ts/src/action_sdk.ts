@@ -131,12 +131,13 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
 }
 
 async function connect(state: SdkState, config: ActionSdk["config"], options?: RpcOptions): Promise<ActionProjectConfiguration[]> {
-    state.stream = state.client.transfer({
+    const builtOptions: RpcOptions = {
         meta: {
             "Authorization": config.token,
         },
         ...options
-    });
+    }
+    state.stream = state.client.transfer(builtOptions);
 
     await state.stream.requests.send(
         TransferRequest.create({
@@ -163,15 +164,17 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
         dataTypes: [
             ...state.dataTypes
         ]
-    })).then(value => {
+    }), builtOptions).then(value => {
         if (value.response.success) {
             console.log("Data types updated successfully");
         } else {
             console.error("Failed to update data types:", value.response);
             return Promise.reject("Failed to update data types");
         }
+    }).catch(reason => {
+        console.error("Failed to update data types:", reason);
+        return Promise.reject(reason);
     })
-
     const runtimeFunctionDefinitionClient = new RuntimeFunctionDefinitionServiceClient(state.transport)
     await runtimeFunctionDefinitionClient.update(
         RuntimeFunctionDefinitionUpdateRequest.create(
@@ -182,7 +185,7 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
                     }))
                 ]
             }
-        )
+        ), builtOptions
     ).then(value => {
         if (value.response.success) {
             console.log("Runtime functions updated successfully");
@@ -197,7 +200,7 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
         flowTypes: [
             ...state.flowTypes
         ]
-    })).then(value => {
+    }), builtOptions).then(value => {
         if (value.response.success) {
             console.log("Flow types updated successfully");
         } else {

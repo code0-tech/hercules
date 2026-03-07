@@ -38,7 +38,8 @@ class FlowTypeTransferService < Tucana::Aquila::FlowTypeService::Service
     @state = state
   end
 
-  def update(req, _call)
+  def update(req, call)
+    puts "Got Auth token: #{call.metadata['authorization']}"
     @state.add_flow_types(req.flow_types)
 
     puts "Flowtypes received: #{req.flow_types.map(&:identifier).join(', ')}"
@@ -52,7 +53,8 @@ class RuntimeFunctionDefinitionTransferService < Tucana::Aquila::RuntimeFunction
     @state = state
   end
 
-  def update(req, _call)
+  def update(req, call)
+    puts "Got Auth token: #{call.metadata['authorization']}"
     @state.add_runtime_functions(req.runtime_functions)
 
     puts "RuntimeFunctionDefinitions received: #{req.runtime_functions.map(&:runtime_name).join(', ')}"
@@ -66,7 +68,8 @@ class DataTypeTransferService < Tucana::Aquila::DataTypeService::Service
     @state = state
   end
 
-  def update(req, _call)
+  def update(req, call)
+    puts "Got Auth token: #{call.metadata['authorization']}"
     @state.add_data_types(req.data_types)
     puts "Data types received: #{req.data_types.map(&:identifier).join(', ')}"
     Tucana::Aquila::DataTypeUpdateResponse.new(success: true)
@@ -89,7 +92,8 @@ class ActionTransferService < Tucana::Aquila::ActionTransferService::Service
     struct
   end
 
-  def transfer(requests, _call)
+  def transfer(requests, call)
+    puts "Got Auth token: #{call.metadata['authorization']}"
     Enumerator.new do |yielder|
       Thread.new do
         loop do

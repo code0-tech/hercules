@@ -29,8 +29,8 @@ sdk.registerConfigDefinitions({
 })
 
 sdk.registerDataType({
-    identifier: "STRING",
-    signature: "string",
+    identifier: "SOME_DATATYPE",
+    signature: "any",
     name: [],
     alias: [],
     rules: [],
@@ -43,9 +43,9 @@ sdk.registerDataType({
 
 sdk.registerFunctionDefinition(
     {
-        signature: "(n: number) => number",
+        signature: "(n: NUMBER) => NUMBER",
         definitionSource: "",
-        linkedDataTypeIdentifiers: [],
+        linkedDataTypeIdentifiers: ["NUMBER"],
         runtimeParameterDefinitions: [
             {
                 runtimeName: "n",
