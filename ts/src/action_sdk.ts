@@ -130,17 +130,15 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
                     }
                 })
             ).catch(reason => {
-                console.error("Failed to dispatch event:", reason);
                 return Promise.reject(reason);
             }).then(() => {
-                console.log("Event dispatched successfully");
                 return Promise.resolve();
             })
         }
     }
 }
 
-async function connect(state: SdkState, config: ActionSdk["config"], options?: RpcOptions): Promise<ActionProjectConfiguration[]> {
+async function  connect(state: SdkState, config: ActionSdk["config"], options?: RpcOptions): Promise<ActionProjectConfiguration[]> {
     const builtOptions: RpcOptions = {
         meta: {
             "Authorization": config.token,
@@ -163,10 +161,7 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
         ),
     ).catch(reason => {
         return Promise.reject(reason);
-    }).then(() => {
-            console.log("Logon request sent successfully");
-        }
-    )
+    })
 
     const dataTypeClient = new DataTypeServiceClient(state.transport)
     await dataTypeClient.update(DataTypeUpdateRequest.create({
@@ -174,9 +169,7 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
             ...state.dataTypes
         ]
     }), builtOptions).then(value => {
-        if (value.response.success) {
-            console.log("Data types updated successfully");
-        } else {
+        if (!value.response.success) {
             return Promise.reject(value.response);
         }
     }).catch(reason => {
@@ -194,9 +187,7 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
             }
         ), builtOptions
     ).then(value => {
-        if (value.response.success) {
-            console.log("Runtime functions updated successfully");
-        } else {
+        if (!value.response.success) {
             return Promise.reject(value.response);
         }
     })
@@ -207,9 +198,7 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
             ...state.flowTypes
         ]
     }), builtOptions).then(value => {
-        if (value.response.success) {
-            console.log("Flow types updated successfully");
-        } else {
+        if (!value.response.success) {
             return Promise.reject(value.response);
         }
     })
