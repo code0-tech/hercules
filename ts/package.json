@@ -1,0 +1,31 @@
+{
+  "devDependencies": {
+    "@protobuf-ts/grpc-backend": "^2.11.1",
+    "@types/node": "^25.0.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  },
+  "name": "ts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "vitest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@code0-tech/tucana": "^0.0.56",
+    "@grpc/grpc-js": "^1.14.3",
+    "@protobuf-ts/grpc-transport": "^2.11.1",
+    "@protobuf-ts/runtime": "^2.11.1",
+    "@protobuf-ts/runtime-rpc": "^2.11.1",
+    "nice-grpc": "^2.1.14"
+  }
+}
