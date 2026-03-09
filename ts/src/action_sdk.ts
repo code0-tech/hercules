@@ -10,7 +10,6 @@ import {
 } from "@code0-tech/tucana/pb/aquila.action_pb.js";
 import {constructValue, toAllowedValue} from "@code0-tech/tucana/helpers/shared.struct_helper.js";
 import {
-    ActionConfigurationDefinition,
     ActionConfigurations,
     ActionProjectConfiguration
 } from "@code0-tech/tucana/pb/shared.action_configuration_pb";

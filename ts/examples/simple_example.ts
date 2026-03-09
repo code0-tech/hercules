@@ -1,5 +1,4 @@
 import { createSdk } from "../src/action_sdk.js";
-import { Struct, Value } from "@code0-tech/tucana/pb/shared.struct_pb.js";
 import { constructValue } from "@code0-tech/tucana/helpers/shared.struct_helper.js";
 import { ActionProjectConfiguration } from "@code0-tech/tucana/pb/shared.action_configuration_pb.js";
 import {randomUUID} from "node:crypto";
