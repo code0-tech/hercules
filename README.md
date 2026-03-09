@@ -19,6 +19,8 @@ sequenceDiagram
 
     Hercules->>Aquila: Register datatypes
     Aquila-->>Hercules: Validation result
+    
+    Hercules->>Stream: ActionConfiguration Request<br>with (registered) datatypes
 
     Hercules->>Aquila: Register function definitions
     Aquila-->>Hercules: Validation result
