@@ -11,13 +11,13 @@ import {constructValue} from "@code0-tech/tucana/helpers/shared.struct_helper.js
 import {
     ActionConfigurationDefinition, ActionConfigurations,
     ActionProjectConfiguration
-} from "@code0-tech/tucana/pb/shared.action_configuration_pb";
-import {DataTypeServiceClient} from "@code0-tech/tucana/pb/aquila.data_type_pb.client";
-import {DataTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.data_type_pb";
-import {RuntimeFunctionDefinitionServiceClient} from "@code0-tech/tucana/pb/aquila.runtime_function_pb.client";
-import {RuntimeFunctionDefinitionUpdateRequest} from "@code0-tech/tucana/pb/aquila.runtime_function_pb";
-import {FlowTypeServiceClient} from "@code0-tech/tucana/pb/aquila.flow_type_pb.client";
-import {FlowTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.flow_type_pb";
+} from "@code0-tech/tucana/pb/shared.action_configuration_pb.js";
+import {DataTypeServiceClient} from "@code0-tech/tucana/pb/aquila.data_type_pb.client.js";
+import {DataTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.data_type_pb.js";
+import {RuntimeFunctionDefinitionServiceClient} from "@code0-tech/tucana/pb/aquila.runtime_function_pb.client.js";
+import {RuntimeFunctionDefinitionUpdateRequest} from "@code0-tech/tucana/pb/aquila.runtime_function_pb.js";
+import {FlowTypeServiceClient} from "@code0-tech/tucana/pb/aquila.flow_type_pb.client.js";
+import {FlowTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.flow_type_pb.js";
 
 type ActionSdk = {
     config: {

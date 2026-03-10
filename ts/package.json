@@ -1,19 +1,23 @@
 {
-  "devDependencies": {
-    "@protobuf-ts/grpc-backend": "^2.11.1",
-    "@types/node": "^25.0.10",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
-  },
-  "name": "ts",
+  "name": "@code0-tech/hercules",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "TypeScript SDK for the hercules action runner",
+  "main": "./dist/action_sdk.js",
+  "module": "./dist/action_sdk.js",
+  "types": "./dist/action_sdk.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/action_sdk.js",
+      "types": "./dist/action_sdk.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
     "test": "vitest"
   },
   "keywords": [],
@@ -26,5 +30,12 @@
     "@protobuf-ts/grpc-transport": "^2.11.1",
     "@protobuf-ts/runtime": "^2.11.1",
     "@protobuf-ts/runtime-rpc": "^2.11.1"
+  },
+  "devDependencies": {
+    "@protobuf-ts/grpc-backend": "^2.11.1",
+    "@types/node": "^25.0.10",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }
