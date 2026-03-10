@@ -35,6 +35,7 @@ sdk.registerFunctionDefinition(
     },
     //          This param is optional and can be omitted 
     (n: number, context: HerculesFunctionContext): number => {
+        console.log(context)
         console.log("Project id:", context.projectId);
         console.log("Execution id:", context.executionId);
         console.log("Matched configs:", context.matchedConfigs); // matched configs for the current execution

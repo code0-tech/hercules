@@ -31,16 +31,6 @@ class State
   def add_action_config_definition(config)
     @action_config_definitions << config
   end
-
-  def register_config_definitions(token, config_definitions)
-    @action_config_definitions.each do |config|
-      next unless config[:auth_token] == token
-
-      config[:config_definitions] = config_definitions
-      puts "Registered config definitions for action: #{config[:action_identifier]} (v#{config[:version]})"
-      break
-    end
-  end
 end
 
 class FlowTypeTransferService < Tucana::Aquila::FlowTypeService::Service
@@ -144,6 +134,7 @@ class ActionTransferService < Tucana::Aquila::ActionTransferService::Service
             yielder << Tucana::Aquila::TransferResponse.new(
               {
                 execution: Tucana::Aquila::ExecutionRequest.new(
+                  project_id: Random.rand(1..1000),
                   execution_identifier: exec_identifier,
                   function_identifier: func.runtime_name,
                   parameters: construct_parameters(func)
@@ -155,7 +146,6 @@ class ActionTransferService < Tucana::Aquila::ActionTransferService::Service
       end
 
       requests.each do |req|
-        p req
         unless req.result.nil?
           puts "Received execution result for: #{req.result.execution_identifier}"
           puts "Result value: #{req.result.result}"
@@ -168,12 +158,6 @@ class ActionTransferService < Tucana::Aquila::ActionTransferService::Service
           puts "Project id: #{req.event.project_id}"
           next
         end
-
-        unless req.action_configuration.nil?
-          @state.register_config_definitions(token,
-                                             req.action_configuration.action_configurations)
-        end
-
         next if req.logon.nil?
 
         logon = req.logon
@@ -182,7 +166,7 @@ class ActionTransferService < Tucana::Aquila::ActionTransferService::Service
                                               auth_token: token,
                                               action_identifier: logon.action_identifier,
                                               version: logon.version,
-                                              config_definitions: [],
+                                              config_definitions: logon.action_configurations,
                                             })
 
         puts "Action logon received: #{logon.action_identifier} (v#{logon.version})"

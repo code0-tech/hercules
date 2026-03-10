@@ -287,15 +287,15 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse): Pro
                 }) || [],
             }
 
-            if (func.handler.arguments.length == params.length + 1) {
+            if (func.handler.length == params.length + 1) {
                 // handler has context parameter
                 params.push(context)
-            } else if (func.handler.arguments.length > params.length + 1) {
+            } else if (func.handler.length > params.length + 1) {
                 reject(new Error("Handler has more parameters than provided arguments"))
                 return
             }
 
-            const result = func.handler(params.push(context))
+            const result = func.handler(...params)
             try {
                 return await state.stream!.requests.send(
                     TransferRequest.create({

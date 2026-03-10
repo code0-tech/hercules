@@ -5,4 +5,4 @@ source 'https://rubygems.org'
 ruby '3.4.7'
 
 gem 'grpc', '~> 1.67'
-gem 'tucana', '0.0.56'
+gem 'tucana', '0.0.57'
