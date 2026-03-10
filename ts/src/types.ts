@@ -1,7 +1,6 @@
 import {FlowType, FlowTypeSetting_UniquenessScope} from "@code0-tech/tucana/pb/shared.flow_definition_pb.js";
 import { DefinitionDataType, DefinitionDataTypeRule } from "@code0-tech/tucana/pb/shared.data_type_pb.js";
 import { RuntimeFunctionDefinition } from "@code0-tech/tucana/pb/shared.runtime_function_pb.js";
-import { Value } from "@code0-tech/tucana/pb/shared.struct_pb.js";
 import { GrpcOptions, GrpcTransport } from "@protobuf-ts/grpc-transport";
 import { ActionTransferServiceClient } from "@code0-tech/tucana/pb/aquila.action_pb.client.js";
 import { DuplexStreamingCall } from "@protobuf-ts/runtime-rpc";
