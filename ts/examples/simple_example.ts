@@ -33,6 +33,7 @@ sdk.registerFunctionDefinition(
         ],
         runtimeName: "fib",
     },
+    //          This param is optional and can be omitted 
     (n: number, context: HerculesFunctionContext): number => {
         console.log("Project id:", context.projectId);
         console.log("Execution id:", context.executionId);
