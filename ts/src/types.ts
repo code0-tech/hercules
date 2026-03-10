@@ -15,6 +15,12 @@ import {
 } from "@code0-tech/tucana/pb/shared.action_configuration_pb";
 import {Translation} from "@code0-tech/tucana/pb/shared.translation_pb";
 
+export interface HerculesFunctionContext {
+    projectId: number | bigint,
+    executionId: string,
+    matchedConfigs: ActionProjectConfiguration[]
+}
+
 export interface HerculesDefinitionDataType {
     identifier: string,
     name?: Translation[],
@@ -85,8 +91,8 @@ export interface HerculesActionConfigurationDefinition {
 
 export interface ActionSdk {
     config: {
-        token: string,
-        actionUrl: string,
+        authToken: string,
+        aquilaUrl: string,
         actionId: string,
         version: string,
     },

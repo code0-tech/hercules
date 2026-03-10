@@ -1,11 +1,11 @@
 import { createSdk } from "../src/action_sdk.js";
 import { constructValue } from "@code0-tech/tucana/helpers/shared.struct_helper.js";
 import { ActionProjectConfiguration } from "@code0-tech/tucana/pb/shared.action_configuration_pb.js";
-import {randomUUID} from "node:crypto";
+import { HerculesFunctionContext } from "../src/types.js";
 
 const sdk = createSdk({
-    token: randomUUID(),
-    actionUrl: "127.0.0.1:50051",
+    authToken: "someToken",
+    aquilaUrl: "127.0.0.1:50051",
     actionId: "action_123",
     version: "0.0.0",
 })
@@ -28,16 +28,16 @@ sdk.registerFunctionDefinition(
         runtimeParameterDefinitions: [
             {
                 runtimeName: "n",
-                description: [],
-                name: [],
-                documentation: [],
-                defaultValue: constructValue(20),
+                defaultValue: 20,
             }
         ],
-        version: "0.0.0",
         runtimeName: "fib",
     },
-    (n: number): number => {
+    (n: number, context: HerculesFunctionContext): number => {
+        console.log("Project id:", context.projectId);
+        console.log("Execution id:", context.executionId);
+        console.log("Matched configs:", context.matchedConfigs); // matched configs for the current execution
+
         function fibonacci(num: number): number {
             if (num <= 1) return num;
             return fibonacci(num - 1) + fibonacci(num - 2);
@@ -51,7 +51,6 @@ sdk.registerFlowType(
         editable: false,
         inputTypeIdentifier: "STRING",
         identifier: "test_flow",
-        version: "0.0.0",
     }
 )
 

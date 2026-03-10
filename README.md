@@ -14,14 +14,14 @@ sequenceDiagram
     participant Aquila as Aquila (Server)
     participant Stream as Stream (gRPC)
 
+    Hercules->>Aquila: Register datatypes<br>because maybe they are needed in the config definitions
+    Aquila-->>Hercules: Validation result
+ 
+
     Hercules->>Stream: Open bi-directional stream
     Hercules->>Stream: ActionLogon request
 
-    Hercules->>Aquila: Register datatypes
-    Aquila-->>Hercules: Validation result
-    
-    Hercules->>Stream: ActionConfiguration Request<br>with (registered) datatypes
-
+   
     Hercules->>Aquila: Register function definitions
     Aquila-->>Hercules: Validation result
 

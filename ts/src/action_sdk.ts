@@ -1,32 +1,32 @@
-import {GrpcTransport} from "@protobuf-ts/grpc-transport";
-import {ChannelCredentials} from "@grpc/grpc-js";
-import {ActionTransferServiceClient} from "@code0-tech/tucana/pb/aquila.action_pb.client.js";
-import {RpcOptions} from "@protobuf-ts/runtime-rpc";
+import { GrpcTransport } from "@protobuf-ts/grpc-transport";
+import { ChannelCredentials } from "@grpc/grpc-js";
+import { ActionTransferServiceClient } from "@code0-tech/tucana/pb/aquila.action_pb.client.js";
+import { RpcOptions } from "@protobuf-ts/runtime-rpc";
 import {
     ActionConfiguration,
     ExecutionRequest,
     TransferRequest,
     TransferResponse
 } from "@code0-tech/tucana/pb/aquila.action_pb.js";
-import {constructValue, toAllowedValue} from "@code0-tech/tucana/helpers/shared.struct_helper.js";
+import { constructValue, toAllowedValue } from "@code0-tech/tucana/helpers/shared.struct_helper.js";
 import {
     ActionConfigurations,
     ActionProjectConfiguration
 } from "@code0-tech/tucana/pb/shared.action_configuration_pb";
-import {DataTypeServiceClient} from "@code0-tech/tucana/pb/aquila.data_type_pb.client";
-import {DataTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.data_type_pb";
-import {RuntimeFunctionDefinitionServiceClient} from "@code0-tech/tucana/pb/aquila.runtime_function_pb.client";
-import {RuntimeFunctionDefinitionUpdateRequest} from "@code0-tech/tucana/pb/aquila.runtime_function_pb";
-import {FlowTypeServiceClient} from "@code0-tech/tucana/pb/aquila.flow_type_pb.client";
-import {FlowTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.flow_type_pb";
-import {ActionSdk, SdkState} from "./types";
-import {FlowTypeSetting_UniquenessScope} from "@code0-tech/tucana/pb/shared.flow_definition_pb";
+import { DataTypeServiceClient } from "@code0-tech/tucana/pb/aquila.data_type_pb.client";
+import { DataTypeUpdateRequest } from "@code0-tech/tucana/pb/aquila.data_type_pb";
+import { RuntimeFunctionDefinitionServiceClient } from "@code0-tech/tucana/pb/aquila.runtime_function_pb.client";
+import { RuntimeFunctionDefinitionUpdateRequest } from "@code0-tech/tucana/pb/aquila.runtime_function_pb";
+import { FlowTypeServiceClient } from "@code0-tech/tucana/pb/aquila.flow_type_pb.client";
+import { FlowTypeUpdateRequest } from "@code0-tech/tucana/pb/aquila.flow_type_pb";
+import { ActionSdk, HerculesFunctionContext, SdkState } from "./types";
+import { FlowTypeSetting_UniquenessScope } from "@code0-tech/tucana/pb/shared.flow_definition_pb";
 
 
 export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
     const transport = new GrpcTransport(
         {
-            host: config.actionUrl,
+            host: config.aquilaUrl,
             channelCredentials: ChannelCredentials.createInsecure()
         }
     )
@@ -82,7 +82,7 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
                 signature: dataType.signature,
                 linkedDataTypeIdentifiers: dataType.linkedDataTypeIdentifiers || [],
                 displayMessage: dataType.displayMessage || [],
-                definitionSource: "",
+                definitionSource: "action",
                 version: dataType.version || config.version,
             });
 
@@ -98,7 +98,7 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
                 displayIcon: flowType.displayIcon || "",
                 displayMessage: flowType.displayMessage || [],
                 documentation: flowType.documentation || [],
-                definitionSource: "",
+                definitionSource: "action",
                 version: flowType.version || config.version,
                 inputTypeIdentifier: flowType.inputTypeIdentifier,
                 returnTypeIdentifier: flowType.returnTypeIdentifier,
@@ -126,7 +126,7 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
                     displayIcon: functionDefinition.displayIcon || "",
                     alias: functionDefinition.alias || [],
                     linkedDataTypeIdentifiers: functionDefinition.linkedDataTypeIdentifiers || [],
-                    definitionSource: "",
+                    definitionSource: "action",
                     version: functionDefinition.version || config.version,
                     runtimeName: functionDefinition.runtimeName,
                     runtimeParameterDefinitions: (functionDefinition.runtimeParameterDefinitions || []).map(param => ({
@@ -174,26 +174,11 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
 async function connect(state: SdkState, config: ActionSdk["config"], options?: RpcOptions): Promise<ActionProjectConfiguration[]> {
     const builtOptions: RpcOptions = {
         meta: {
-            "Authorization": config.token,
+            "Authorization": config.authToken,
         },
         ...options
     }
     state.stream = state.client.transfer(builtOptions);
-
-    await state.stream.requests.send(
-        TransferRequest.create({
-                data: {
-                    oneofKind: "logon",
-                    logon: {
-                        actionIdentifier: config.actionId,
-                        version: config.version
-                    }
-                }
-            }
-        ),
-    ).catch(reason => {
-        return Promise.reject(reason);
-    })
 
     const dataTypeClient = new DataTypeServiceClient(state.transport)
     await dataTypeClient.update(DataTypeUpdateRequest.create({
@@ -209,17 +194,18 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
     })
 
 
+
     await state.stream.requests.send(
         TransferRequest.create({
-                data: {
-                    oneofKind: "actionConfiguration",
-                    actionConfiguration: ActionConfiguration.create(
-                        {
-                            actionConfigurations: state.configurationDefinitions
-                        }
-                    )
+            data: {
+                oneofKind: "logon",
+                logon: {
+                    actionIdentifier: config.actionId,
+                    version: config.version,
+                    actionConfigurations: state.configurationDefinitions
                 }
             }
+        }
         ),
     ).catch(reason => {
         return Promise.reject(reason);
@@ -293,7 +279,23 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse): Pro
                 return toAllowedValue(value)
             })
 
-            const result = func.handler(params)
+            const context: HerculesFunctionContext = {
+                projectId: execution.projectId,
+                executionId: execution.executionIdentifier,
+                matchedConfigs: state.projectConfigurations.filter(config => {
+                    config.projectId === execution.projectId
+                }) || [],
+            }
+
+            if (func.handler.arguments.length == params.length + 1) {
+                // handler has context parameter
+                params.push(context)
+            } else if (func.handler.arguments.length > params.length + 1) {
+                reject(new Error("Handler has more parameters than provided arguments"))
+                return
+            }
+
+            const result = func.handler(params.push(context))
             try {
                 return await state.stream!.requests.send(
                     TransferRequest.create({
