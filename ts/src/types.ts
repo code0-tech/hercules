@@ -1,0 +1,130 @@
+import {FlowType, FlowTypeSetting_UniquenessScope} from "@code0-tech/tucana/pb/shared.flow_definition_pb.js";
+import { DefinitionDataType, DefinitionDataTypeRule } from "@code0-tech/tucana/pb/shared.data_type_pb.js";
+import { RuntimeFunctionDefinition } from "@code0-tech/tucana/pb/shared.runtime_function_pb.js";
+import { Value } from "@code0-tech/tucana/pb/shared.struct_pb.js";
+import { GrpcOptions, GrpcTransport } from "@protobuf-ts/grpc-transport";
+import { ActionTransferServiceClient } from "@code0-tech/tucana/pb/aquila.action_pb.client.js";
+import { DuplexStreamingCall } from "@protobuf-ts/runtime-rpc";
+import {
+    TransferRequest,
+    TransferResponse
+} from "@code0-tech/tucana/pb/aquila.action_pb.js";
+import {
+    ActionConfigurationDefinition, ActionProjectConfiguration
+} from "@code0-tech/tucana/pb/shared.action_configuration_pb";
+import {Translation} from "@code0-tech/tucana/pb/shared.translation_pb";
+import {PlainValue} from "@code0-tech/tucana/helpers/shared.struct_helper";
+
+export interface HerculesFunctionContext {
+    projectId: number | bigint,
+    executionId: string,
+    matchedConfigs: ActionProjectConfiguration[]
+}
+
+export interface HerculesDefinitionDataType {
+    identifier: string,
+    name?: Translation[],
+    displayMessage?: Translation[],
+    alias?: Translation[],
+    rules?: DefinitionDataTypeRule[],
+    genericKeys?: string[],
+    type: string,
+    linkedDataTypeIdentifiers?: string[],
+    // Will default to sdk version
+    version?: string
+}
+
+export interface HerculesFlowTypeSetting {
+    identifier: string,
+    unique?: FlowTypeSetting_UniquenessScope,
+    dataTypeIdentifier: string,
+    linkedDataTypeIdentifiers?: string[],
+    defaultValue?: PlainValue,
+    name?: Translation[],
+    description?: Translation[],
+}
+
+export interface HerculesFlowType {
+    identifier: string,
+    settings?: HerculesFlowTypeSetting[]
+    inputType?: string,
+    returnType?: string,
+    linkedDataTypeIdentifiers?: string[],
+    editable: boolean,
+    name?: Translation[],
+    description?: Translation[],
+    documentation?: Translation[],
+    displayMessage?: Translation[],
+    alias?: Translation[],
+    version?: string,
+    displayIcon?: string,
+}
+
+export interface HerculesRuntimeFunctionDefinition {
+    runtimeName: string,
+    parameters?: {
+        runtimeName: string,
+        defaultValue?: PlainValue,
+        name?: Translation[],
+        description?: Translation[],
+        documentation?: Translation[],
+    }[],
+    signature: string,
+    throwsError?: boolean,
+    name?: Translation[],
+    description?: Translation[],
+    documentation?: Translation[],
+    deprecationMessage?: Translation[],
+    displayMessage?: Translation[],
+    alias?: Translation[],
+    linkedDataTypeIdentifiers?: string[],
+    version?: string,
+    displayIcon?: string,
+}
+
+export interface HerculesActionConfigurationDefinition {
+    name?: Translation[],
+    description?: Translation[],
+    type: string,
+    linkedDataTypeIdentifiers?: string[],
+    defaultValue?: PlainValue,
+    identifier: string,
+}
+
+export interface ActionSdk {
+    config: {
+        authToken: string,
+        aquilaUrl: string,
+        actionId: string,
+        version: string,
+    },
+    fullyConnected: () => boolean, // indicates whether the SDK is fully connected and ready to send/receive messages. Becomes true after connect() resolves successfully
+    connect: (options?: GrpcOptions) => Promise<ActionProjectConfiguration[]>, // after registering the functions and events
+    onError: (handler: (error: Error) => void) => void,
+
+    getProjectActionConfigurations(): ActionProjectConfiguration[],
+
+    registerConfigDefinitions: (...actionConfigurations: Array<HerculesActionConfigurationDefinition>) => Promise<void>,
+    registerDataType: (dataType: HerculesDefinitionDataType) => Promise<void>,
+    registerFlowType: (flowType: HerculesFlowType) => Promise<void>,
+    registerFunctionDefinition: (functionDefinition: HerculesRuntimeFunctionDefinition, handler: Function) => Promise<void>,
+    dispatchEvent: (eventType: string, projectId: number | bigint, payload: PlainValue) => Promise<void>,
+}
+
+export interface RegisteredFunction {
+    identifier: string,
+    definition: RuntimeFunctionDefinition,
+    handler: Function
+}
+
+export interface SdkState {
+    functions: RegisteredFunction[],
+    dataTypes: DefinitionDataType[],
+    flowTypes: FlowType[],
+    configurationDefinitions: ActionConfigurationDefinition[],
+    projectConfigurations: ActionProjectConfiguration[],
+    transport: GrpcTransport,
+    client: ActionTransferServiceClient,
+    stream: DuplexStreamingCall<TransferRequest, TransferResponse> | undefined,
+    fullyConnected: boolean,
+}

@@ -17,7 +17,7 @@ GEM
       google-protobuf (>= 3.25, < 5.0)
       googleapis-common-protos-types (~> 1.0)
     rake (13.3.1)
-    tucana (0.0.56)
+    tucana (0.0.57)
       grpc (~> 1.64)
 
 PLATFORMS
@@ -26,7 +26,7 @@ PLATFORMS
 
 DEPENDENCIES
   grpc (~> 1.67)
-  tucana (= 0.0.56)
+  tucana (= 0.0.57)
 
 RUBY VERSION
    ruby 3.4.7p58
