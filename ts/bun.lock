@@ -5,7 +5,7 @@
     "": {
       "name": "ts",
       "dependencies": {
-        "@code0-tech/tucana": "^0.0.57",
+        "@code0-tech/tucana": "^0.0.58",
         "@grpc/grpc-js": "^1.14.3",
         "@protobuf-ts/grpc-transport": "^2.11.1",
         "@protobuf-ts/runtime": "^2.11.1",
@@ -21,7 +21,7 @@
     },
   },
   "packages": {
-    "@code0-tech/tucana": ["@code0-tech/tucana@0.0.57", "", {}, "sha512-E83SjcAWotN2uvQAmbIet4tsvSGOgwGeVOg9mTQ0KaU0R1VAKPp2or7mNsccEyo3KYnOMRoOt1bcAC4OMba8Sw=="],
+    "@code0-tech/tucana": ["@code0-tech/tucana@0.0.58", "", {}, "sha512-0kLzp/2y4aGiAW3SEwPnJXLhRIafuMEPa3f+sR7y/hb4JsSAn3/hMHAbtUee7axW8u4BCek7SX+Hyn68GP1CNQ=="],
 
     "@cspotcode/source-map-support": ["@cspotcode/source-map-support@0.8.1", "", { "dependencies": { "@jridgewell/trace-mapping": "0.3.9" } }, "sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw=="],
 

@@ -1,29 +1,28 @@
-import { GrpcTransport } from "@protobuf-ts/grpc-transport";
-import { ChannelCredentials } from "@grpc/grpc-js";
-import { ActionTransferServiceClient } from "@code0-tech/tucana/pb/aquila.action_pb.client.js";
-import { RpcOptions } from "@protobuf-ts/runtime-rpc";
+import {GrpcTransport} from "@protobuf-ts/grpc-transport";
+import {ChannelCredentials} from "@grpc/grpc-js";
+import {ActionTransferServiceClient} from "@code0-tech/tucana/pb/aquila.action_pb.client.js";
+import {RpcOptions} from "@protobuf-ts/runtime-rpc";
 import {
-    ActionConfiguration,
     ExecutionRequest,
     TransferRequest,
     TransferResponse
 } from "@code0-tech/tucana/pb/aquila.action_pb.js";
-import { constructValue, toAllowedValue } from "@code0-tech/tucana/helpers/shared.struct_helper.js";
+import {constructValue, toAllowedValue} from "@code0-tech/tucana/helpers/shared.struct_helper.js";
 import {
     ActionConfigurations,
     ActionProjectConfiguration
 } from "@code0-tech/tucana/pb/shared.action_configuration_pb";
-import { DataTypeServiceClient } from "@code0-tech/tucana/pb/aquila.data_type_pb.client";
-import { DataTypeUpdateRequest } from "@code0-tech/tucana/pb/aquila.data_type_pb";
-import { RuntimeFunctionDefinitionServiceClient } from "@code0-tech/tucana/pb/aquila.runtime_function_pb.client";
-import { RuntimeFunctionDefinitionUpdateRequest } from "@code0-tech/tucana/pb/aquila.runtime_function_pb";
-import { FlowTypeServiceClient } from "@code0-tech/tucana/pb/aquila.flow_type_pb.client";
-import { FlowTypeUpdateRequest } from "@code0-tech/tucana/pb/aquila.flow_type_pb";
-import { ActionSdk, HerculesFunctionContext, SdkState } from "./types";
-import { FlowTypeSetting_UniquenessScope } from "@code0-tech/tucana/pb/shared.flow_definition_pb";
+import {DataTypeServiceClient} from "@code0-tech/tucana/pb/aquila.data_type_pb.client";
+import {DataTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.data_type_pb";
+import {RuntimeFunctionDefinitionServiceClient} from "@code0-tech/tucana/pb/aquila.runtime_function_pb.client";
+import {RuntimeFunctionDefinitionUpdateRequest} from "@code0-tech/tucana/pb/aquila.runtime_function_pb";
+import {FlowTypeServiceClient} from "@code0-tech/tucana/pb/aquila.flow_type_pb.client";
+import {FlowTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.flow_type_pb";
+import {ActionSdk, HerculesActionConfigurationDefinition, HerculesFunctionContext, SdkState} from "./types";
+import {FlowTypeSetting, FlowTypeSetting_UniquenessScope} from "@code0-tech/tucana/pb/shared.flow_definition_pb";
 
 
-export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
+export const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActionConfigurationDefinition[]): ActionSdk => {
     const transport = new GrpcTransport(
         {
             host: config.aquilaUrl,
@@ -36,7 +35,16 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
         functions: [],
         dataTypes: [],
         flowTypes: [],
-        configurationDefinitions: [],
+        configurationDefinitions: configDefinitions?.map(value => {
+            return {
+                identifier: value.identifier,
+                name: value.name || [],
+                description: value.description || [],
+                type: value.type,
+                linkedDataTypeIdentifiers: value.linkedDataTypeIdentifiers || [],
+                defaultValue: constructValue(value.defaultValue || null),
+            }
+        }) || [],
         projectConfigurations: [],
         transport: transport,
         client: client,
@@ -79,7 +87,7 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
                 alias: dataType.alias || [],
                 rules: dataType.rules || [],
                 genericKeys: dataType.genericKeys || [],
-                signature: dataType.signature,
+                type: dataType.type,
                 linkedDataTypeIdentifiers: dataType.linkedDataTypeIdentifiers || [],
                 displayMessage: dataType.displayMessage || [],
                 definitionSource: "action",
@@ -100,17 +108,19 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
                 documentation: flowType.documentation || [],
                 definitionSource: "action",
                 version: flowType.version || config.version,
-                inputTypeIdentifier: flowType.inputTypeIdentifier,
-                returnTypeIdentifier: flowType.returnTypeIdentifier,
+                inputType: flowType.inputType || "",
+                returnType: flowType.returnType || "",
+                linkedDataTypeIdentifiers: flowType.linkedDataTypeIdentifiers || [],
                 settings: (flowType.settings || []).map(setting => ({
                     name: setting.name || [],
                     defaultValue: constructValue(setting.defaultValue || null),
                     identifier: setting.identifier,
                     description: setting.description || [],
                     unique: setting.unique || FlowTypeSetting_UniquenessScope.NONE,
-                    dataTypeIdentifier: setting.dataTypeIdentifier
-                })),
-                editable: flowType.editable || false,
+                    type: setting.dataTypeIdentifier,
+                    linkedDataTypeIdentifiers: setting.linkedDataTypeIdentifiers || [],
+                } as FlowTypeSetting)),
+                editable: flowType.editable || false
             });
             return Promise.resolve()
         },
@@ -129,7 +139,7 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
                     definitionSource: "action",
                     version: functionDefinition.version || config.version,
                     runtimeName: functionDefinition.runtimeName,
-                    runtimeParameterDefinitions: (functionDefinition.runtimeParameterDefinitions || []).map(param => ({
+                    runtimeParameterDefinitions: (functionDefinition.parameters || []).map(param => ({
                         runtimeName: param.runtimeName,
                         name: param.name || [],
                         description: param.description || [],
@@ -194,18 +204,17 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
     })
 
 
-
     await state.stream.requests.send(
         TransferRequest.create({
-            data: {
-                oneofKind: "logon",
-                logon: {
-                    actionIdentifier: config.actionId,
-                    version: config.version,
-                    actionConfigurations: state.configurationDefinitions
+                data: {
+                    oneofKind: "logon",
+                    logon: {
+                        actionIdentifier: config.actionId,
+                        version: config.version,
+                        actionConfigurations: state.configurationDefinitions
+                    }
                 }
             }
-        }
         ),
     ).catch(reason => {
         return Promise.reject(reason);
@@ -283,7 +292,7 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse): Pro
                 projectId: execution.projectId,
                 executionId: execution.executionIdentifier,
                 matchedConfigs: state.projectConfigurations.filter(config => {
-                    config.projectId === execution.projectId
+                    return config.projectId === execution.projectId
                 }) || [],
             }
 

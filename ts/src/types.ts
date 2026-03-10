@@ -9,11 +9,11 @@ import {
     TransferRequest,
     TransferResponse
 } from "@code0-tech/tucana/pb/aquila.action_pb.js";
-import { AllowedValue } from "@code0-tech/tucana/helpers/shared.struct_helper.js";
 import {
     ActionConfigurationDefinition, ActionProjectConfiguration
 } from "@code0-tech/tucana/pb/shared.action_configuration_pb";
 import {Translation} from "@code0-tech/tucana/pb/shared.translation_pb";
+import {PlainValue} from "@code0-tech/tucana/helpers/shared.struct_helper";
 
 export interface HerculesFunctionContext {
     projectId: number | bigint,
@@ -28,7 +28,7 @@ export interface HerculesDefinitionDataType {
     alias?: Translation[],
     rules?: DefinitionDataTypeRule[],
     genericKeys?: string[],
-    signature: string,
+    type: string,
     linkedDataTypeIdentifiers?: string[],
     // Will default to sdk version
     version?: string
@@ -38,7 +38,8 @@ export interface HerculesFlowTypeSetting {
     identifier: string,
     unique?: FlowTypeSetting_UniquenessScope,
     dataTypeIdentifier: string,
-    defaultValue?: Value,
+    linkedDataTypeIdentifiers?: string[],
+    defaultValue?: PlainValue,
     name?: Translation[],
     description?: Translation[],
 }
@@ -46,8 +47,9 @@ export interface HerculesFlowTypeSetting {
 export interface HerculesFlowType {
     identifier: string,
     settings?: HerculesFlowTypeSetting[]
-    inputTypeIdentifier?: string,
-    returnTypeIdentifier?: string,
+    inputType?: string,
+    returnType?: string,
+    linkedDataTypeIdentifiers?: string[],
     editable: boolean,
     name?: Translation[],
     description?: Translation[],
@@ -60,9 +62,9 @@ export interface HerculesFlowType {
 
 export interface HerculesRuntimeFunctionDefinition {
     runtimeName: string,
-    runtimeParameterDefinitions?: {
+    parameters?: {
         runtimeName: string,
-        defaultValue?: AllowedValue,
+        defaultValue?: PlainValue,
         name?: Translation[],
         description?: Translation[],
         documentation?: Translation[],
@@ -85,7 +87,7 @@ export interface HerculesActionConfigurationDefinition {
     description?: Translation[],
     type: string,
     linkedDataTypeIdentifiers?: string[],
-    defaultValue?: AllowedValue,
+    defaultValue?: PlainValue,
     identifier: string,
 }
 
@@ -106,7 +108,7 @@ export interface ActionSdk {
     registerDataType: (dataType: HerculesDefinitionDataType) => Promise<void>,
     registerFlowType: (flowType: HerculesFlowType) => Promise<void>,
     registerFunctionDefinition: (functionDefinition: HerculesRuntimeFunctionDefinition, handler: Function) => Promise<void>,
-    dispatchEvent: (eventType: string, projectId: number | bigint, payload: AllowedValue) => Promise<void>,
+    dispatchEvent: (eventType: string, projectId: number | bigint, payload: PlainValue) => Promise<void>,
 }
 
 export interface RegisteredFunction {

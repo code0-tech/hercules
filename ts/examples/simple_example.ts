@@ -1,31 +1,31 @@
-import { createSdk } from "../src/action_sdk.js";
-import { constructValue } from "@code0-tech/tucana/helpers/shared.struct_helper.js";
-import { ActionProjectConfiguration } from "@code0-tech/tucana/pb/shared.action_configuration_pb.js";
-import { HerculesFunctionContext } from "../src/types.js";
+import {createSdk} from "../src/action_sdk.js";
+import {constructValue} from "@code0-tech/tucana/helpers/shared.struct_helper.js";
+import {ActionProjectConfiguration} from "@code0-tech/tucana/pb/shared.action_configuration_pb.js";
+import {HerculesFunctionContext} from "../src/types.js";
 
 const sdk = createSdk({
     authToken: "someToken",
     aquilaUrl: "127.0.0.1:50051",
     actionId: "action_123",
     version: "0.0.0",
-})
-
-sdk.registerConfigDefinitions({
-    type: "LIST<STRING>",
-    linkedDataTypeIdentifiers: ["STRING", "LIST"],
-    identifier: "config_discord_bot_token",
-})
+}, [
+    {
+        type: "LIST<STRING>",
+        linkedDataTypeIdentifiers: ["STRING", "LIST"],
+        identifier: "config_discord_bot_token",
+    }
+])
 
 sdk.registerDataType({
     identifier: "SOME_DATATYPE",
-    signature: "any",
+    type: "any",
 })
 
 sdk.registerFunctionDefinition(
     {
         signature: "(n: NUMBER) => NUMBER",
         linkedDataTypeIdentifiers: ["NUMBER"],
-        runtimeParameterDefinitions: [
+        parameters: [
             {
                 runtimeName: "n",
                 defaultValue: 20,
@@ -44,6 +44,7 @@ sdk.registerFunctionDefinition(
             if (num <= 1) return num;
             return fibonacci(num - 1) + fibonacci(num - 2);
         }
+
         return fibonacci(n)
     }
 )
@@ -51,7 +52,7 @@ sdk.registerFunctionDefinition(
 sdk.registerFlowType(
     {
         editable: false,
-        inputTypeIdentifier: "STRING",
+        inputType: "STRING",
         identifier: "test_flow",
     }
 )

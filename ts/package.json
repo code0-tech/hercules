@@ -21,7 +21,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "@code0-tech/tucana": "^0.0.57",
+    "@code0-tech/tucana": "^0.0.58",
     "@grpc/grpc-js": "^1.14.3",
     "@protobuf-ts/grpc-transport": "^2.11.1",
     "@protobuf-ts/runtime": "^2.11.1",
