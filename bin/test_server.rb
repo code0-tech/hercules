@@ -93,7 +93,8 @@ class ActionTransferService < Tucana::Aquila::ActionTransferService::Service
   end
 
   def transfer(requests, call)
-    puts "Got Auth token: #{call.metadata['authorization']}"
+    token = call.metadata['authorization']
+    puts "Got Auth token: #{token}"
     Enumerator.new do |yielder|
       Thread.new do
         loop do
@@ -133,6 +134,7 @@ class ActionTransferService < Tucana::Aquila::ActionTransferService::Service
             yielder << Tucana::Aquila::TransferResponse.new(
               {
                 execution: Tucana::Aquila::ExecutionRequest.new(
+                  project_id: Random.rand(1..1000),
                   execution_identifier: exec_identifier,
                   function_identifier: func.runtime_name,
                   parameters: construct_parameters(func)
@@ -156,12 +158,12 @@ class ActionTransferService < Tucana::Aquila::ActionTransferService::Service
           puts "Project id: #{req.event.project_id}"
           next
         end
-
         next if req.logon.nil?
 
         logon = req.logon
 
         @state.add_action_config_definition({
+                                              auth_token: token,
                                               action_identifier: logon.action_identifier,
                                               version: logon.version,
                                               config_definitions: logon.action_configurations,
