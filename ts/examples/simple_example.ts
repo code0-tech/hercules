@@ -1,7 +1,8 @@
-import {createSdk} from "../src/action_sdk.js";
+import {createSdk, HerculesActionProjectConfiguration, RuntimeErrorException} from "../src/action_sdk.js";
 import {constructValue} from "@code0-tech/tucana/helpers/shared.struct_helper.js";
 import {ActionProjectConfiguration} from "@code0-tech/tucana/pb/shared.action_configuration_pb.js";
 import {HerculesFunctionContext} from "../src/types.js";
+import {PlainValue} from "@code0-tech/tucana/helpers/shared.struct_helper";
 
 const sdk = createSdk({
     authToken: "someToken",
@@ -38,14 +39,15 @@ sdk.registerFunctionDefinition(
         console.log(context)
         console.log("Project id:", context.projectId);
         console.log("Execution id:", context.executionId);
-        console.log("Matched configs:", context.matchedConfigs); // matched configs for the current execution
+        console.log("Matched configs:", context.matchedConfig); // matched configs for the current execution
 
         function fibonacci(num: number): number {
             if (num <= 1) return num;
             return fibonacci(num - 1) + fibonacci(num - 2);
         }
 
-        return fibonacci(n)
+        throw new RuntimeErrorException("An error occurred during Fibonacci calculation");
+
     }
 )
 
@@ -61,7 +63,7 @@ sdk.registerFlowType(
 connectToSdk();
 
 function connectToSdk() {
-    sdk.connect().then((configs: ActionProjectConfiguration[]) => {
+    sdk.connect().then((configs: HerculesActionProjectConfiguration[]) => {
         console.log("SDK connected successfully");
         sdk.dispatchEvent("test_flow", configs[0].projectId, constructValue("Hello, World! Configs loaded: " + configs.length)).then(() => {
             console.log("Event dispatched successfully");

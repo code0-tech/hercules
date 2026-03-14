@@ -1,9 +1,9 @@
 import {FlowType, FlowTypeSetting_UniquenessScope} from "@code0-tech/tucana/pb/shared.flow_definition_pb.js";
-import { DefinitionDataType, DefinitionDataTypeRule } from "@code0-tech/tucana/pb/shared.data_type_pb.js";
-import { RuntimeFunctionDefinition } from "@code0-tech/tucana/pb/shared.runtime_function_pb.js";
-import { GrpcOptions, GrpcTransport } from "@protobuf-ts/grpc-transport";
-import { ActionTransferServiceClient } from "@code0-tech/tucana/pb/aquila.action_pb.client.js";
-import { DuplexStreamingCall } from "@protobuf-ts/runtime-rpc";
+import {DefinitionDataType, DefinitionDataTypeRule} from "@code0-tech/tucana/pb/shared.data_type_pb.js";
+import {RuntimeFunctionDefinition} from "@code0-tech/tucana/pb/shared.runtime_function_pb.js";
+import {GrpcOptions, GrpcTransport} from "@protobuf-ts/grpc-transport";
+import {ActionTransferServiceClient} from "@code0-tech/tucana/pb/aquila.action_pb.client.js";
+import {DuplexStreamingCall} from "@protobuf-ts/runtime-rpc";
 import {
     TransferRequest,
     TransferResponse
@@ -17,7 +17,7 @@ import {PlainValue} from "@code0-tech/tucana/helpers/shared.struct_helper";
 export interface HerculesFunctionContext {
     projectId: number | bigint,
     executionId: string,
-    matchedConfigs: ActionProjectConfiguration[]
+    matchedConfig: HerculesActionProjectConfiguration
 }
 
 export interface HerculesDefinitionDataType {
@@ -81,6 +81,15 @@ export interface HerculesRuntimeFunctionDefinition {
     displayIcon?: string,
 }
 
+export interface HerculesActionProjectConfiguration {
+    projectId: number | bigint,
+    configValues: {
+        identifier: string,
+        value: PlainValue
+    }[],
+    findConfig: (identifier: string) => PlainValue | undefined
+}
+
 export interface HerculesActionConfigurationDefinition {
     name?: Translation[],
     description?: Translation[],
@@ -98,22 +107,32 @@ export interface ActionSdk {
         version: string,
     },
     fullyConnected: () => boolean, // indicates whether the SDK is fully connected and ready to send/receive messages. Becomes true after connect() resolves successfully
-    connect: (options?: GrpcOptions) => Promise<ActionProjectConfiguration[]>, // after registering the functions and events
+    connect: (options?: GrpcOptions) => Promise<HerculesActionProjectConfiguration[]>, // after registering the functions and events
     onError: (handler: (error: Error) => void) => void,
 
-    getProjectActionConfigurations(): ActionProjectConfiguration[],
+    getProjectActionConfigurations(): HerculesActionProjectConfiguration[],
 
     registerConfigDefinitions: (...actionConfigurations: Array<HerculesActionConfigurationDefinition>) => Promise<void>,
-    registerDataType: (dataType: HerculesDefinitionDataType) => Promise<void>,
+    registerDataType: (...dataType: Array<HerculesDefinitionDataType>) => Promise<void>,
     registerFlowType: (flowType: HerculesFlowType) => Promise<void>,
-    registerFunctionDefinition: (functionDefinition: HerculesRuntimeFunctionDefinition, handler: Function) => Promise<void>,
+    registerFunctionDefinition: (functionDefinition: HerculesRuntimeFunctionDefinition, handler: (...args: any[]) => PlainValue | Promise<PlainValue>) => Promise<void>,
     dispatchEvent: (eventType: string, projectId: number | bigint, payload: PlainValue) => Promise<void>,
+}
+
+export class RuntimeErrorException extends Error {
+    details?: string[];
+
+    constructor(message: string, details?: string[]) {
+        super(message);
+        this.name = "RuntimeErrorException";
+        this.details = details;
+    }
 }
 
 export interface RegisteredFunction {
     identifier: string,
     definition: RuntimeFunctionDefinition,
-    handler: Function
+    handler: (...args: any[]) => Promise<PlainValue> | PlainValue,
 }
 
 export interface SdkState {

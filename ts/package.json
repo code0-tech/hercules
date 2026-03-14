@@ -7,8 +7,9 @@
   "types": "./dist/action_sdk.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/action_sdk.d.ts",
       "import": "./dist/action_sdk.js",
-      "types": "./dist/action_sdk.d.ts"
+      "default": "./dist/action_sdk.js"
     }
   },
   "files": [
@@ -29,10 +30,10 @@
     "@grpc/grpc-js": "^1.14.3",
     "@protobuf-ts/grpc-transport": "^2.11.1",
     "@protobuf-ts/runtime": "^2.11.1",
-    "@protobuf-ts/runtime-rpc": "^2.11.1"
+    "@protobuf-ts/runtime-rpc": "^2.11.1",
+    "@protobuf-ts/grpc-backend": "^2.11.1"
   },
   "devDependencies": {
-    "@protobuf-ts/grpc-backend": "^2.11.1",
     "@types/node": "^25.0.10",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
