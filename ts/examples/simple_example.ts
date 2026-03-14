@@ -12,7 +12,7 @@ const sdk = createSdk({
 }, [
     {
         type: "LIST<STRING>",
-        linkedDataTypeIdentifiers: ["STRING", "LIST"],
+        linkedDataTypes: ["STRING", "LIST"],
         identifier: "config_discord_bot_token",
     }
 ])
@@ -25,7 +25,7 @@ sdk.registerDataType({
 sdk.registerFunctionDefinition(
     {
         signature: "(n: NUMBER) => NUMBER",
-        linkedDataTypeIdentifiers: ["NUMBER"],
+        linkedDataTypes: ["NUMBER"],
         parameters: [
             {
                 runtimeName: "n",

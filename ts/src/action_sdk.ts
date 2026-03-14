@@ -44,7 +44,7 @@ export const createSdk = (config: ActionSdk["config"], configDefinitions?: Hercu
                 name: value.name || [],
                 description: value.description || [],
                 type: value.type,
-                linkedDataTypeIdentifiers: value.linkedDataTypeIdentifiers || [],
+                linkedDataTypeIdentifiers: value.linkedDataTypes || [],
                 defaultValue: constructValue(value.defaultValue || null),
             }
         }) || [],
@@ -90,7 +90,7 @@ export const createSdk = (config: ActionSdk["config"], configDefinitions?: Hercu
                     name: value.name || [],
                     description: value.description || [],
                     type: value.type,
-                    linkedDataTypeIdentifiers: value.linkedDataTypeIdentifiers || [],
+                    linkedDataTypeIdentifiers: value.linkedDataTypes || [],
                     defaultValue: constructValue(value.defaultValue || null),
                 }
             }) || []))
@@ -106,7 +106,7 @@ export const createSdk = (config: ActionSdk["config"], configDefinitions?: Hercu
                     rules: dataType.rules || [],
                     genericKeys: dataType.genericKeys || [],
                     type: dataType.type,
-                    linkedDataTypeIdentifiers: dataType.linkedDataTypeIdentifiers || [],
+                    linkedDataTypeIdentifiers: dataType.linkedDataTypes || [],
                     displayMessage: dataType.displayMessage || [],
                     definitionSource: "action",
                     version: dataType.version || config.version,
@@ -129,14 +129,14 @@ export const createSdk = (config: ActionSdk["config"], configDefinitions?: Hercu
                 version: flowType.version || config.version,
                 inputType: flowType.inputType || "",
                 returnType: flowType.returnType || "",
-                linkedDataTypeIdentifiers: flowType.linkedDataTypeIdentifiers || [],
+                linkedDataTypeIdentifiers: flowType.linkedDataTypes || [],
                 settings: (flowType.settings || []).map(setting => ({
                     name: setting.name || [],
                     defaultValue: constructValue(setting.defaultValue || null),
                     identifier: setting.identifier,
                     description: setting.description || [],
                     unique: setting.unique || FlowTypeSetting_UniquenessScope.NONE,
-                    type: setting.dataTypeIdentifier,
+                    type: setting.type,
                     linkedDataTypeIdentifiers: setting.linkedDataTypeIdentifiers || [],
                 } as FlowTypeSetting)),
                 editable: flowType.editable || false
@@ -154,7 +154,7 @@ export const createSdk = (config: ActionSdk["config"], configDefinitions?: Hercu
                     deprecationMessage: functionDefinition.deprecationMessage || [],
                     displayIcon: functionDefinition.displayIcon || "",
                     alias: functionDefinition.alias || [],
-                    linkedDataTypeIdentifiers: functionDefinition.linkedDataTypeIdentifiers || [],
+                    linkedDataTypeIdentifiers: functionDefinition.linkedDataTypes || [],
                     definitionSource: "action",
                     version: functionDefinition.version || config.version,
                     runtimeName: functionDefinition.runtimeName,

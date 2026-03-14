@@ -20,7 +20,7 @@ export interface HerculesFunctionContext {
     matchedConfig: HerculesActionProjectConfiguration
 }
 
-export interface HerculesDefinitionDataType {
+export interface HerculesDataType {
     identifier: string,
     name?: Translation[],
     displayMessage?: Translation[],
@@ -28,7 +28,7 @@ export interface HerculesDefinitionDataType {
     rules?: DefinitionDataTypeRule[],
     genericKeys?: string[],
     type: string,
-    linkedDataTypeIdentifiers?: string[],
+    linkedDataTypes?: string[],
     // Will default to sdk version
     version?: string
 }
@@ -36,7 +36,7 @@ export interface HerculesDefinitionDataType {
 export interface HerculesFlowTypeSetting {
     identifier: string,
     unique?: FlowTypeSetting_UniquenessScope,
-    dataTypeIdentifier: string,
+    type: string,
     linkedDataTypeIdentifiers?: string[],
     defaultValue?: PlainValue,
     name?: Translation[],
@@ -48,7 +48,7 @@ export interface HerculesFlowType {
     settings?: HerculesFlowTypeSetting[]
     inputType?: string,
     returnType?: string,
-    linkedDataTypeIdentifiers?: string[],
+    linkedDataTypes?: string[],
     editable: boolean,
     name?: Translation[],
     description?: Translation[],
@@ -76,7 +76,7 @@ export interface HerculesRuntimeFunctionDefinition {
     deprecationMessage?: Translation[],
     displayMessage?: Translation[],
     alias?: Translation[],
-    linkedDataTypeIdentifiers?: string[],
+    linkedDataTypes?: string[],
     version?: string,
     displayIcon?: string,
 }
@@ -94,7 +94,7 @@ export interface HerculesActionConfigurationDefinition {
     name?: Translation[],
     description?: Translation[],
     type: string,
-    linkedDataTypeIdentifiers?: string[],
+    linkedDataTypes?: string[],
     defaultValue?: PlainValue,
     identifier: string,
 }
@@ -113,7 +113,7 @@ export interface ActionSdk {
     getProjectActionConfigurations(): HerculesActionProjectConfiguration[],
 
     registerConfigDefinitions: (...actionConfigurations: Array<HerculesActionConfigurationDefinition>) => Promise<void>,
-    registerDataType: (...dataType: Array<HerculesDefinitionDataType>) => Promise<void>,
+    registerDataType: (...dataType: Array<HerculesDataType>) => Promise<void>,
     registerFlowType: (flowType: HerculesFlowType) => Promise<void>,
     registerFunctionDefinition: (functionDefinition: HerculesRuntimeFunctionDefinition, handler: (...args: any[]) => PlainValue | Promise<PlainValue>) => Promise<void>,
     dispatchEvent: (eventType: string, projectId: number | bigint, payload: PlainValue) => Promise<void>,
