@@ -97,7 +97,7 @@ export const createSdk = (config: ActionSdk["config"], configDefinitions?: Hercu
 
             return Promise.resolve()
         },
-        registerDataType: async (...dataTypes) => {
+        registerDataTypes: async (...dataTypes) => {
             dataTypes.forEach(dataType => {
                 state.dataTypes.push({
                     identifier: dataType.identifier,
@@ -116,60 +116,64 @@ export const createSdk = (config: ActionSdk["config"], configDefinitions?: Hercu
 
             return Promise.resolve()
         },
-        registerFlowType: async (flowType) => {
-            state.flowTypes.push({
-                identifier: flowType.identifier,
-                name: flowType.name || [],
-                alias: flowType.alias || [],
-                description: flowType.description || [],
-                displayIcon: flowType.displayIcon || "",
-                displayMessage: flowType.displayMessage || [],
-                documentation: flowType.documentation || [],
-                definitionSource: "action",
-                version: flowType.version || config.version,
-                inputType: flowType.inputType || "",
-                returnType: flowType.returnType || "",
-                linkedDataTypeIdentifiers: flowType.linkedDataTypes || [],
-                settings: (flowType.settings || []).map(setting => ({
-                    name: setting.name || [],
-                    defaultValue: constructValue(setting.defaultValue || null),
-                    identifier: setting.identifier,
-                    description: setting.description || [],
-                    unique: setting.unique || FlowTypeSetting_UniquenessScope.NONE,
-                    type: setting.type,
-                    linkedDataTypeIdentifiers: setting.linkedDataTypeIdentifiers || [],
-                } as FlowTypeSetting)),
-                editable: flowType.editable || false
-            });
+        registerFlowTypes: async (...flowTypes) => {
+            flowTypes.forEach(flowType => {
+                state.flowTypes.push({
+                    identifier: flowType.identifier,
+                    name: flowType.name || [],
+                    alias: flowType.alias || [],
+                    description: flowType.description || [],
+                    displayIcon: flowType.displayIcon || "",
+                    displayMessage: flowType.displayMessage || [],
+                    documentation: flowType.documentation || [],
+                    definitionSource: "action",
+                    version: flowType.version || config.version,
+                    inputType: flowType.inputType || "",
+                    returnType: flowType.returnType || "",
+                    linkedDataTypeIdentifiers: flowType.linkedDataTypes || [],
+                    settings: (flowType.settings || []).map(setting => ({
+                        name: setting.name || [],
+                        defaultValue: constructValue(setting.defaultValue || null),
+                        identifier: setting.identifier,
+                        description: setting.description || [],
+                        unique: setting.unique || FlowTypeSetting_UniquenessScope.NONE,
+                        type: setting.type,
+                        linkedDataTypeIdentifiers: setting.linkedDataTypeIdentifiers || [],
+                    } as FlowTypeSetting)),
+                    editable: flowType.editable || false
+                });
+            })
             return Promise.resolve()
         },
-        registerFunctionDefinition: async (functionDefinition, handler) => {
-            state.functions.push({
-                identifier: functionDefinition.runtimeName,
-                definition: {
-                    displayMessage: functionDefinition.displayMessage || [],
-                    name: functionDefinition.name || [],
-                    documentation: functionDefinition.documentation || [],
-                    description: functionDefinition.description || [],
-                    deprecationMessage: functionDefinition.deprecationMessage || [],
-                    displayIcon: functionDefinition.displayIcon || "",
-                    alias: functionDefinition.alias || [],
-                    linkedDataTypeIdentifiers: functionDefinition.linkedDataTypes || [],
-                    definitionSource: "action",
-                    version: functionDefinition.version || config.version,
-                    runtimeName: functionDefinition.runtimeName,
-                    runtimeParameterDefinitions: (functionDefinition.parameters || []).map(param => ({
-                        runtimeName: param.runtimeName,
-                        name: param.name || [],
-                        description: param.description || [],
-                        documentation: param.documentation || [],
-                        defaultValue: constructValue(param.defaultValue || null),
-                    })),
-                    signature: functionDefinition.signature,
-                    throwsError: functionDefinition.throwsError || false,
-                },
-                handler: handler,
-            });
+        registerFunctionDefinitions: async (...functionDefinitions) => {
+            for (const [functionDefinition, handler] of functionDefinitions) {
+                state.functions.push({
+                    identifier: functionDefinition.runtimeName,
+                    definition: {
+                        displayMessage: functionDefinition.displayMessage || [],
+                        name: functionDefinition.name || [],
+                        documentation: functionDefinition.documentation || [],
+                        description: functionDefinition.description || [],
+                        deprecationMessage: functionDefinition.deprecationMessage || [],
+                        displayIcon: functionDefinition.displayIcon || "",
+                        alias: functionDefinition.alias || [],
+                        linkedDataTypeIdentifiers: functionDefinition.linkedDataTypes || [],
+                        definitionSource: "action",
+                        version: functionDefinition.version || config.version,
+                        runtimeName: functionDefinition.runtimeName,
+                        runtimeParameterDefinitions: (functionDefinition.parameters || []).map(param => ({
+                            runtimeName: param.runtimeName,
+                            name: param.name || [],
+                            description: param.description || [],
+                            documentation: param.documentation || [],
+                            defaultValue: constructValue(param.defaultValue || null),
+                        })),
+                        signature: functionDefinition.signature,
+                        throwsError: functionDefinition.throwsError || false,
+                    },
+                    handler: handler,
+                });
+            }
             return Promise.resolve()
         },
         dispatchEvent: async (eventType, projectId, payload) => {

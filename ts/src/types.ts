@@ -113,9 +113,9 @@ export interface ActionSdk {
     getProjectActionConfigurations(): HerculesActionProjectConfiguration[],
 
     registerConfigDefinitions: (...actionConfigurations: Array<HerculesActionConfigurationDefinition>) => Promise<void>,
-    registerDataType: (...dataType: Array<HerculesDataType>) => Promise<void>,
-    registerFlowType: (flowType: HerculesFlowType) => Promise<void>,
-    registerFunctionDefinition: (functionDefinition: HerculesRuntimeFunctionDefinition, handler: (...args: any[]) => PlainValue | Promise<PlainValue>) => Promise<void>,
+    registerDataTypes: (...dataType: Array<HerculesDataType>) => Promise<void>,
+    registerFlowTypes: (...flowTypes: Array<HerculesFlowType>) => Promise<void>,
+    registerFunctionDefinitions: (...functionDefinitions: Array<[HerculesRuntimeFunctionDefinition, (...args: any[]) => PlainValue | Promise<PlainValue>]>) => Promise<void>,
     dispatchEvent: (eventType: string, projectId: number | bigint, payload: PlainValue) => Promise<void>,
 }
 
