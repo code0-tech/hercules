@@ -26,12 +26,12 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "@code0-tech/tucana": "^0.0.58",
+    "@code0-tech/tucana": "0.0.59",
     "@grpc/grpc-js": "^1.14.3",
+    "@protobuf-ts/grpc-backend": "^2.11.1",
     "@protobuf-ts/grpc-transport": "^2.11.1",
     "@protobuf-ts/runtime": "^2.11.1",
-    "@protobuf-ts/runtime-rpc": "^2.11.1",
-    "@protobuf-ts/grpc-backend": "^2.11.1"
+    "@protobuf-ts/runtime-rpc": "^2.11.1"
   },
   "devDependencies": {
     "@types/node": "^25.0.10",

@@ -120,12 +120,14 @@ export interface ActionSdk {
 }
 
 export class RuntimeErrorException extends Error {
-    details?: string[];
+    code: string
+    description?: string
 
-    constructor(message: string, details?: string[]) {
-        super(message);
+    constructor(code: string, description?: string) {
+        super(`Runtime error with code ${code} occurred. ${description ? `Description: ${description}` : ""}`);
         this.name = "RuntimeErrorException";
-        this.details = details;
+        this.code = code;
+        this.description = description
     }
 }
 

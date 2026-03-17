@@ -313,9 +313,12 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse) {
     const execution = message.data.execution as ExecutionRequest;
     const func = state.functions.find(value => value.identifier == execution.functionIdentifier);
     if (func) {
-        const params = Object.values(execution!.parameters!.fields!).map(value => {
-            return toAllowedValue(value)
-        })
+        const params = Object.entries(execution.parameters!.fields!).map(([key, value]) => {
+            const param = func.definition.runtimeParameterDefinitions
+                .find(p => p.runtimeName === key);
+
+            return param ? toAllowedValue(value) : undefined;
+        });
         const conf = state.projectConfigurations.find(config => {
             return true
         })
@@ -344,7 +347,7 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse) {
 
         if (func.handler.length == params.length + 1) {
             // handler has context parameter
-            params.push(context)
+            params.unshift(context)
         } else if (func.handler.length > params.length + 1) {
             console.error("Handler has more parameters than provided arguments. This may lead to unexpected behavior.")
             return;
@@ -364,7 +367,10 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse) {
                         oneofKind: "result",
                         result: {
                             executionIdentifier: execution.executionIdentifier,
-                            result: constructValue(value),
+                            result: {
+                                oneofKind: "success",
+                                success: constructValue(value)
+                            },
                         }
                     }
                 })
@@ -373,8 +379,26 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse) {
             });
         }).catch(reason => {
             if (reason instanceof RuntimeErrorException) {
-                // Error handling not implemented yet
-                console.log(reason.message)
+                state.stream!.requests.send(
+                    TransferRequest.create({
+                        data: {
+                            oneofKind: "result",
+                            result: {
+                                executionIdentifier: execution.executionIdentifier,
+                                result: {
+                                    oneofKind: "error",
+                                    error: {
+                                        code: reason.code,
+                                        description: reason.description
+                                    }
+                                },
+                            }
+                        }
+                    })
+                ).catch(reason => {
+                    console.error(`Failed to send execution result for execution ${execution.executionIdentifier}:`, reason);
+                });
+
             } else {
                 console.error(`Error executing function ${func?.identifier} for execution ${execution.executionIdentifier}:`, reason);
             }

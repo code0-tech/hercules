@@ -34,8 +34,8 @@ sdk.registerFunctionDefinition(
         ],
         runtimeName: "fib",
     },
-    //          This param is optional and can be omitted 
-    (n: number, context: HerculesFunctionContext): number => {
+    //This param is optional and can be omitted
+    (context: HerculesFunctionContext, n: number): number => {
         console.log(context)
         console.log("Project id:", context.projectId);
         console.log("Execution id:", context.executionId);
@@ -46,7 +46,7 @@ sdk.registerFunctionDefinition(
             return fibonacci(num - 1) + fibonacci(num - 2);
         }
 
-        throw new RuntimeErrorException("An error occurred during Fibonacci calculation");
+        throw new RuntimeErrorException("ERROR_CALCULATING_FIB", "An error occurred while calculating the Fibonacci number.");
 
     }
 )
