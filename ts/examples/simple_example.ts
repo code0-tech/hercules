@@ -1,6 +1,6 @@
-import {createSdk, HerculesActionProjectConfiguration, RuntimeErrorException} from "../src/action_sdk";
-import {constructValue} from "@code0-tech/tucana/shared";
-import {HerculesFunctionContext} from "../src/types";
+import {createSdk, HerculesActionProjectConfiguration, RuntimeErrorException} from "../src";
+import {HerculesFunctionContext} from "../src";
+import {constructValue} from "@code0-tech/tucana/helpers";
 
 const sdk = createSdk({
     authToken: "someToken",

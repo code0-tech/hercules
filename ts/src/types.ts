@@ -5,10 +5,11 @@ import {
     DefinitionDataType,
     DefinitionDataTypeRule, FlowType,
     FlowTypeSetting_UniquenessScope,
-    PlainValue, RuntimeFunctionDefinition,
+    RuntimeFunctionDefinition,
     Translation
 } from "@code0-tech/tucana/shared";
 import {ActionTransferServiceClient, TransferRequest, TransferResponse} from "@code0-tech/tucana/aquila";
+import {PlainValue} from "@code0-tech/tucana/helpers";
 export interface HerculesFunctionContext {
     projectId: number | bigint,
     executionId: string,

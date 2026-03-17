@@ -1,4 +1,6 @@
-export * from "./types";
+import {constructValue, toAllowedValue} from "@code0-tech/tucana/helpers";
+
+export * from "./types.js";
 export * from "@code0-tech/tucana/shared";
 export * from "@code0-tech/tucana/aquila";
 import {GrpcTransport} from "@protobuf-ts/grpc-transport";
@@ -7,7 +9,7 @@ import {RpcOptions} from "@protobuf-ts/runtime-rpc";
 import {
     ActionSdk, HerculesActionConfigurationDefinition,
     HerculesActionProjectConfiguration, HerculesFunctionContext, SdkState, RuntimeErrorException
-} from "./types";
+} from "./types.js";
 import {
     ActionTransferServiceClient,
     DataTypeServiceClient,
@@ -20,8 +22,6 @@ import {
     ActionConfigurations,
     FlowTypeSetting,
     FlowTypeSetting_UniquenessScope,
-    toAllowedValue,
-    constructValue, PlainValue
 } from "@code0-tech/tucana/shared";
 
 export const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActionConfigurationDefinition[]): ActionSdk => {
