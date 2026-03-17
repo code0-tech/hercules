@@ -1,64 +1,34 @@
-import {FlowType} from "@code0-tech/tucana/pb/shared.flow_definition_pb.js";
-import {DefinitionDataType} from "@code0-tech/tucana/pb/shared.data_type_pb.js";
-import {RuntimeFunctionDefinition} from "@code0-tech/tucana/pb/shared.runtime_function_pb.js";
-import {Struct, Value} from "@code0-tech/tucana/pb/shared.struct_pb.js";
-import {GrpcOptions, GrpcTransport} from "@protobuf-ts/grpc-transport";
+import {GrpcTransport} from "@protobuf-ts/grpc-transport";
 import {ChannelCredentials} from "@grpc/grpc-js";
 import {ActionTransferServiceClient} from "@code0-tech/tucana/pb/aquila.action_pb.client.js";
-import {DuplexStreamingCall, RpcOptions} from "@protobuf-ts/runtime-rpc";
-import {ExecutionRequest, TransferRequest, TransferResponse} from "@code0-tech/tucana/pb/aquila.action_pb.js";
-import {constructValue} from "@code0-tech/tucana/helpers/shared.struct_helper.js";
+import {RpcOptions} from "@protobuf-ts/runtime-rpc";
 import {
-    ActionConfigurationDefinition, ActionConfigurations,
-    ActionProjectConfiguration
-} from "@code0-tech/tucana/pb/shared.action_configuration_pb";
-import {DataTypeServiceClient} from "@code0-tech/tucana/pb/aquila.data_type_pb.client";
-import {DataTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.data_type_pb";
-import {RuntimeFunctionDefinitionServiceClient} from "@code0-tech/tucana/pb/aquila.runtime_function_pb.client";
-import {RuntimeFunctionDefinitionUpdateRequest} from "@code0-tech/tucana/pb/aquila.runtime_function_pb";
-import {FlowTypeServiceClient} from "@code0-tech/tucana/pb/aquila.flow_type_pb.client";
-import {FlowTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.flow_type_pb";
+    ExecutionRequest,
+    TransferRequest,
+    TransferResponse
+} from "@code0-tech/tucana/pb/aquila.action_pb.js";
+import {constructValue, toAllowedValue} from "@code0-tech/tucana/helpers/shared.struct_helper.js";
+import {
+    ActionConfigurations
+} from "@code0-tech/tucana/pb/shared.action_configuration_pb.js";
+import {DataTypeServiceClient} from "@code0-tech/tucana/pb/aquila.data_type_pb.client.js";
+import {DataTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.data_type_pb.js";
+import {RuntimeFunctionDefinitionServiceClient} from "@code0-tech/tucana/pb/aquila.runtime_function_pb.client.js";
+import {RuntimeFunctionDefinitionUpdateRequest} from "@code0-tech/tucana/pb/aquila.runtime_function_pb.js";
+import {FlowTypeServiceClient} from "@code0-tech/tucana/pb/aquila.flow_type_pb.client.js";
+import {FlowTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.flow_type_pb.js";
+import {
+    ActionSdk, HerculesActionConfigurationDefinition,
+    HerculesActionProjectConfiguration, HerculesFunctionContext, SdkState, RuntimeErrorException
+} from "./types";
+import {FlowTypeSetting, FlowTypeSetting_UniquenessScope} from "@code0-tech/tucana/pb/shared.flow_definition_pb";
+import {PlainValue} from "@code0-tech/tucana/helpers/shared.struct_helper";
 
-type ActionSdk = {
-    config: {
-        token: string,
-        actionUrl: string,
-        actionId: string,
-        version: string,
-    },
-    fullyConnected: () => boolean, // indicates whether the SDK is fully connected and ready to send/receive messages. Becomes true after connect() resolves successfully
-    connect: (options?: GrpcOptions) => Promise<ActionProjectConfiguration[]>, // after registering the functions and events
-    onError: (handler: (error: Error) => void) => void,
-    getProjectActionConfigurations(): ActionProjectConfiguration[],
-    registerConfigDefinitions: (...actionConfigurations: ActionConfigurationDefinition[]) => Promise<void>,
-    registerDataType: (dataType: Omit<DefinitionDataType, "actionIdentifier">) => Promise<void>,
-    registerFlowType: (flowType: Omit<FlowType, "actionIdentifier">) => Promise<void>,
-    registerFunctionDefinition: (functionDefinition: Omit<RuntimeFunctionDefinition, "actionIdentifier">, handler: (parameters: Struct) => Promise<Value | void | null | undefined>) => Promise<void>,
-    dispatchEvent: (eventType: string, projectId: number | bigint, payload: Value) => Promise<void>,
-}
 
-type RegisteredFunction = {
-    identifier: string,
-    definition: Omit<RuntimeFunctionDefinition, "actionIdentifier">,
-    handler: (parameters: Struct) => Promise<Value | void | null | undefined>,
-}
-
-type SdkState = {
-    functions: RegisteredFunction[],
-    dataTypes: DefinitionDataType[],
-    flowTypes: FlowType[],
-    configurationDefinitions: ActionConfigurationDefinition[],
-    projectConfigurations: ActionProjectConfiguration[],
-    transport: GrpcTransport,
-    client: ActionTransferServiceClient,
-    stream: DuplexStreamingCall<TransferRequest, TransferResponse> | undefined,
-    fullyConnected: boolean,
-}
-
-export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
+export const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActionConfigurationDefinition[]): ActionSdk => {
     const transport = new GrpcTransport(
         {
-            host: config.actionUrl,
+            host: config.aquilaUrl,
             channelCredentials: ChannelCredentials.createInsecure()
         }
     )
@@ -68,7 +38,16 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
         functions: [],
         dataTypes: [],
         flowTypes: [],
-        configurationDefinitions: [],
+        configurationDefinitions: configDefinitions?.map(value => {
+            return {
+                identifier: value.identifier,
+                name: value.name || [],
+                description: value.description || [],
+                type: value.type,
+                linkedDataTypeIdentifiers: value.linkedDataTypes || [],
+                defaultValue: constructValue(value.defaultValue || null),
+            }
+        }) || [],
         projectConfigurations: [],
         transport: transport,
         client: client,
@@ -88,24 +67,107 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
             return connect(state, config, options);
         },
         getProjectActionConfigurations: () => {
-            return state.projectConfigurations;
+            return state.projectConfigurations.map(value => {
+                return {
+                    projectId: value.projectId,
+                    configValues: value.actionConfigurations.map(value => {
+                        return {
+                            identifier: value.identifier,
+                            value: toAllowedValue(value.value || constructValue(null)),
+                        }
+                    }),
+                    findConfig: identifier => {
+                        const config = value.actionConfigurations.find(config => config.identifier === identifier);
+                        return config ? toAllowedValue(config.value || constructValue(null)) : undefined;
+                    }
+                }
+            });
         },
-        registerConfigDefinitions: async (actionConfigurations) => {
-            state.configurationDefinitions = state.configurationDefinitions.concat(actionConfigurations);
+        registerConfigDefinitions: async (...actionConfigurations) => {
+            state.configurationDefinitions.push(...(actionConfigurations?.map(value => {
+                return {
+                    identifier: value.identifier,
+                    name: value.name || [],
+                    description: value.description || [],
+                    type: value.type,
+                    linkedDataTypeIdentifiers: value.linkedDataTypes || [],
+                    defaultValue: constructValue(value.defaultValue || null),
+                }
+            }) || []))
+
             return Promise.resolve()
         },
-        registerDataType: async (dataType) => {
-            state.dataTypes.push(dataType);
+        registerDataType: async (...dataTypes) => {
+            dataTypes.forEach(dataType => {
+                state.dataTypes.push({
+                    identifier: dataType.identifier,
+                    name: dataType.name || [],
+                    alias: dataType.alias || [],
+                    rules: dataType.rules || [],
+                    genericKeys: dataType.genericKeys || [],
+                    type: dataType.type,
+                    linkedDataTypeIdentifiers: dataType.linkedDataTypes || [],
+                    displayMessage: dataType.displayMessage || [],
+                    definitionSource: "action",
+                    version: dataType.version || config.version,
+                });
+            })
+
+
             return Promise.resolve()
         },
         registerFlowType: async (flowType) => {
-            state.flowTypes.push(flowType);
+            state.flowTypes.push({
+                identifier: flowType.identifier,
+                name: flowType.name || [],
+                alias: flowType.alias || [],
+                description: flowType.description || [],
+                displayIcon: flowType.displayIcon || "",
+                displayMessage: flowType.displayMessage || [],
+                documentation: flowType.documentation || [],
+                definitionSource: "action",
+                version: flowType.version || config.version,
+                inputType: flowType.inputType || "",
+                returnType: flowType.returnType || "",
+                linkedDataTypeIdentifiers: flowType.linkedDataTypes || [],
+                settings: (flowType.settings || []).map(setting => ({
+                    name: setting.name || [],
+                    defaultValue: constructValue(setting.defaultValue || null),
+                    identifier: setting.identifier,
+                    description: setting.description || [],
+                    unique: setting.unique || FlowTypeSetting_UniquenessScope.NONE,
+                    type: setting.type,
+                    linkedDataTypeIdentifiers: setting.linkedDataTypeIdentifiers || [],
+                } as FlowTypeSetting)),
+                editable: flowType.editable || false
+            });
             return Promise.resolve()
         },
         registerFunctionDefinition: async (functionDefinition, handler) => {
             state.functions.push({
                 identifier: functionDefinition.runtimeName,
-                definition: functionDefinition,
+                definition: {
+                    displayMessage: functionDefinition.displayMessage || [],
+                    name: functionDefinition.name || [],
+                    documentation: functionDefinition.documentation || [],
+                    description: functionDefinition.description || [],
+                    deprecationMessage: functionDefinition.deprecationMessage || [],
+                    displayIcon: functionDefinition.displayIcon || "",
+                    alias: functionDefinition.alias || [],
+                    linkedDataTypeIdentifiers: functionDefinition.linkedDataTypes || [],
+                    definitionSource: "action",
+                    version: functionDefinition.version || config.version,
+                    runtimeName: functionDefinition.runtimeName,
+                    runtimeParameterDefinitions: (functionDefinition.parameters || []).map(param => ({
+                        runtimeName: param.runtimeName,
+                        name: param.name || [],
+                        description: param.description || [],
+                        documentation: param.documentation || [],
+                        defaultValue: constructValue(param.defaultValue || null),
+                    })),
+                    signature: functionDefinition.signature,
+                    throwsError: functionDefinition.throwsError || false,
+                },
                 handler: handler,
             });
             return Promise.resolve()
@@ -125,7 +187,7 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
                         event: {
                             projectId: projectIdBigInt,
                             eventType: eventType,
-                            payload: payload || constructValue(null),
+                            payload: constructValue(payload) || constructValue(null),
                         }
                     }
                 })
@@ -138,14 +200,28 @@ export const createSdk = (config: ActionSdk["config"]): ActionSdk => {
     }
 }
 
-async function  connect(state: SdkState, config: ActionSdk["config"], options?: RpcOptions): Promise<ActionProjectConfiguration[]> {
+async function connect(state: SdkState, config: ActionSdk["config"], options?: RpcOptions): Promise<HerculesActionProjectConfiguration[]> {
     const builtOptions: RpcOptions = {
         meta: {
-            "Authorization": config.token,
+            "Authorization": config.authToken,
         },
         ...options
     }
     state.stream = state.client.transfer(builtOptions);
+
+    const dataTypeClient = new DataTypeServiceClient(state.transport)
+    await dataTypeClient.update(DataTypeUpdateRequest.create({
+        dataTypes: [
+            ...state.dataTypes
+        ]
+    }), builtOptions).then(value => {
+        if (!value.response.success) {
+            return Promise.reject(value.response);
+        }
+    }).catch(reason => {
+        return Promise.reject(reason);
+    })
+
 
     await state.stream.requests.send(
         TransferRequest.create({
@@ -163,18 +239,6 @@ async function  connect(state: SdkState, config: ActionSdk["config"], options?: 
         return Promise.reject(reason);
     })
 
-    const dataTypeClient = new DataTypeServiceClient(state.transport)
-    await dataTypeClient.update(DataTypeUpdateRequest.create({
-        dataTypes: [
-            ...state.dataTypes
-        ]
-    }), builtOptions).then(value => {
-        if (!value.response.success) {
-            return Promise.reject(value.response);
-        }
-    }).catch(reason => {
-        return Promise.reject(reason);
-    })
     const runtimeFunctionDefinitionClient = new RuntimeFunctionDefinitionServiceClient(state.transport)
     await runtimeFunctionDefinitionClient.update(
         RuntimeFunctionDefinitionUpdateRequest.create(
@@ -212,14 +276,26 @@ async function  connect(state: SdkState, config: ActionSdk["config"], options?: 
                         const configs = message.data.actionConfigurations as ActionConfigurations;
                         console.log("Received action configurations:", configs);
                         state.projectConfigurations = configs.actionConfigurations
-                        resolve(state.projectConfigurations);
+                        resolve(state.projectConfigurations.map(value => {
+                            return {
+                                projectId: value.projectId,
+                                configValues: value.actionConfigurations.map(value => {
+                                    return {
+                                        identifier: value.identifier,
+                                        value: toAllowedValue(value.value || constructValue(null)),
+                                    }
+                                }),
+                                findConfig: identifier => {
+                                    const config = value.actionConfigurations.find(config => config.identifier === identifier);
+                                    return config ? toAllowedValue(config.value || constructValue(null)) : undefined;
+                                }
+                            }
+                        }));
                         state.fullyConnected = true
                         break;
                     }
                     case "execution": {
-                        await handleExecutionRequest(state, message).catch(reason => {
-                            reject(reason);
-                        })
+                        handleExecutionRequest(state, message)
                         break;
                     }
                 }
@@ -230,34 +306,83 @@ async function  connect(state: SdkState, config: ActionSdk["config"], options?: 
     })
 }
 
-function handleExecutionRequest(state: SdkState, message: TransferResponse): Promise<void> {
-    return new Promise(async (resolve, reject) => {
-        if (!message.data || message.data.oneofKind !== "execution") {
-            reject()
-            return
+function handleExecutionRequest(state: SdkState, message: TransferResponse) {
+    if (!message.data || message.data.oneofKind !== "execution") {
+        return
+    }
+    const execution = message.data.execution as ExecutionRequest;
+    const func = state.functions.find(value => value.identifier == execution.functionIdentifier);
+    if (func) {
+        const params = Object.values(execution!.parameters!.fields!).map(value => {
+            return toAllowedValue(value)
+        })
+        const conf = state.projectConfigurations.find(config => {
+            return true
+        })
+        if (!conf) {
+            console.error(`No configuration found for project ${execution.projectId}`)
+            return;
         }
-        const execution = message.data.execution as ExecutionRequest;
-        const func = state.functions.find(value => value.identifier == execution.functionIdentifier);
-        if (func) {
-            func.handler(execution.parameters!).then(async value => {
-                try {
-                    console.log("Execution result:", value);
-                    return await state.stream!.requests.send(
-                        TransferRequest.create({
-                            data: {
-                                oneofKind: "result",
-                                result: {
-                                    executionIdentifier: execution.executionIdentifier,
-                                    result: value || constructValue(null),
-                                }
-                            }
-                        })
-                    );
-                } catch (reason) {
-                    return reject(reason);
+
+        const context: HerculesFunctionContext = {
+            projectId: execution.projectId,
+            executionId: execution.executionIdentifier,
+            matchedConfig: {
+                projectId: conf.projectId,
+                configValues: conf.actionConfigurations.map(value => {
+                    return {
+                        identifier: value.identifier,
+                        value: toAllowedValue(value.value || constructValue(null)),
+                    }
+                }),
+                findConfig: identifier => {
+                    const config = conf.actionConfigurations.find(config => config.identifier === identifier);
+                    return config ? toAllowedValue(config.value || constructValue(null)) : undefined;
                 }
-            })
+            }
         }
-        resolve();
-    })
+
+        if (func.handler.length == params.length + 1) {
+            // handler has context parameter
+            params.push(context)
+        } else if (func.handler.length > params.length + 1) {
+            console.error("Handler has more parameters than provided arguments. This may lead to unexpected behavior.")
+            return;
+        }
+
+        const result = new Promise((resolve, reject) => {
+            try {
+                resolve(func.handler(...params))
+            } catch (e) {
+                reject(e)
+            }
+        })
+        result.then((value: any) => {
+            state.stream!.requests.send(
+                TransferRequest.create({
+                    data: {
+                        oneofKind: "result",
+                        result: {
+                            executionIdentifier: execution.executionIdentifier,
+                            result: constructValue(value),
+                        }
+                    }
+                })
+            ).catch(reason => {
+                console.error(`Failed to send execution result for execution ${execution.executionIdentifier}:`, reason);
+            });
+        }).catch(reason => {
+            if (reason instanceof RuntimeErrorException) {
+                // Error handling not implemented yet
+                console.log(reason.message)
+            } else {
+                console.error(`Error executing function ${func?.identifier} for execution ${execution.executionIdentifier}:`, reason);
+            }
+        })
+
+
+    }
 }
+
+
+export * from "./types.js";

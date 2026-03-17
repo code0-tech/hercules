@@ -4,6 +4,6 @@ To run a simple example use:
 
 ```bash
 cd ts
-bun install
-bun /examples/simple_example.ts
+npm install
+npx tsx examples/simple_example.ts
 ```
