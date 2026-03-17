@@ -1,8 +1,6 @@
-import {createSdk, HerculesActionProjectConfiguration, RuntimeErrorException} from "../src/action_sdk.js";
-import {constructValue} from "@code0-tech/tucana/helpers/shared.struct_helper.js";
-import {ActionProjectConfiguration} from "@code0-tech/tucana/pb/shared.action_configuration_pb.js";
-import {HerculesFunctionContext} from "../src/types.js";
-import {PlainValue} from "@code0-tech/tucana/helpers/shared.struct_helper";
+import {createSdk, HerculesActionProjectConfiguration, RuntimeErrorException} from "../src/action_sdk";
+import {constructValue} from "@code0-tech/tucana/shared";
+import {HerculesFunctionContext} from "../src/types";
 
 const sdk = createSdk({
     authToken: "someToken",
@@ -22,33 +20,34 @@ sdk.registerDataTypes({
     type: "any",
 })
 
-sdk.registerFunctionDefinitions(
-    [{
-        signature: "(n: NUMBER) => NUMBER",
-        linkedDataTypes: ["NUMBER"],
-        parameters: [
-            {
-                runtimeName: "n",
-                defaultValue: 20,
+sdk.registerFunctionDefinitions({
+        definition: {
+            signature: "(n: NUMBER) => NUMBER",
+            linkedDataTypes: ["NUMBER"],
+            parameters: [
+                {
+                    runtimeName: "n",
+                    defaultValue: 20,
+                }
+            ],
+            runtimeName: "fib",
+        },
+                //This param is optional and can be omitted
+        handler: (context: HerculesFunctionContext, n: number): number => {
+                console.log(context)
+                console.log("Project id:", context.projectId);
+                console.log("Execution id:", context.executionId);
+                console.log("Matched configs:", context.matchedConfig); // matched configs for the current execution
+
+                function fibonacci(num: number): number {
+                    if (num <= 1) return num;
+                    return fibonacci(num - 1) + fibonacci(num - 2);
+                }
+
+                throw new RuntimeErrorException("ERROR_CALCULATING_FIB", "An error occurred while calculating the Fibonacci number.");
+
             }
-        ],
-        runtimeName: "fib",
-    },
-        //This param is optional and can be omitted
-        (context: HerculesFunctionContext, n: number): number => {
-            console.log(context)
-            console.log("Project id:", context.projectId);
-            console.log("Execution id:", context.executionId);
-            console.log("Matched configs:", context.matchedConfig); // matched configs for the current execution
-
-            function fibonacci(num: number): number {
-                if (num <= 1) return num;
-                return fibonacci(num - 1) + fibonacci(num - 2);
-            }
-
-            throw new RuntimeErrorException("ERROR_CALCULATING_FIB", "An error occurred while calculating the Fibonacci number.");
-
-        }]
+    }
 )
 
 sdk.registerFlowTypes(

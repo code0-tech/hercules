@@ -1,19 +1,14 @@
-import {FlowType, FlowTypeSetting_UniquenessScope} from "@code0-tech/tucana/pb/shared.flow_definition_pb.js";
-import {DefinitionDataType, DefinitionDataTypeRule} from "@code0-tech/tucana/pb/shared.data_type_pb.js";
-import {RuntimeFunctionDefinition} from "@code0-tech/tucana/pb/shared.runtime_function_pb.js";
 import {GrpcOptions, GrpcTransport} from "@protobuf-ts/grpc-transport";
-import {ActionTransferServiceClient} from "@code0-tech/tucana/pb/aquila.action_pb.client.js";
 import {DuplexStreamingCall} from "@protobuf-ts/runtime-rpc";
 import {
-    TransferRequest,
-    TransferResponse
-} from "@code0-tech/tucana/pb/aquila.action_pb.js";
-import {
-    ActionConfigurationDefinition, ActionProjectConfiguration
-} from "@code0-tech/tucana/pb/shared.action_configuration_pb";
-import {Translation} from "@code0-tech/tucana/pb/shared.translation_pb";
-import {PlainValue} from "@code0-tech/tucana/helpers/shared.struct_helper";
-
+    ActionConfigurationDefinition, ActionProjectConfiguration,
+    DefinitionDataType,
+    DefinitionDataTypeRule, FlowType,
+    FlowTypeSetting_UniquenessScope,
+    PlainValue, RuntimeFunctionDefinition,
+    Translation
+} from "@code0-tech/tucana/shared";
+import {ActionTransferServiceClient, TransferRequest, TransferResponse} from "@code0-tech/tucana/aquila";
 export interface HerculesFunctionContext {
     projectId: number | bigint,
     executionId: string,
@@ -99,6 +94,11 @@ export interface HerculesActionConfigurationDefinition {
     identifier: string,
 }
 
+export type HerculesRegisterFunctionParameter = {
+    definition: HerculesRuntimeFunctionDefinition,
+    handler: (...args: any[]) => Promise<PlainValue> | PlainValue,
+}
+
 export interface ActionSdk {
     config: {
         authToken: string,
@@ -115,7 +115,7 @@ export interface ActionSdk {
     registerConfigDefinitions: (...actionConfigurations: Array<HerculesActionConfigurationDefinition>) => Promise<void>,
     registerDataTypes: (...dataType: Array<HerculesDataType>) => Promise<void>,
     registerFlowTypes: (...flowTypes: Array<HerculesFlowType>) => Promise<void>,
-    registerFunctionDefinitions: (...functionDefinitions: Array<[HerculesRuntimeFunctionDefinition, (...args: any[]) => PlainValue | Promise<PlainValue>]>) => Promise<void>,
+    registerFunctionDefinitions: (...functionDefinitions: Array<HerculesRegisterFunctionParameter>) => Promise<void>,
     dispatchEvent: (eventType: string, projectId: number | bigint, payload: PlainValue) => Promise<void>,
 }
 

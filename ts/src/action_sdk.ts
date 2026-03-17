@@ -1,29 +1,28 @@
+export * from "./types";
+export * from "@code0-tech/tucana/shared";
+export * from "@code0-tech/tucana/aquila";
 import {GrpcTransport} from "@protobuf-ts/grpc-transport";
 import {ChannelCredentials} from "@grpc/grpc-js";
-import {ActionTransferServiceClient} from "@code0-tech/tucana/pb/aquila.action_pb.client.js";
 import {RpcOptions} from "@protobuf-ts/runtime-rpc";
-import {
-    ExecutionRequest,
-    TransferRequest,
-    TransferResponse
-} from "@code0-tech/tucana/pb/aquila.action_pb.js";
-import {constructValue, toAllowedValue} from "@code0-tech/tucana/helpers/shared.struct_helper.js";
-import {
-    ActionConfigurations
-} from "@code0-tech/tucana/pb/shared.action_configuration_pb.js";
-import {DataTypeServiceClient} from "@code0-tech/tucana/pb/aquila.data_type_pb.client.js";
-import {DataTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.data_type_pb.js";
-import {RuntimeFunctionDefinitionServiceClient} from "@code0-tech/tucana/pb/aquila.runtime_function_pb.client.js";
-import {RuntimeFunctionDefinitionUpdateRequest} from "@code0-tech/tucana/pb/aquila.runtime_function_pb.js";
-import {FlowTypeServiceClient} from "@code0-tech/tucana/pb/aquila.flow_type_pb.client.js";
-import {FlowTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.flow_type_pb.js";
 import {
     ActionSdk, HerculesActionConfigurationDefinition,
     HerculesActionProjectConfiguration, HerculesFunctionContext, SdkState, RuntimeErrorException
 } from "./types";
-import {FlowTypeSetting, FlowTypeSetting_UniquenessScope} from "@code0-tech/tucana/pb/shared.flow_definition_pb";
-import {PlainValue} from "@code0-tech/tucana/helpers/shared.struct_helper";
-
+import {
+    ActionTransferServiceClient,
+    DataTypeServiceClient,
+    DataTypeUpdateRequest, ExecutionRequest,
+    FlowTypeServiceClient,
+    FlowTypeUpdateRequest, RuntimeFunctionDefinitionServiceClient, RuntimeFunctionDefinitionUpdateRequest,
+    TransferRequest, TransferResponse
+} from "@code0-tech/tucana/aquila";
+import {
+    ActionConfigurations,
+    FlowTypeSetting,
+    FlowTypeSetting_UniquenessScope,
+    toAllowedValue,
+    constructValue, PlainValue
+} from "@code0-tech/tucana/shared";
 
 export const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActionConfigurationDefinition[]): ActionSdk => {
     const transport = new GrpcTransport(
@@ -146,7 +145,9 @@ export const createSdk = (config: ActionSdk["config"], configDefinitions?: Hercu
             return Promise.resolve()
         },
         registerFunctionDefinitions: async (...functionDefinitions) => {
-            for (const [functionDefinition, handler] of functionDefinitions) {
+            for (const registeredFunction of functionDefinitions) {
+                const handler = registeredFunction.handler;
+                const functionDefinition = registeredFunction.definition;
                 state.functions.push({
                     identifier: functionDefinition.runtimeName,
                     definition: {
@@ -411,6 +412,3 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse) {
 
     }
 }
-
-
-export * from "./types.js";
