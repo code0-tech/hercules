@@ -1,29 +1,28 @@
+import {constructValue, toAllowedValue} from "@code0-tech/tucana/helpers";
+
+export * from "./types.js";
+export * from "@code0-tech/tucana/shared";
+export * from "@code0-tech/tucana/aquila";
 import {GrpcTransport} from "@protobuf-ts/grpc-transport";
 import {ChannelCredentials} from "@grpc/grpc-js";
-import {ActionTransferServiceClient} from "@code0-tech/tucana/pb/aquila.action_pb.client.js";
 import {RpcOptions} from "@protobuf-ts/runtime-rpc";
-import {
-    ExecutionRequest,
-    TransferRequest,
-    TransferResponse
-} from "@code0-tech/tucana/pb/aquila.action_pb.js";
-import {constructValue, toAllowedValue} from "@code0-tech/tucana/helpers/shared.struct_helper.js";
-import {
-    ActionConfigurations
-} from "@code0-tech/tucana/pb/shared.action_configuration_pb.js";
-import {DataTypeServiceClient} from "@code0-tech/tucana/pb/aquila.data_type_pb.client.js";
-import {DataTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.data_type_pb.js";
-import {RuntimeFunctionDefinitionServiceClient} from "@code0-tech/tucana/pb/aquila.runtime_function_pb.client.js";
-import {RuntimeFunctionDefinitionUpdateRequest} from "@code0-tech/tucana/pb/aquila.runtime_function_pb.js";
-import {FlowTypeServiceClient} from "@code0-tech/tucana/pb/aquila.flow_type_pb.client.js";
-import {FlowTypeUpdateRequest} from "@code0-tech/tucana/pb/aquila.flow_type_pb.js";
 import {
     ActionSdk, HerculesActionConfigurationDefinition,
     HerculesActionProjectConfiguration, HerculesFunctionContext, SdkState, RuntimeErrorException
-} from "./types";
-import {FlowTypeSetting, FlowTypeSetting_UniquenessScope} from "@code0-tech/tucana/pb/shared.flow_definition_pb";
-import {PlainValue} from "@code0-tech/tucana/helpers/shared.struct_helper";
-
+} from "./types.js";
+import {
+    ActionTransferServiceClient,
+    DataTypeServiceClient,
+    DataTypeUpdateRequest, ExecutionRequest,
+    FlowTypeServiceClient,
+    FlowTypeUpdateRequest, RuntimeFunctionDefinitionServiceClient, RuntimeFunctionDefinitionUpdateRequest,
+    TransferRequest, TransferResponse
+} from "@code0-tech/tucana/aquila";
+import {
+    ActionConfigurations,
+    FlowTypeSetting,
+    FlowTypeSetting_UniquenessScope,
+} from "@code0-tech/tucana/shared";
 
 export const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActionConfigurationDefinition[]): ActionSdk => {
     const transport = new GrpcTransport(
@@ -97,7 +96,7 @@ export const createSdk = (config: ActionSdk["config"], configDefinitions?: Hercu
 
             return Promise.resolve()
         },
-        registerDataType: async (...dataTypes) => {
+        registerDataTypes: async (...dataTypes) => {
             dataTypes.forEach(dataType => {
                 state.dataTypes.push({
                     identifier: dataType.identifier,
@@ -116,60 +115,66 @@ export const createSdk = (config: ActionSdk["config"], configDefinitions?: Hercu
 
             return Promise.resolve()
         },
-        registerFlowType: async (flowType) => {
-            state.flowTypes.push({
-                identifier: flowType.identifier,
-                name: flowType.name || [],
-                alias: flowType.alias || [],
-                description: flowType.description || [],
-                displayIcon: flowType.displayIcon || "",
-                displayMessage: flowType.displayMessage || [],
-                documentation: flowType.documentation || [],
-                definitionSource: "action",
-                version: flowType.version || config.version,
-                inputType: flowType.inputType || "",
-                returnType: flowType.returnType || "",
-                linkedDataTypeIdentifiers: flowType.linkedDataTypes || [],
-                settings: (flowType.settings || []).map(setting => ({
-                    name: setting.name || [],
-                    defaultValue: constructValue(setting.defaultValue || null),
-                    identifier: setting.identifier,
-                    description: setting.description || [],
-                    unique: setting.unique || FlowTypeSetting_UniquenessScope.NONE,
-                    type: setting.type,
-                    linkedDataTypeIdentifiers: setting.linkedDataTypeIdentifiers || [],
-                } as FlowTypeSetting)),
-                editable: flowType.editable || false
-            });
+        registerFlowTypes: async (...flowTypes) => {
+            flowTypes.forEach(flowType => {
+                state.flowTypes.push({
+                    identifier: flowType.identifier,
+                    name: flowType.name || [],
+                    alias: flowType.alias || [],
+                    description: flowType.description || [],
+                    displayIcon: flowType.displayIcon || "",
+                    displayMessage: flowType.displayMessage || [],
+                    documentation: flowType.documentation || [],
+                    definitionSource: "action",
+                    version: flowType.version || config.version,
+                    inputType: flowType.inputType || "",
+                    returnType: flowType.returnType || "",
+                    linkedDataTypeIdentifiers: flowType.linkedDataTypes || [],
+                    settings: (flowType.settings || []).map(setting => ({
+                        name: setting.name || [],
+                        defaultValue: constructValue(setting.defaultValue || null),
+                        identifier: setting.identifier,
+                        description: setting.description || [],
+                        unique: setting.unique || FlowTypeSetting_UniquenessScope.NONE,
+                        type: setting.type,
+                        linkedDataTypeIdentifiers: setting.linkedDataTypeIdentifiers || [],
+                    } as FlowTypeSetting)),
+                    editable: flowType.editable || false
+                });
+            })
             return Promise.resolve()
         },
-        registerFunctionDefinition: async (functionDefinition, handler) => {
-            state.functions.push({
-                identifier: functionDefinition.runtimeName,
-                definition: {
-                    displayMessage: functionDefinition.displayMessage || [],
-                    name: functionDefinition.name || [],
-                    documentation: functionDefinition.documentation || [],
-                    description: functionDefinition.description || [],
-                    deprecationMessage: functionDefinition.deprecationMessage || [],
-                    displayIcon: functionDefinition.displayIcon || "",
-                    alias: functionDefinition.alias || [],
-                    linkedDataTypeIdentifiers: functionDefinition.linkedDataTypes || [],
-                    definitionSource: "action",
-                    version: functionDefinition.version || config.version,
-                    runtimeName: functionDefinition.runtimeName,
-                    runtimeParameterDefinitions: (functionDefinition.parameters || []).map(param => ({
-                        runtimeName: param.runtimeName,
-                        name: param.name || [],
-                        description: param.description || [],
-                        documentation: param.documentation || [],
-                        defaultValue: constructValue(param.defaultValue || null),
-                    })),
-                    signature: functionDefinition.signature,
-                    throwsError: functionDefinition.throwsError || false,
-                },
-                handler: handler,
-            });
+        registerFunctionDefinitions: async (...functionDefinitions) => {
+            for (const registeredFunction of functionDefinitions) {
+                const handler = registeredFunction.handler;
+                const functionDefinition = registeredFunction.definition;
+                state.functions.push({
+                    identifier: functionDefinition.runtimeName,
+                    definition: {
+                        displayMessage: functionDefinition.displayMessage || [],
+                        name: functionDefinition.name || [],
+                        documentation: functionDefinition.documentation || [],
+                        description: functionDefinition.description || [],
+                        deprecationMessage: functionDefinition.deprecationMessage || [],
+                        displayIcon: functionDefinition.displayIcon || "",
+                        alias: functionDefinition.alias || [],
+                        linkedDataTypeIdentifiers: functionDefinition.linkedDataTypes || [],
+                        definitionSource: "action",
+                        version: functionDefinition.version || config.version,
+                        runtimeName: functionDefinition.runtimeName,
+                        runtimeParameterDefinitions: (functionDefinition.parameters || []).map(param => ({
+                            runtimeName: param.runtimeName,
+                            name: param.name || [],
+                            description: param.description || [],
+                            documentation: param.documentation || [],
+                            defaultValue: constructValue(param.defaultValue || null),
+                        })),
+                        signature: functionDefinition.signature,
+                        throwsError: functionDefinition.throwsError || false,
+                    },
+                    handler: handler,
+                });
+            }
             return Promise.resolve()
         },
         dispatchEvent: async (eventType, projectId, payload) => {
@@ -313,9 +318,12 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse) {
     const execution = message.data.execution as ExecutionRequest;
     const func = state.functions.find(value => value.identifier == execution.functionIdentifier);
     if (func) {
-        const params = Object.values(execution!.parameters!.fields!).map(value => {
-            return toAllowedValue(value)
-        })
+        const params = Object.entries(execution.parameters!.fields!).map(([key, value]) => {
+            const param = func.definition.runtimeParameterDefinitions
+                .find(p => p.runtimeName === key);
+
+            return param ? toAllowedValue(value) : undefined;
+        });
         const conf = state.projectConfigurations.find(config => {
             return true
         })
@@ -344,7 +352,7 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse) {
 
         if (func.handler.length == params.length + 1) {
             // handler has context parameter
-            params.push(context)
+            params.unshift(context)
         } else if (func.handler.length > params.length + 1) {
             console.error("Handler has more parameters than provided arguments. This may lead to unexpected behavior.")
             return;
@@ -364,7 +372,10 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse) {
                         oneofKind: "result",
                         result: {
                             executionIdentifier: execution.executionIdentifier,
-                            result: constructValue(value),
+                            result: {
+                                oneofKind: "success",
+                                success: constructValue(value)
+                            },
                         }
                     }
                 })
@@ -373,8 +384,26 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse) {
             });
         }).catch(reason => {
             if (reason instanceof RuntimeErrorException) {
-                // Error handling not implemented yet
-                console.log(reason.message)
+                state.stream!.requests.send(
+                    TransferRequest.create({
+                        data: {
+                            oneofKind: "result",
+                            result: {
+                                executionIdentifier: execution.executionIdentifier,
+                                result: {
+                                    oneofKind: "error",
+                                    error: {
+                                        code: reason.code,
+                                        description: reason.description
+                                    }
+                                },
+                            }
+                        }
+                    })
+                ).catch(reason => {
+                    console.error(`Failed to send execution result for execution ${execution.executionIdentifier}:`, reason);
+                });
+
             } else {
                 console.error(`Error executing function ${func?.identifier} for execution ${execution.executionIdentifier}:`, reason);
             }
@@ -383,6 +412,3 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse) {
 
     }
 }
-
-
-export * from "./types.js";
