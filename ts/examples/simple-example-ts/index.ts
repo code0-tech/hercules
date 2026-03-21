@@ -1,6 +1,9 @@
-import {createSdk, HerculesActionProjectConfiguration, RuntimeErrorException} from "../src";
-import {HerculesFunctionContext} from "../src";
-import {constructValue} from "@code0-tech/tucana/helpers";
+import {
+    createSdk,
+    HerculesActionProjectConfiguration,
+    HerculesFunctionContext,
+    RuntimeErrorException
+} from "@code0-tech/hercules";
 
 const sdk = createSdk({
     authToken: "someToken",
@@ -64,7 +67,7 @@ connectToSdk();
 function connectToSdk() {
     sdk.connect().then((configs: HerculesActionProjectConfiguration[]) => {
         console.log("SDK connected successfully");
-        sdk.dispatchEvent("test_flow", configs[0].projectId, constructValue("Hello, World! Configs loaded: " + configs.length)).then(() => {
+        sdk.dispatchEvent("test_flow", configs[0].projectId, "Hello, World! Configs loaded: " + configs.length).then(() => {
             console.log("Event dispatched successfully");
         })
     }).catch((_error) => {

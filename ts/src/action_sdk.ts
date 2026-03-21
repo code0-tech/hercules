@@ -1,8 +1,3 @@
-import {constructValue, toAllowedValue} from "@code0-tech/tucana/helpers";
-
-export * from "./types.js";
-export * from "@code0-tech/tucana/shared";
-export * from "@code0-tech/tucana/aquila";
 import {GrpcTransport} from "@protobuf-ts/grpc-transport";
 import {ChannelCredentials} from "@grpc/grpc-js";
 import {RpcOptions} from "@protobuf-ts/runtime-rpc";
@@ -21,10 +16,10 @@ import {
 import {
     ActionConfigurations,
     FlowTypeSetting,
-    FlowTypeSetting_UniquenessScope,
 } from "@code0-tech/tucana/shared";
+import {constructValue, toAllowedValue} from "@code0-tech/tucana/helpers";
 
-export const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActionConfigurationDefinition[]): ActionSdk => {
+const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActionConfigurationDefinition[]): ActionSdk => {
     const transport = new GrpcTransport(
         {
             host: config.aquilaUrl,
@@ -135,7 +130,7 @@ export const createSdk = (config: ActionSdk["config"], configDefinitions?: Hercu
                         defaultValue: constructValue(setting.defaultValue || null),
                         identifier: setting.identifier,
                         description: setting.description || [],
-                        unique: setting.unique || FlowTypeSetting_UniquenessScope.NONE,
+                        unique: setting.unique || 1,
                         type: setting.type,
                         linkedDataTypeIdentifiers: setting.linkedDataTypeIdentifiers || [],
                     } as FlowTypeSetting)),
@@ -411,4 +406,9 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse) {
 
 
     }
+}
+
+export {
+    createSdk,
+    connect
 }
