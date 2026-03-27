@@ -1,9 +1,9 @@
-See examples to use the sdk here: [/examples](https://github.com/code0-tech/hercules/tree/main/ts/examples) 
+See examples to use the sdk here: [/examples](https://github.com/code0-tech/hercules/tree/main/examples) 
 
 To run a simple example use:
 
 ```bash
-cd ts
+cd examples/simple-examples-ts
 npm install
-npx tsx examples/simple_example.ts
+npm run dev
 ```

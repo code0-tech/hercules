@@ -32,5 +32,7 @@ jobs:
         run: npm version ${{ github.ref_name }} --git-tag-version=false
       - name: Compile files
         run: npm run build
+      - name: Run tests
+        run: npm run test
       - name: Publish package
         run: npm publish

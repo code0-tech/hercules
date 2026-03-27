@@ -2,29 +2,31 @@
   "name": "@code0-tech/hercules",
   "version": "0.0.0",
   "description": "TypeScript SDK for the hercules action runner",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/src/index.js",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "index.js",
+    "index.d.ts",
+    "package.json"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
-    "test": "vitest"
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "@code0-tech/tucana": "^0.0.61",
+    "@code0-tech/tucana": "0.0.62",
     "@grpc/grpc-js": "^1.14.3",
     "@protobuf-ts/grpc-backend": "^2.11.1",
     "@protobuf-ts/grpc-transport": "^2.11.1",
@@ -35,7 +37,7 @@
     "@types/node": "^25.0.10",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.2"
   },
   "publishConfig": {
     "access": "public"

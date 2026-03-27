@@ -1,2 +1,2 @@
-export * from "./types"
-export * from "./action_sdk"
+export * from "./action_sdk.js"
+export * from "./types.js"

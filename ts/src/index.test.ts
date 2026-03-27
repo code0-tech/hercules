@@ -1,7 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
-describe("dummy test", () => {
+describe("index", () => {
+    // mock test
     it("should pass", () => {
+        // compare true to true
         expect(true).toBe(true);
     });
-})
+}); 
