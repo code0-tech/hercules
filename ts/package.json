@@ -1,6 +1,6 @@
 {
   "name": "@code0-tech/hercules",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "TypeScript SDK for the hercules action runner",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -36,5 +36,8 @@
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
