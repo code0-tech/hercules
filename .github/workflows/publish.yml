@@ -30,6 +30,8 @@ jobs:
         run: npm ci
       - name: Compile files
         run: npm run build
+      - name: Run tests
+        run: npm run test
       - name: Set version
         run: npm version ${{ github.ref_name }} --git-tag-version=false
       - name: Publish package
