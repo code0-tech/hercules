@@ -5,7 +5,7 @@
   "main": "./dist/src/index.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/code0-tech/tucana.git"
+    "url": "git+https://github.com/code0-tech/hercules.git"
   },
   "exports": {
     ".": {
