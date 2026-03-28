@@ -2,25 +2,25 @@
   "name": "@code0-tech/hercules",
   "version": "0.0.0",
   "description": "TypeScript SDK for the hercules action runner",
-  "main": "./dist/src/index.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/code0-tech/hercules.git"
+    "url": "git+https://github.com/code0-tech/tucana.git"
   },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/src/index.d.ts",
-      "import": "./dist/src/index.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     }
   },
   "files": [
-    "dist",
-    "index.js",
-    "index.d.ts",
-    "package.json"
+    "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "vite build",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
@@ -30,7 +30,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "@code0-tech/tucana": "0.0.64",
+    "@code0-tech/tucana": "file:code0-tech-tucana-0.0.0.tgz",
     "@grpc/grpc-js": "^1.14.3",
     "@protobuf-ts/grpc-backend": "^2.11.1",
     "@protobuf-ts/grpc-transport": "^2.11.1",
@@ -41,6 +41,8 @@
     "@types/node": "^25.0.10",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
+    "vite": "^8.0.3",
+    "vite-plugin-dts": "^4.5.4",
     "vitest": "^4.1.2"
   },
   "publishConfig": {
