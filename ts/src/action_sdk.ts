@@ -113,6 +113,7 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
         registerFlowTypes: async (...flowTypes) => {
             flowTypes.forEach(flowType => {
                 state.flowTypes.push({
+                    signature: flowType.signature,
                     identifier: flowType.identifier,
                     name: flowType.name || [],
                     alias: flowType.alias || [],
@@ -122,8 +123,6 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
                     documentation: flowType.documentation || [],
                     definitionSource: "action",
                     version: flowType.version || config.version,
-                    inputType: flowType.inputType || "",
-                    returnType: flowType.returnType || "",
                     linkedDataTypeIdentifiers: flowType.linkedDataTypes || [],
                     settings: (flowType.settings || []).map(setting => ({
                         name: setting.name || [],
@@ -131,7 +130,6 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
                         identifier: setting.identifier,
                         description: setting.description || [],
                         unique: setting.unique || 1,
-                        type: setting.type,
                         linkedDataTypeIdentifiers: setting.linkedDataTypeIdentifiers || [],
                     } as FlowTypeSetting)),
                     editable: flowType.editable || false

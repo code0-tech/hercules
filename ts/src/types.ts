@@ -35,7 +35,6 @@ export interface HerculesDataType {
 export interface HerculesFlowTypeSetting {
     identifier: string,
     unique?: FlowTypeSetting_UniquenessScope,
-    type: string,
     linkedDataTypeIdentifiers?: string[],
     defaultValue?: PlainValue,
     name?: Translation[],
@@ -44,9 +43,8 @@ export interface HerculesFlowTypeSetting {
 
 export interface HerculesFlowType {
     identifier: string,
-    settings?: HerculesFlowTypeSetting[]
-    inputType?: string,
-    returnType?: string,
+    settings?: HerculesFlowTypeSetting[],
+    signature: string,
     linkedDataTypes?: string[],
     editable: boolean,
     name?: Translation[],
