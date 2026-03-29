@@ -4,7 +4,7 @@
   "description": "TypeScript SDK for the hercules action runner",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/code0-tech/tucana.git"
+    "url": "git+https://github.com/code0-tech/hercules.git"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
