@@ -174,31 +174,30 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
             return Promise.resolve()
         },
         registerFunctionDefinitions: async (...functionDefinitions) => {
-            for (const registeredFunction of functionDefinitions) {
-                const runtimeFunctionDefinition = registeredFunction.definition;
+            for (const functionDefinition of functionDefinitions) {
                 state.functions.push({
-                    identifier: runtimeFunctionDefinition.runtimeName,
+                    identifier: functionDefinition.runtimeName,
                     definition: {
-                        displayMessage: runtimeFunctionDefinition.displayMessage || [],
-                        name: runtimeFunctionDefinition.name || [],
-                        documentation: runtimeFunctionDefinition.documentation || [],
-                        description: runtimeFunctionDefinition.description || [],
-                        deprecationMessage: runtimeFunctionDefinition.deprecationMessage || [],
-                        displayIcon: runtimeFunctionDefinition.displayIcon || "",
-                        alias: runtimeFunctionDefinition.alias || [],
-                        linkedDataTypeIdentifiers: runtimeFunctionDefinition.linkedDataTypes || [],
+                        displayMessage: functionDefinition.displayMessage || [],
+                        name: functionDefinition.name || [],
+                        documentation: functionDefinition.documentation || [],
+                        description: functionDefinition.description || [],
+                        deprecationMessage: functionDefinition.deprecationMessage || [],
+                        displayIcon: functionDefinition.displayIcon || "",
+                        alias: functionDefinition.alias || [],
+                        linkedDataTypeIdentifiers: functionDefinition.linkedDataTypes || [],
                         definitionSource: "action",
-                        version: runtimeFunctionDefinition.version || config.version,
-                        runtimeName: runtimeFunctionDefinition.runtimeName,
-                        parameterDefinitions: (runtimeFunctionDefinition.parameters || []).map(param => ({
+                        version: functionDefinition.version || config.version,
+                        runtimeName: functionDefinition.runtimeName,
+                        parameterDefinitions: (functionDefinition.parameters || []).map(param => ({
                             runtimeName: param.runtimeName,
                             name: param.name || [],
                             description: param.description || [],
                             documentation: param.documentation || [],
                             defaultValue: constructValue(param.defaultValue || null),
                         })),
-                        signature: runtimeFunctionDefinition.signature,
-                        throwsError: runtimeFunctionDefinition.throwsError || false,
+                        signature: functionDefinition.signature,
+                        throwsError: functionDefinition.throwsError || false,
                     }
                 });
             }

@@ -104,10 +104,6 @@ export type HerculesRegisterRuntimeFunctionParameter = {
     handler: (...args: any[]) => Promise<PlainValue> | PlainValue,
 }
 
-export type HerculesRegisterFunctionParameter = {
-    definition: HerculesRegisterFunctionDefinition
-}
-
 export interface ActionSdk {
     config: {
         authToken: string,
@@ -124,7 +120,7 @@ export interface ActionSdk {
     registerConfigDefinitions: (...actionConfigurations: Array<HerculesActionConfigurationDefinition>) => Promise<void>,
     registerDataTypes: (...dataType: Array<HerculesDataType>) => Promise<void>,
     registerFlowTypes: (...flowTypes: Array<HerculesFlowType>) => Promise<void>,
-    registerFunctionDefinitions: (...functionDefinitions: Array<HerculesRegisterFunctionParameter>) => Promise<void>,
+    registerFunctionDefinitions: (...functionDefinitions: Array<HerculesRegisterFunctionDefinition>) => Promise<void>,
     registerRuntimeFunctionDefinitions: (...runtimeFunctionDefinitions: Array<HerculesRegisterRuntimeFunctionParameter>) => Promise<void>,
     dispatchEvent: (eventType: string, projectId: number | bigint, payload: PlainValue) => Promise<void>,
 }
