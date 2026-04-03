@@ -10,7 +10,9 @@ import {
     DataTypeServiceClient,
     DataTypeUpdateRequest, ExecutionRequest,
     FlowTypeServiceClient,
-    FlowTypeUpdateRequest, RuntimeFunctionDefinitionServiceClient, RuntimeFunctionDefinitionUpdateRequest,
+    FlowTypeUpdateRequest,
+    FunctionDefinitionServiceClient,
+    FunctionDefinitionUpdateRequest, RuntimeFunctionDefinitionServiceClient, RuntimeFunctionDefinitionUpdateRequest,
     TransferRequest, TransferResponse
 } from "@code0-tech/tucana/aquila";
 import {
@@ -30,6 +32,7 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
 
     const state: SdkState = {
         functions: [],
+        runtimeFunctions: [],
         dataTypes: [],
         flowTypes: [],
         configurationDefinitions: configDefinitions?.map(value => {
@@ -137,11 +140,11 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
             })
             return Promise.resolve()
         },
-        registerFunctionDefinitions: async (...functionDefinitions) => {
-            for (const registeredFunction of functionDefinitions) {
+        registerRuntimeFunctionDefinitions: async (...runtimeFunctionDefinitions) => {
+            for (const registeredFunction of runtimeFunctionDefinitions) {
                 const handler = registeredFunction.handler;
                 const functionDefinition = registeredFunction.definition;
-                state.functions.push({
+                state.runtimeFunctions.push({
                     identifier: functionDefinition.runtimeName,
                     definition: {
                         displayMessage: functionDefinition.displayMessage || [],
@@ -164,6 +167,39 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
                         })),
                         signature: functionDefinition.signature,
                         throwsError: functionDefinition.throwsError || false,
+                    },
+                    handler: handler,
+                });
+            }
+            return Promise.resolve()
+        },
+        registerFunctionDefinitions: async (...functionDefinitions) => {
+            for (const registeredFunction of functionDefinitions) {
+                const handler = registeredFunction.handler;
+                const runtimeFunctionDefinition = registeredFunction.definition;
+                state.functions.push({
+                    identifier: runtimeFunctionDefinition.runtimeName,
+                    definition: {
+                        displayMessage: runtimeFunctionDefinition.displayMessage || [],
+                        name: runtimeFunctionDefinition.name || [],
+                        documentation: runtimeFunctionDefinition.documentation || [],
+                        description: runtimeFunctionDefinition.description || [],
+                        deprecationMessage: runtimeFunctionDefinition.deprecationMessage || [],
+                        displayIcon: runtimeFunctionDefinition.displayIcon || "",
+                        alias: runtimeFunctionDefinition.alias || [],
+                        linkedDataTypeIdentifiers: runtimeFunctionDefinition.linkedDataTypes || [],
+                        definitionSource: "action",
+                        version: runtimeFunctionDefinition.version || config.version,
+                        runtimeName: runtimeFunctionDefinition.runtimeName,
+                        parameterDefinitions: (runtimeFunctionDefinition.parameters || []).map(param => ({
+                            runtimeName: param.runtimeName,
+                            name: param.name || [],
+                            description: param.description || [],
+                            documentation: param.documentation || [],
+                            defaultValue: constructValue(param.defaultValue || null),
+                        })),
+                        signature: runtimeFunctionDefinition.signature,
+                        throwsError: runtimeFunctionDefinition.throwsError || false,
                     },
                     handler: handler,
                 });
@@ -242,6 +278,23 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
         RuntimeFunctionDefinitionUpdateRequest.create(
             {
                 runtimeFunctions: [
+                    ...state.runtimeFunctions.map(func => ({
+                        ...func.definition,
+                    }))
+                ]
+            }
+        ), builtOptions
+    ).then(value => {
+        if (!value.response.success) {
+            return Promise.reject(value.response);
+        }
+    })
+
+    const FunctionDefinitionClient = new FunctionDefinitionServiceClient(state.transport)
+    await FunctionDefinitionClient.update(
+        FunctionDefinitionUpdateRequest.create(
+            {
+                functions: [
                     ...state.functions.map(func => ({
                         ...func.definition,
                     }))
@@ -309,7 +362,7 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse) {
         return
     }
     const execution = message.data.execution as ExecutionRequest;
-    const func = state.functions.find(value => value.identifier == execution.functionIdentifier);
+    const func = state.runtimeFunctions.find(value => value.identifier == execution.functionIdentifier);
     if (func) {
         const params = Object.entries(execution.parameters!.fields!).map(([key, value]) => {
             const param = func.definition.runtimeParameterDefinitions

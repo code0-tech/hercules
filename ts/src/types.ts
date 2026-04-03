@@ -4,7 +4,7 @@ import {
     ActionConfigurationDefinition, ActionProjectConfiguration,
     DefinitionDataType,
     DefinitionDataTypeRule, FlowType,
-    FlowTypeSetting_UniquenessScope,
+    FlowTypeSetting_UniquenessScope, FunctionDefinition,
     RuntimeFunctionDefinition,
     Translation
 } from "@code0-tech/tucana/shared";
@@ -56,6 +56,7 @@ export interface HerculesFlowType {
     displayIcon?: string,
 }
 
+
 export interface HerculesRuntimeFunctionDefinition {
     runtimeName: string,
     parameters?: {
@@ -78,6 +79,8 @@ export interface HerculesRuntimeFunctionDefinition {
     displayIcon?: string,
 }
 
+export type HerculesRegisterFunctionDefinition = HerculesRuntimeFunctionDefinition
+
 export interface HerculesActionProjectConfiguration {
     projectId: number | bigint,
     configValues: {
@@ -96,8 +99,13 @@ export interface HerculesActionConfigurationDefinition {
     identifier: string,
 }
 
-export type HerculesRegisterFunctionParameter = {
+export type HerculesRegisterRuntimeFunctionParameter = {
     definition: HerculesRuntimeFunctionDefinition,
+    handler: (...args: any[]) => Promise<PlainValue> | PlainValue,
+}
+
+export type HerculesRegisterFunctionParameter = {
+    definition: HerculesRegisterFunctionDefinition,
     handler: (...args: any[]) => Promise<PlainValue> | PlainValue,
 }
 
@@ -118,6 +126,7 @@ export interface ActionSdk {
     registerDataTypes: (...dataType: Array<HerculesDataType>) => Promise<void>,
     registerFlowTypes: (...flowTypes: Array<HerculesFlowType>) => Promise<void>,
     registerFunctionDefinitions: (...functionDefinitions: Array<HerculesRegisterFunctionParameter>) => Promise<void>,
+    registerRuntimeFunctionDefinitions: (...runtimeFunctionDefinitions: Array<HerculesRegisterRuntimeFunctionParameter>) => Promise<void>,
     dispatchEvent: (eventType: string, projectId: number | bigint, payload: PlainValue) => Promise<void>,
 }
 
@@ -135,12 +144,19 @@ export class RuntimeErrorException extends Error {
 
 export interface RegisteredFunction {
     identifier: string,
+    definition: FunctionDefinition,
+    handler: (...args: any[]) => Promise<PlainValue> | PlainValue,
+}
+
+export interface RegisteredRuntimeFunction {
+    identifier: string,
     definition: RuntimeFunctionDefinition,
     handler: (...args: any[]) => Promise<PlainValue> | PlainValue,
 }
 
 export interface SdkState {
     functions: RegisteredFunction[],
+    runtimeFunctions: RegisteredRuntimeFunction[],
     dataTypes: DefinitionDataType[],
     flowTypes: FlowType[],
     configurationDefinitions: ActionConfigurationDefinition[],
