@@ -105,8 +105,7 @@ export type HerculesRegisterRuntimeFunctionParameter = {
 }
 
 export type HerculesRegisterFunctionParameter = {
-    definition: HerculesRegisterFunctionDefinition,
-    handler: (...args: any[]) => Promise<PlainValue> | PlainValue,
+    definition: HerculesRegisterFunctionDefinition
 }
 
 export interface ActionSdk {
@@ -144,8 +143,7 @@ export class RuntimeErrorException extends Error {
 
 export interface RegisteredFunction {
     identifier: string,
-    definition: FunctionDefinition,
-    handler: (...args: any[]) => Promise<PlainValue> | PlainValue,
+    definition: FunctionDefinition
 }
 
 export interface RegisteredRuntimeFunction {

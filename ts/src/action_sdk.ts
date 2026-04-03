@@ -175,7 +175,6 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
         },
         registerFunctionDefinitions: async (...functionDefinitions) => {
             for (const registeredFunction of functionDefinitions) {
-                const handler = registeredFunction.handler;
                 const runtimeFunctionDefinition = registeredFunction.definition;
                 state.functions.push({
                     identifier: runtimeFunctionDefinition.runtimeName,
@@ -200,8 +199,7 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
                         })),
                         signature: runtimeFunctionDefinition.signature,
                         throwsError: runtimeFunctionDefinition.throwsError || false,
-                    },
-                    handler: handler,
+                    }
                 });
             }
             return Promise.resolve()
