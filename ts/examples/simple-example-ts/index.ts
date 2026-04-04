@@ -6,9 +6,9 @@ import {
 } from "@code0-tech/hercules";
 
 const sdk = createSdk({
-    authToken: "someToken",
+    authToken: "token",
     aquilaUrl: "127.0.0.1:50051",
-    actionId: "action_123",
+    actionId: "service",
     version: "0.0.0",
 }, [
     {
