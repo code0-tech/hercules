@@ -55,7 +55,7 @@ sdk.registerRuntimeFunctionDefinitionsAndFunctionDefinitions({
 
 sdk.registerFlowTypes(
     {
-        signature: "(a: TEXT): TEXT",
+        signature: "(): TEXT",
         linkedDataTypes: ["TEXT"],
         editable: false,
         identifier: "test_flow",
