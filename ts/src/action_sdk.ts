@@ -3,7 +3,8 @@ import {ChannelCredentials} from "@grpc/grpc-js";
 import {RpcOptions} from "@protobuf-ts/runtime-rpc";
 import {
     ActionSdk, HerculesActionConfigurationDefinition,
-    HerculesActionProjectConfiguration, HerculesFunctionContext, SdkState, RuntimeErrorException
+    HerculesActionProjectConfiguration, HerculesFunctionContext, SdkState, RuntimeErrorException,
+    HerculesRegisterRuntimeFunctionParameter, HerculesRegisterFunctionDefinition
 } from "./types.js";
 import {
     ActionTransferServiceClient,
@@ -52,6 +53,73 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
         fullyConnected: false
     }
 
+    const registerFunctionDefinitions = async (...functionDefinitions: Array<HerculesRegisterFunctionDefinition>) => {
+        for (const functionDefinition of functionDefinitions) {
+            state.functions.push({
+                identifier: functionDefinition.runtimeName,
+                definition: {
+                    displayMessage: functionDefinition.displayMessage || [],
+                    name: functionDefinition.name || [],
+                    documentation: functionDefinition.documentation || [],
+                    description: functionDefinition.description || [],
+                    deprecationMessage: functionDefinition.deprecationMessage || [],
+                    displayIcon: functionDefinition.displayIcon || "",
+                    alias: functionDefinition.alias || [],
+                    linkedDataTypeIdentifiers: functionDefinition.linkedDataTypes || [],
+                    definitionSource: "action",
+                    version: functionDefinition.version || config.version,
+                    runtimeName: functionDefinition.runtimeName,
+                    parameterDefinitions: (functionDefinition.parameters || []).map(param => ({
+                        runtimeName: param.runtimeName,
+                        name: param.name || [],
+                        description: param.description || [],
+                        documentation: param.documentation || [],
+                        defaultValue: constructValue(param.defaultValue || null),
+                        hidden: param.hidden || false,
+                        optional: param.hidden || false,
+                        runtimeDefinitionName: param.runtimeDefinitionName || param.runtimeName
+                    })),
+                    signature: functionDefinition.signature,
+                    throwsError: functionDefinition.throwsError || false,
+                    runtimeDefinitionName: functionDefinition.runtimeDefinitionName
+                }
+            });
+        }
+        return Promise.resolve()
+    };
+    const registerRuntimeFunctionDefinitions = async (...runtimeFunctionDefinitions: HerculesRegisterRuntimeFunctionParameter[]) => {
+        for (const registeredFunction of runtimeFunctionDefinitions) {
+            const handler = registeredFunction.handler;
+            const functionDefinition = registeredFunction.definition;
+            state.runtimeFunctions.push({
+                identifier: functionDefinition.runtimeName,
+                definition: {
+                    displayMessage: functionDefinition.displayMessage || [],
+                    name: functionDefinition.name || [],
+                    documentation: functionDefinition.documentation || [],
+                    description: functionDefinition.description || [],
+                    deprecationMessage: functionDefinition.deprecationMessage || [],
+                    displayIcon: functionDefinition.displayIcon || "",
+                    alias: functionDefinition.alias || [],
+                    linkedDataTypeIdentifiers: functionDefinition.linkedDataTypes || [],
+                    definitionSource: "action",
+                    version: functionDefinition.version || config.version,
+                    runtimeName: functionDefinition.runtimeName,
+                    runtimeParameterDefinitions: (functionDefinition.parameters || []).map(param => ({
+                        runtimeName: param.runtimeName,
+                        name: param.name || [],
+                        description: param.description || [],
+                        documentation: param.documentation || [],
+                        defaultValue: constructValue(param.defaultValue || null),
+                    })),
+                    signature: functionDefinition.signature,
+                    throwsError: functionDefinition.throwsError || false,
+                },
+                handler: handler,
+            });
+        }
+        return Promise.resolve()
+    };
     return {
         fullyConnected(): boolean {
             return state.fullyConnected;
@@ -140,69 +208,29 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
             })
             return Promise.resolve()
         },
-        registerRuntimeFunctionDefinitions: async (...runtimeFunctionDefinitions) => {
-            for (const registeredFunction of runtimeFunctionDefinitions) {
-                const handler = registeredFunction.handler;
-                const functionDefinition = registeredFunction.definition;
-                state.runtimeFunctions.push({
-                    identifier: functionDefinition.runtimeName,
-                    definition: {
-                        displayMessage: functionDefinition.displayMessage || [],
-                        name: functionDefinition.name || [],
-                        documentation: functionDefinition.documentation || [],
-                        description: functionDefinition.description || [],
-                        deprecationMessage: functionDefinition.deprecationMessage || [],
-                        displayIcon: functionDefinition.displayIcon || "",
-                        alias: functionDefinition.alias || [],
-                        linkedDataTypeIdentifiers: functionDefinition.linkedDataTypes || [],
-                        definitionSource: "action",
-                        version: functionDefinition.version || config.version,
-                        runtimeName: functionDefinition.runtimeName,
-                        runtimeParameterDefinitions: (functionDefinition.parameters || []).map(param => ({
-                            runtimeName: param.runtimeName,
-                            name: param.name || [],
-                            description: param.description || [],
-                            documentation: param.documentation || [],
-                            defaultValue: constructValue(param.defaultValue || null),
-                        })),
-                        signature: functionDefinition.signature,
-                        throwsError: functionDefinition.throwsError || false,
-                    },
-                    handler: handler,
-                });
-            }
-            return Promise.resolve()
+        registerRuntimeFunctionDefinitionsAndFunctionDefinitions: async (...runtimeFunctionDefinitions) => {
+            await Promise.all(runtimeFunctionDefinitions.map(async (register) => {
+                await Promise.all([
+                    registerRuntimeFunctionDefinitions(
+                        register
+                    ),
+                    registerFunctionDefinitions(
+                        {
+                            ...register.definition,
+                            runtimeDefinitionName: register.definition.runtimeName,
+                            parameters: register.definition.parameters?.map(param => {
+                                return {
+                                    ...param,
+                                    runtimeDefinitionName: param.runtimeName,
+                                }
+                            })
+                        }
+                    )
+                ])
+            }));
         },
-        registerFunctionDefinitions: async (...functionDefinitions) => {
-            for (const functionDefinition of functionDefinitions) {
-                state.functions.push({
-                    identifier: functionDefinition.runtimeName,
-                    definition: {
-                        displayMessage: functionDefinition.displayMessage || [],
-                        name: functionDefinition.name || [],
-                        documentation: functionDefinition.documentation || [],
-                        description: functionDefinition.description || [],
-                        deprecationMessage: functionDefinition.deprecationMessage || [],
-                        displayIcon: functionDefinition.displayIcon || "",
-                        alias: functionDefinition.alias || [],
-                        linkedDataTypeIdentifiers: functionDefinition.linkedDataTypes || [],
-                        definitionSource: "action",
-                        version: functionDefinition.version || config.version,
-                        runtimeName: functionDefinition.runtimeName,
-                        parameterDefinitions: (functionDefinition.parameters || []).map(param => ({
-                            runtimeName: param.runtimeName,
-                            name: param.name || [],
-                            description: param.description || [],
-                            documentation: param.documentation || [],
-                            defaultValue: constructValue(param.defaultValue || null),
-                        })),
-                        signature: functionDefinition.signature,
-                        throwsError: functionDefinition.throwsError || false,
-                    }
-                });
-            }
-            return Promise.resolve()
-        },
+        registerRuntimeFunctionDefinitions: registerRuntimeFunctionDefinitions,
+        registerFunctionDefinitions: registerFunctionDefinitions,
         dispatchEvent: async (eventType, projectId, payload) => {
             if (!state.stream) {
                 return Promise.reject("SDK is not connected. Call connect() before dispatching events.");
