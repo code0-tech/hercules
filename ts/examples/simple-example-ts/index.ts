@@ -7,13 +7,12 @@ import {
 
 const sdk = createSdk({
     authToken: "token",
-    aquilaUrl: "127.0.0.1:50051",
-    actionId: "service",
+    aquilaUrl: "127.0.0.1:8081",
+    actionId: "example",
     version: "0.0.0",
 }, [
     {
-        type: "LIST<STRING>",
-        linkedDataTypes: ["STRING", "LIST"],
+        type: "string[]",
         identifier: "config_discord_bot_token",
     }
 ])
@@ -25,38 +24,35 @@ sdk.registerDataTypes({
 
 sdk.registerRuntimeFunctionDefinitionsAndFunctionDefinitions({
         definition: {
-            signature: "(n: NUMBER) => NUMBER",
-            linkedDataTypes: ["NUMBER"],
+            signature: "(number: number) => number",
             parameters: [
                 {
-                    runtimeName: "n",
+                    runtimeName: "number",
                     defaultValue: 20,
                 }
             ],
             runtimeName: "fib",
         },
                 //This param is optional and can be omitted
-        handler: (context: HerculesFunctionContext, n: number): number => {
+        handler: (context: HerculesFunctionContext, number: bigint): bigint => {
                 console.log(context)
                 console.log("Project id:", context.projectId);
                 console.log("Execution id:", context.executionId);
                 console.log("Matched configs:", context.matchedConfig); // matched configs for the current execution
 
-                function fibonacci(num: number): number {
+                function fibonacci(num: bigint): bigint {
                     if (num <= 1) return num;
-                    return fibonacci(num - 1) + fibonacci(num - 2);
+                    return fibonacci(num - 1n) + fibonacci(num - 2n);
                 }
 
-                throw new RuntimeErrorException("ERROR_CALCULATING_FIB", "An error occurred while calculating the Fibonacci number.");
-
+                return fibonacci(number)
             }
     }
 )
 
 sdk.registerFlowTypes(
     {
-        signature: "(): TEXT",
-        linkedDataTypes: ["TEXT"],
+        signature: "(): string",
         editable: false,
         identifier: "test_flow",
     }
@@ -71,8 +67,8 @@ function connectToSdk() {
         sdk.dispatchEvent("test_flow", configs[0].projectId, "Hello, World! Configs loaded: " + configs.length).then(() => {
             console.log("Event dispatched successfully");
         })
-    }).catch((_error) => {
-        console.error("Error connecting SDK:");
+    }).catch((error) => {
+        console.error("Error connecting SDK:", error);
     })
 
     sdk.onError((error) => {

@@ -77,11 +77,11 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
                         defaultValue: constructValue(param.defaultValue || null),
                         hidden: param.hidden || false,
                         optional: param.hidden || false,
-                        runtimeDefinitionName: param.runtimeDefinitionName || param.runtimeName
+                        // runtimeDefinitionName: param.runtimeDefinitionName || param.runtimeName
                     })),
                     signature: functionDefinition.signature,
                     throwsError: functionDefinition.throwsError || false,
-                    runtimeDefinitionName: functionDefinition.runtimeDefinitionName
+                    // runtimeDefinitionName: functionDefinition.runtimeDefinitionName
                 }
             });
         }
@@ -315,22 +315,22 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
         }
     })
 
-    const FunctionDefinitionClient = new FunctionDefinitionServiceClient(state.transport)
-    await FunctionDefinitionClient.update(
-        FunctionDefinitionUpdateRequest.create(
-            {
-                functions: [
-                    ...state.functions.map(func => ({
-                        ...func.definition,
-                    }))
-                ]
-            }
-        ), builtOptions
-    ).then(value => {
-        if (!value.response.success) {
-            return Promise.reject(value.response);
-        }
-    })
+    // const FunctionDefinitionClient = new FunctionDefinitionServiceClient(state.transport)
+    // await FunctionDefinitionClient.update(
+    //     FunctionDefinitionUpdateRequest.create(
+    //         {
+    //             functions: [
+    //                 ...state.functions.map(func => ({
+    //                     ...func.definition,
+    //                 }))
+    //             ]
+    //         }
+    //     ), builtOptions
+    // ).then(value => {
+    //     if (!value.response.success) {
+    //         return Promise.reject(value.response);
+    //     }
+    // })
 
     const flowTypeClient = new FlowTypeServiceClient(state.transport)
     await flowTypeClient.update(FlowTypeUpdateRequest.create({
@@ -388,6 +388,7 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse) {
     }
     const execution = message.data.execution as ExecutionRequest;
     const func = state.runtimeFunctions.find(value => value.identifier == execution.functionIdentifier);
+    
     if (func) {
         const params = Object.entries(execution.parameters!.fields!).map(([key, value]) => {
             const param = func.definition.runtimeParameterDefinitions
@@ -395,12 +396,15 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse) {
 
             return param ? toAllowedValue(value) : undefined;
         });
-        const conf = state.projectConfigurations.find(config => {
+        let conf = state.projectConfigurations.find(config => {
             return true
         })
         if (!conf) {
             console.error(`No configuration found for project ${execution.projectId}`)
-            return;
+            conf = {
+                projectId: 0n,
+                actionConfigurations: []
+            }
         }
 
         const context: HerculesFunctionContext = {
@@ -437,6 +441,7 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse) {
             }
         })
         result.then((value: any) => {
+            console.log(constructValue(value))
             state.stream!.requests.send(
                 TransferRequest.create({
                     data: {
