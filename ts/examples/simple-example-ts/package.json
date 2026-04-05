@@ -11,7 +11,6 @@
     "dev": "cd ../.. && npm install && npm run build && npm pack && cd examples/simple-example-ts && npm install ../../code0-tech-hercules-0.0.0.tgz && npx tsx index.ts"
   },
   "dependencies": {
-    "@code0-tech/hercules": "file:../../code0-tech-hercules-0.0.0.tgz",
-    "@code0-tech/tucana": "^0.0.62"
+    "@code0-tech/hercules": "file:../../code0-tech-hercules-0.0.0.tgz"
   }
 }
