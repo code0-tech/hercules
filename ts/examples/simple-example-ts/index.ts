@@ -33,20 +33,20 @@ sdk.registerRuntimeFunctionDefinitionsAndFunctionDefinitions({
             ],
             runtimeName: "fib",
         },
-                //This param is optional and can be omitted
+        //This param is optional and can be omitted
         handler: (context: HerculesFunctionContext, number: bigint): bigint => {
-                console.log(context)
-                console.log("Project id:", context.projectId);
-                console.log("Execution id:", context.executionId);
-                console.log("Matched configs:", context.matchedConfig); // matched configs for the current execution
+            console.log(context)
+            console.log("Project id:", context.projectId);
+            console.log("Execution id:", context.executionId);
+            console.log("Matched configs:", context.matchedConfig); // matched configs for the current execution
 
-                function fibonacci(num: bigint): bigint {
-                    if (num <= 1) return num;
-                    return fibonacci(num - 1n) + fibonacci(num - 2n);
-                }
-
-                return fibonacci(number)
+            function fibonacci(num: bigint): bigint {
+                if (num <= 1) return num;
+                return fibonacci(num - 1n) + fibonacci(num - 2n);
             }
+
+            return fibonacci(number)
+        }
     }
 )
 
@@ -64,11 +64,13 @@ connectToSdk();
 function connectToSdk() {
     sdk.connect().then((configs: HerculesActionProjectConfiguration[]) => {
         console.log("SDK connected successfully");
+
         sdk.dispatchEvent("test_flow", configs[0].projectId, "Hello, World! Configs loaded: " + configs.length).then(() => {
             console.log("Event dispatched successfully");
         })
-    }).catch((error) => {
-        console.error("Error connecting SDK:", error);
+    }).catch(() => {
+        // will be handled by logger internally
+        process.exit(1)
     })
 
     sdk.onError((error) => {

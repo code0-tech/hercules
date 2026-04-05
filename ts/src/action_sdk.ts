@@ -21,6 +21,7 @@ import {
     FlowTypeSetting,
 } from "@code0-tech/tucana/shared";
 import {constructValue, toAllowedValue} from "@code0-tech/tucana/helpers";
+import {logger} from "./logger";
 
 const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActionConfigurationDefinition[]): ActionSdk => {
     const transport = new GrpcTransport(
@@ -77,11 +78,11 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
                         defaultValue: constructValue(param.defaultValue || null),
                         hidden: param.hidden || false,
                         optional: param.hidden || false,
-                        // runtimeDefinitionName: param.runtimeDefinitionName || param.runtimeName
+                        runtimeDefinitionName: param.runtimeDefinitionName || param.runtimeName
                     })),
                     signature: functionDefinition.signature,
                     throwsError: functionDefinition.throwsError || false,
-                    // runtimeDefinitionName: functionDefinition.runtimeDefinitionName
+                    runtimeDefinitionName: functionDefinition.runtimeDefinitionName
                 }
             });
         }
@@ -278,9 +279,13 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
             return Promise.reject(value.response);
         }
     }).catch(reason => {
+        logger.error({
+            err: reason,
+            config,
+        }, "Error while updating data types")
         return Promise.reject(reason);
     })
-
+    logger.debug("Sent data types request")
 
     await state.stream.requests.send(
         TransferRequest.create({
@@ -295,8 +300,14 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
             }
         ),
     ).catch(reason => {
+        logger.error({
+            err: reason,
+            config,
+        }, "Failed to send logon request")
         return Promise.reject(reason);
     })
+
+    logger.debug("Successfully sent logon request")
 
     const runtimeFunctionDefinitionClient = new RuntimeFunctionDefinitionServiceClient(state.transport)
     await runtimeFunctionDefinitionClient.update(
@@ -311,26 +322,46 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
         ), builtOptions
     ).then(value => {
         if (!value.response.success) {
+            logger.error({
+                err: value.response,
+                request: value.request,
+                config,
+            })
             return Promise.reject(value.response);
         }
     })
+    logger.debug("Successfully updated runtime function definitions")
 
-    // const FunctionDefinitionClient = new FunctionDefinitionServiceClient(state.transport)
-    // await FunctionDefinitionClient.update(
-    //     FunctionDefinitionUpdateRequest.create(
-    //         {
-    //             functions: [
-    //                 ...state.functions.map(func => ({
-    //                     ...func.definition,
-    //                 }))
-    //             ]
-    //         }
-    //     ), builtOptions
-    // ).then(value => {
-    //     if (!value.response.success) {
-    //         return Promise.reject(value.response);
-    //     }
-    // })
+    const FunctionDefinitionClient = new FunctionDefinitionServiceClient(state.transport)
+    try {
+        const finishedCall = await FunctionDefinitionClient.update(
+            FunctionDefinitionUpdateRequest.create(
+                {
+                    functions: [
+                        ...state.functions.map(func => ({
+                            ...func.definition,
+                        }))
+                    ]
+                }
+            ), builtOptions
+        );
+
+        if (!finishedCall.response.success) {
+            logger.error({
+                err: finishedCall.response,
+                request: finishedCall.request,
+                config,
+            }, "Error while updating function definitions")
+            return Promise.reject(finishedCall.response);
+        }
+    } catch (error) {
+        logger.error({
+            err: error,
+            config,
+        }, "Error while updating function definitions")
+        return Promise.reject(error);
+    }
+    logger.debug("Updated function definitions")
 
     const flowTypeClient = new FlowTypeServiceClient(state.transport)
     await flowTypeClient.update(FlowTypeUpdateRequest.create({
@@ -339,18 +370,29 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
         ]
     }), builtOptions).then(value => {
         if (!value.response.success) {
+            logger.error({
+                err: value.response,
+                request: value.request,
+                config,
+            })
             return Promise.reject(value.response);
         }
     })
+    logger.info("Connected successfully to aquila")
 
 
     return new Promise(async (resolve, reject) => {
         try {
             for await (let message of state?.stream?.responses || []) {
+                logger.debug({
+                    message: message,
+                    config,
+                }, "Received message from stream")
                 switch (message?.data.oneofKind) {
                     case "actionConfigurations": {
+                        logger.info("Received action configurations")
+
                         const configs = message.data.actionConfigurations as ActionConfigurations;
-                        console.log("Received action configurations:", configs);
                         state.projectConfigurations = configs.actionConfigurations
                         resolve(state.projectConfigurations.map(value => {
                             return {
@@ -371,12 +413,25 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
                         break;
                     }
                     case "execution": {
+                        logger.info({
+                            executionD: message.data.execution.executionIdentifier,
+                            config,
+                        }, "Handling execution request")
+
+                        logger.debug({
+                            message: message,
+                            config,
+                        }, "Handling execution request")
                         handleExecutionRequest(state, message)
                         break;
                     }
                 }
             }
         } catch (reason) {
+            logger.error({
+                err: reason,
+                config
+            }, "Error occurred in stream")
             reject(reason);
         }
     })
@@ -388,105 +443,168 @@ function handleExecutionRequest(state: SdkState, message: TransferResponse) {
     }
     const execution = message.data.execution as ExecutionRequest;
     const func = state.runtimeFunctions.find(value => value.identifier == execution.functionIdentifier);
-    
-    if (func) {
-        const params = Object.entries(execution.parameters!.fields!).map(([key, value]) => {
-            const param = func.definition.runtimeParameterDefinitions
-                .find(p => p.runtimeName === key);
 
-            return param ? toAllowedValue(value) : undefined;
-        });
-        let conf = state.projectConfigurations.find(config => {
-            return true
-        })
-        if (!conf) {
-            console.error(`No configuration found for project ${execution.projectId}`)
-            conf = {
-                projectId: 0n,
-                actionConfigurations: []
+    if (!func) {
+        logger.warn({
+            message
+        }, "Received execution request but no matching function found")
+        return;
+    }
+
+    const params = Object.entries(execution.parameters!.fields!).map(([key, value]) => {
+        const param = func.definition.runtimeParameterDefinitions
+            .find(p => p.runtimeName === key);
+
+        const parameterValue = param ? toAllowedValue(value) : undefined;
+        if (!parameterValue) return parameterValue
+        return parameterValue;
+    });
+
+    logger.debug({
+        message,
+        BuiltParameter: params
+    })
+
+    let conf = state.projectConfigurations.find(config => {
+        //TODO
+        return true
+    })
+
+    if (!conf) {
+        logger.error({
+            message,
+            execution
+        }, "No configuration found")
+        conf = {
+            projectId: 0n,
+            actionConfigurations: []
+        }
+    }
+    logger.debug({
+        message,
+        conf
+    })
+
+    const context: HerculesFunctionContext = {
+        projectId: execution.projectId,
+        executionId: execution.executionIdentifier,
+        matchedConfig: {
+            projectId: conf.projectId,
+            configValues: conf.actionConfigurations.map(value => {
+                return {
+                    identifier: value.identifier,
+                    value: toAllowedValue(value.value || constructValue(null)),
+                }
+            }),
+            findConfig: identifier => {
+                const config = conf.actionConfigurations.find(config => config.identifier === identifier);
+                return config ? toAllowedValue(config.value || constructValue(null)) : undefined;
             }
         }
+    }
 
-        const context: HerculesFunctionContext = {
-            projectId: execution.projectId,
-            executionId: execution.executionIdentifier,
-            matchedConfig: {
-                projectId: conf.projectId,
-                configValues: conf.actionConfigurations.map(value => {
-                    return {
-                        identifier: value.identifier,
-                        value: toAllowedValue(value.value || constructValue(null)),
-                    }
-                }),
-                findConfig: identifier => {
-                    const config = conf.actionConfigurations.find(config => config.identifier === identifier);
-                    return config ? toAllowedValue(config.value || constructValue(null)) : undefined;
+    if (func.handler.length == params.length + 1) {
+        // handler has context parameter
+        params.unshift(context)
+    } else if (func.handler.length > params.length + 1) {
+        logger.error({
+            params,
+            func,
+        }, "Handler has more parameters than provided arguments")
+        return;
+    }
+
+    const result = new Promise((resolve, reject) => {
+        try {
+            resolve(func.handler(...params))
+        } catch (e) {
+            reject(e)
+        }
+    })
+    result.then((value: any) => {
+        const request = TransferRequest.create({
+            data: {
+                oneofKind: "result",
+                result: {
+                    executionIdentifier: execution.executionIdentifier,
+                    result: {
+                        oneofKind: "success",
+                        success: constructValue(value)
+                    },
                 }
             }
-        }
+        });
+        logger.debug({
+            request: request
+        }, "Responding with execution result")
 
-        if (func.handler.length == params.length + 1) {
-            // handler has context parameter
-            params.unshift(context)
-        } else if (func.handler.length > params.length + 1) {
-            console.error("Handler has more parameters than provided arguments. This may lead to unexpected behavior.")
-            return;
-        }
-
-        const result = new Promise((resolve, reject) => {
-            try {
-                resolve(func.handler(...params))
-            } catch (e) {
-                reject(e)
-            }
-        })
-        result.then((value: any) => {
-            console.log(constructValue(value))
-            state.stream!.requests.send(
-                TransferRequest.create({
-                    data: {
-                        oneofKind: "result",
+        state.stream!.requests.send(request).catch(reason => {
+            logger.error({
+                err: reason,
+                request: request,
+                message,
+                execution
+            }, "Responding with execution result lead to error")
+        });
+    }).catch(reason => {
+        logger.warn({
+            err: reason
+        }, "Executed function lead to error")
+        let request
+        if (reason instanceof RuntimeErrorException) {
+            request = TransferRequest.create({
+                data: {
+                    oneofKind: "result",
+                    result: {
+                        executionIdentifier: execution.executionIdentifier,
                         result: {
-                            executionIdentifier: execution.executionIdentifier,
-                            result: {
-                                oneofKind: "success",
-                                success: constructValue(value)
-                            },
-                        }
-                    }
-                })
-            ).catch(reason => {
-                console.error(`Failed to send execution result for execution ${execution.executionIdentifier}:`, reason);
-            });
-        }).catch(reason => {
-            if (reason instanceof RuntimeErrorException) {
-                state.stream!.requests.send(
-                    TransferRequest.create({
-                        data: {
-                            oneofKind: "result",
-                            result: {
-                                executionIdentifier: execution.executionIdentifier,
-                                result: {
-                                    oneofKind: "error",
-                                    error: {
-                                        code: reason.code,
-                                        description: reason.description
-                                    }
-                                },
+                            oneofKind: "error",
+                            error: {
+                                code: reason.code,
+                                description: reason.description
                             }
-                        }
-                    })
-                ).catch(reason => {
-                    console.error(`Failed to send execution result for execution ${execution.executionIdentifier}:`, reason);
-                });
+                        },
+                    }
+                }
+            });
+        } else {
+            request = TransferRequest.create({
+                data: {
+                    oneofKind: "result",
+                    result: {
+                        executionIdentifier: execution.executionIdentifier,
+                        result: {
+                            oneofKind: "error",
+                            error: {
+                                code: "UNKNOWN_ERROR",
+                                description: reason.toString()
+                            }
+                        },
+                    }
+                }
+            });
+            logger.warn({
+                err: reason,
+                func,
+                execution
+            }, "Error occured while executing function, but not an RuntimeErrorException")
+        }
 
-            } else {
-                console.error(`Error executing function ${func?.identifier} for execution ${execution.executionIdentifier}:`, reason);
-            }
-        })
+        logger.debug({
+            request: request
+        }, "Responding with execution error")
 
-
-    }
+        state.stream!.requests.send(
+            request
+        ).catch(reason => {
+            logger.error({
+                err: reason,
+                request: request,
+                execution,
+                message
+            }, "Failed to send execution result error")
+        });
+    })
 }
 
 export {
