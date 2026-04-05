@@ -12,7 +12,6 @@ import {PlainValue} from "@code0-tech/tucana/helpers";
 import {ActionTransferServiceClient, TransferRequest, TransferResponse} from "@code0-tech/tucana/aquila";
 
 
-
 export interface HerculesFunctionContext {
     projectId: number | bigint,
     executionId: string,
@@ -65,6 +64,8 @@ export interface HerculesRuntimeFunctionDefinition {
         name?: Translation[],
         description?: Translation[],
         documentation?: Translation[],
+        hidden?: boolean,
+        optional?: boolean
     }[],
     signature: string,
     throwsError?: boolean,
@@ -79,7 +80,31 @@ export interface HerculesRuntimeFunctionDefinition {
     displayIcon?: string,
 }
 
-export type HerculesRegisterFunctionDefinition = HerculesRuntimeFunctionDefinition
+export interface HerculesRegisterFunctionDefinition {
+    runtimeDefinitionName: string,
+    runtimeName: string,
+    parameters?: {
+        runtimeName: string,
+        defaultValue?: PlainValue,
+        name?: Translation[],
+        description?: Translation[],
+        documentation?: Translation[],
+        hidden?: boolean,
+        optional?: boolean,
+        runtimeDefinitionName?: string
+    }[],
+    signature: string,
+    throwsError?: boolean,
+    name?: Translation[],
+    description?: Translation[],
+    documentation?: Translation[],
+    deprecationMessage?: Translation[],
+    displayMessage?: Translation[],
+    alias?: Translation[],
+    linkedDataTypes?: string[],
+    version?: string,
+    displayIcon?: string,
+}
 
 export interface HerculesActionProjectConfiguration {
     projectId: number | bigint,
@@ -120,6 +145,7 @@ export interface ActionSdk {
     registerConfigDefinitions: (...actionConfigurations: Array<HerculesActionConfigurationDefinition>) => Promise<void>,
     registerDataTypes: (...dataType: Array<HerculesDataType>) => Promise<void>,
     registerFlowTypes: (...flowTypes: Array<HerculesFlowType>) => Promise<void>,
+    registerRuntimeFunctionDefinitionsAndFunctionDefinitions: (...runtimeFunctionDefinitions: Array<HerculesRegisterRuntimeFunctionParameter>) => Promise<void>,
     registerFunctionDefinitions: (...functionDefinitions: Array<HerculesRegisterFunctionDefinition>) => Promise<void>,
     registerRuntimeFunctionDefinitions: (...runtimeFunctionDefinitions: Array<HerculesRegisterRuntimeFunctionParameter>) => Promise<void>,
     dispatchEvent: (eventType: string, projectId: number | bigint, payload: PlainValue) => Promise<void>,

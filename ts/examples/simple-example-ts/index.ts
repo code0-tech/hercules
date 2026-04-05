@@ -23,7 +23,7 @@ sdk.registerDataTypes({
     type: "any",
 })
 
-sdk.registerFunctionDefinitions({
+sdk.registerRuntimeFunctionDefinitionsAndFunctionDefinitions({
         definition: {
             signature: "(n: NUMBER) => NUMBER",
             linkedDataTypes: ["NUMBER"],
@@ -55,8 +55,9 @@ sdk.registerFunctionDefinitions({
 
 sdk.registerFlowTypes(
     {
+        signature: "(): TEXT",
+        linkedDataTypes: ["TEXT"],
         editable: false,
-        inputType: "STRING",
         identifier: "test_flow",
     }
 )
