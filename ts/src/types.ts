@@ -10,6 +10,7 @@ import {
 } from "@code0-tech/tucana/shared";
 import {PlainValue} from "@code0-tech/tucana/helpers";
 import {ActionTransferServiceClient, TransferRequest, TransferResponse} from "@code0-tech/tucana/aquila";
+import 'reflect-metadata';
 
 
 export interface HerculesFunctionContext {
@@ -55,18 +56,19 @@ export interface HerculesFlowType {
     displayIcon?: string,
 }
 
+export interface HerculesRuntimeFunctionDefinitionParameter {
+    runtimeName: string,
+    defaultValue?: PlainValue,
+    name?: Translation[],
+    description?: Translation[],
+    documentation?: Translation[],
+    hidden?: boolean,
+    optional?: boolean
+}
 
 export interface HerculesRuntimeFunctionDefinition {
     runtimeName: string,
-    parameters?: {
-        runtimeName: string,
-        defaultValue?: PlainValue,
-        name?: Translation[],
-        description?: Translation[],
-        documentation?: Translation[],
-        hidden?: boolean,
-        optional?: boolean
-    }[],
+    parameters?: HerculesRuntimeFunctionDefinitionParameter[],
     signature: string,
     throwsError?: boolean,
     name?: Translation[],
@@ -80,19 +82,21 @@ export interface HerculesRuntimeFunctionDefinition {
     displayIcon?: string,
 }
 
-export interface HerculesRegisterFunctionDefinition {
+export interface HerculesFunctionDefinitionParameter {
+    runtimeName: string,
+    defaultValue?: PlainValue,
+    name?: Translation[],
+    description?: Translation[],
+    documentation?: Translation[],
+    hidden?: boolean,
+    optional?: boolean,
+    runtimeDefinitionName?: string
+}
+
+export interface HerculesFunctionDefinition {
     runtimeDefinitionName: string,
     runtimeName: string,
-    parameters?: {
-        runtimeName: string,
-        defaultValue?: PlainValue,
-        name?: Translation[],
-        description?: Translation[],
-        documentation?: Translation[],
-        hidden?: boolean,
-        optional?: boolean,
-        runtimeDefinitionName?: string
-    }[],
+    parameters?: HerculesFunctionDefinitionParameter[],
     signature: string,
     throwsError?: boolean,
     name?: Translation[],
@@ -145,9 +149,8 @@ export interface ActionSdk {
     registerConfigDefinitions: (...actionConfigurations: Array<HerculesActionConfigurationDefinition>) => Promise<void>,
     registerDataTypes: (...dataType: Array<HerculesDataType>) => Promise<void>,
     registerFlowTypes: (...flowTypes: Array<HerculesFlowType>) => Promise<void>,
-    registerRuntimeFunctionDefinitionsAndFunctionDefinitions: (...runtimeFunctionDefinitions: Array<HerculesRegisterRuntimeFunctionParameter>) => Promise<void>,
-    registerFunctionDefinitions: (...functionDefinitions: Array<HerculesRegisterFunctionDefinition>) => Promise<void>,
-    registerRuntimeFunctionDefinitions: (...runtimeFunctionDefinitions: Array<HerculesRegisterRuntimeFunctionParameter>) => Promise<void>,
+    registerRuntimeFunctionDefinitionClass: (klass: RuntimeFunctionDefinitionClass) => Promise<void>,
+    registerFunctionDefinitionClass: <T extends RuntimeFunctionDefinitionClass>(klass: FunctionDefinitionConstructor<T>) => Promise<void>,
     dispatchEvent: (eventType: string, projectId: number | bigint, payload: PlainValue) => Promise<void>,
 }
 
@@ -162,6 +165,68 @@ export class RuntimeErrorException extends Error {
         this.description = description
     }
 }
+
+
+export type FunctionDefinitionConstructor<T> = new () => T;
+
+export type RuntimeFunctionDefinitionRunnable = {
+    run: (...args: any[]) => Promise<PlainValue> | PlainValue;
+};
+
+export type RuntimeFunctionDefinitionClass<T extends RuntimeFunctionDefinitionRunnable = RuntimeFunctionDefinitionRunnable> =
+    new () => T;
+
+
+export const Identifier = (id: string): ClassDecorator =>
+    (target) => Reflect.defineMetadata('hercules:identifier', id, target);
+
+export const OmitFunctionDefinition = (): ClassDecorator =>
+    (target) => Reflect.defineMetadata('hercules:omit_function_definition', true, target)
+
+export const RuntimeParameter = (parameter: HerculesRuntimeFunctionDefinitionParameter): ClassDecorator =>
+    (target) => {
+        const parameters = Reflect.getMetadata('hercules:runtime_parameters', target) || [];
+        parameters.push(parameter);
+
+        Reflect.defineMetadata('hercules:runtime_parameters', parameters, target)
+    }
+
+export const FunctionParameter = (parameter: HerculesFunctionDefinitionParameter): ClassDecorator =>
+    (target) => {
+        const parameters = Reflect.getMetadata('hercules:function_parameters', target) || [];
+        parameters.push(parameter);
+
+        Reflect.defineMetadata('hercules:function_parameters', parameters, target)
+    }
+
+export const Name = (...translation: Translation[]): ClassDecorator =>
+    (target) => Reflect.defineMetadata('hercules:name', translation, target)
+
+export const DisplayMessage = (...translation: Translation[]): ClassDecorator =>
+    (target) => Reflect.defineMetadata('hercules:display_message', translation, target)
+export const Description = (...translation: Translation[]): ClassDecorator =>
+    (target) => Reflect.defineMetadata('hercules:description', translation, target)
+export const DeprecationMessage = (...translation: Translation[]): ClassDecorator =>
+    (target) => Reflect.defineMetadata('hercules:deprecation_message', translation, target)
+export const Alias = (...translation: Translation[]): ClassDecorator =>
+    (target) => Reflect.defineMetadata('hercules:alias', translation, target)
+export const Documentation = (...translation: Translation[]): ClassDecorator =>
+    (target) => Reflect.defineMetadata('hercules:documentation', translation, target)
+
+export const Signature = (signature: string): ClassDecorator =>
+    (target) => Reflect.defineMetadata('hercules:signature', signature, target)
+
+export const LinkedDataTypeIdentifiers = (...linkedDataTypeIdentifiers: string[]): ClassDecorator =>
+    (target) => Reflect.defineMetadata('hercules:linked_data_type_identifiers', linkedDataTypeIdentifiers, target)
+
+export const Version = (version: string): ClassDecorator =>
+    (target) => Reflect.defineMetadata('hercules:version', version, target)
+
+export const ThrowsError = (throwsError: boolean = true): ClassDecorator =>
+    (target) => Reflect.defineMetadata('hercules:throws_error', throwsError, target)
+
+export const DisplayIcon = (displayIcon: string): ClassDecorator =>
+    (target) => Reflect.defineMetadata('hercules:display_icon', displayIcon, target)
 
 export interface RegisteredFunction {
     identifier: string,
