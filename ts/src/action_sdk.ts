@@ -4,7 +4,9 @@ import {RpcOptions} from "@protobuf-ts/runtime-rpc";
 import {
     ActionSdk, HerculesActionConfigurationDefinition,
     HerculesActionProjectConfiguration, HerculesFunctionContext, SdkState, RuntimeErrorException,
-    HerculesRegisterRuntimeFunctionParameter, HerculesRegisterFunctionDefinition
+    HerculesFunctionDefinition, RuntimeFunctionDefinitionClass,
+    FunctionDefinitionConstructor, RegisteredRuntimeFunction, HerculesFunctionDefinitionParameter,
+    HerculesRuntimeFunctionDefinitionParameter, HerculesRuntimeFunctionDefinition, RegisteredFunction
 } from "./types.js";
 import {
     ActionTransferServiceClient,
@@ -18,10 +20,11 @@ import {
 } from "@code0-tech/tucana/aquila";
 import {
     ActionConfigurations,
-    FlowTypeSetting,
+    FlowTypeSetting, RuntimeParameterDefinition,
 } from "@code0-tech/tucana/shared";
 import {constructValue, toAllowedValue} from "@code0-tech/tucana/helpers";
 import {logger} from "./logger";
+import 'reflect-metadata';
 
 const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActionConfigurationDefinition[]): ActionSdk => {
     const transport = new GrpcTransport(
@@ -54,74 +57,148 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
         fullyConnected: false
     }
 
-    const registerFunctionDefinitions = async (...functionDefinitions: Array<HerculesRegisterFunctionDefinition>) => {
-        for (const functionDefinition of functionDefinitions) {
-            state.functions.push({
-                identifier: functionDefinition.runtimeName,
-                definition: {
-                    displayMessage: functionDefinition.displayMessage || [],
-                    name: functionDefinition.name || [],
-                    documentation: functionDefinition.documentation || [],
-                    description: functionDefinition.description || [],
-                    deprecationMessage: functionDefinition.deprecationMessage || [],
-                    displayIcon: functionDefinition.displayIcon || "",
-                    alias: functionDefinition.alias || [],
-                    linkedDataTypeIdentifiers: functionDefinition.linkedDataTypes || [],
-                    definitionSource: "action",
-                    version: functionDefinition.version || config.version,
-                    runtimeName: functionDefinition.runtimeName,
-                    parameterDefinitions: (functionDefinition.parameters || []).map(param => ({
-                        runtimeName: param.runtimeName,
+    const buildRuntimeFunctionDefinition = (klass: RuntimeFunctionDefinitionClass): RegisteredRuntimeFunction => {
+        const identifier: string = Reflect.getMetadata('hercules:identifier', klass)
+        const runtimeParameters: HerculesRuntimeFunctionDefinitionParameter[] = Reflect.getMetadata('hercules:runtime_parameters', klass)
+        const names: HerculesRuntimeFunctionDefinition["name"] = Reflect.getMetadata('hercules:name', klass) || []
+        const displayMessage: HerculesRuntimeFunctionDefinition["displayMessage"] = Reflect.getMetadata('hercules:display_message', klass) || []
+        const description: HerculesRuntimeFunctionDefinition["description"] = Reflect.getMetadata('hercules:description', klass) || []
+        const deprecationMessage: HerculesRuntimeFunctionDefinition["deprecationMessage"] = Reflect.getMetadata('hercules:deprecation_message', klass) || []
+        const alias: HerculesRuntimeFunctionDefinition["alias"] = Reflect.getMetadata('hercules:alias', klass) || []
+        const documentation: HerculesRuntimeFunctionDefinition["documentation"] = Reflect.getMetadata('hercules:documentation', klass) || []
+        const signature: HerculesRuntimeFunctionDefinition["signature"] = Reflect.getMetadata('hercules:signature', klass)
+        const linkedDataTypeIdentifiers: HerculesRuntimeFunctionDefinition["linkedDataTypes"] = Reflect.getMetadata('hercules:linked_data_type_identifiers', klass) || []
+        const version: HerculesRuntimeFunctionDefinition["version"] = Reflect.getMetadata('hercules:version', klass) || config.version
+        const displayIcon: HerculesRuntimeFunctionDefinition["displayIcon"] = Reflect.getMetadata('hercules:display_icon', klass) || ""
+        const throwsError: HerculesRuntimeFunctionDefinition["throwsError"] = Reflect.getMetadata('hercules:throws_error', klass) || false
+        const runFunction = new klass().run
+
+        if (!identifier) {
+            throw new Error(`Runtime function class ${klass.name} is missing an identifier. Please add @Identifier("your_identifier") decorator to the class.`)
+        }
+        if (!signature) {
+            throw new Error(`Runtime function class ${klass.name} is missing a signature. Please add @Signature("(param1: TYPE_1): RETURN_TYPE") decorator to the class.`)
+        }
+
+        return {
+            identifier: identifier as string,
+            definition: {
+                alias: alias || [],
+                name: names || [],
+                description: description || [],
+                version: version || config.version,
+                runtimeName: identifier,
+                deprecationMessage: deprecationMessage || [],
+                displayIcon: displayIcon || "",
+                displayMessage: displayMessage || [],
+                documentation: documentation || [],
+                linkedDataTypeIdentifiers: linkedDataTypeIdentifiers || [],
+                runtimeParameterDefinitions: runtimeParameters.map(param => {
+                    return {
+                        ...param,
                         name: param.name || [],
                         description: param.description || [],
                         documentation: param.documentation || [],
-                        defaultValue: constructValue(param.defaultValue || null),
                         hidden: param.hidden || false,
-                        optional: param.hidden || false,
-                        runtimeDefinitionName: param.runtimeDefinitionName || param.runtimeName
-                    })),
-                    signature: functionDefinition.signature,
-                    throwsError: functionDefinition.throwsError || false,
-                    runtimeDefinitionName: functionDefinition.runtimeDefinitionName
-                }
-            });
-        }
-        return Promise.resolve()
-    };
-    const registerRuntimeFunctionDefinitions = async (...runtimeFunctionDefinitions: HerculesRegisterRuntimeFunctionParameter[]) => {
-        for (const registeredFunction of runtimeFunctionDefinitions) {
-            const handler = registeredFunction.handler;
-            const functionDefinition = registeredFunction.definition;
-            state.runtimeFunctions.push({
-                identifier: functionDefinition.runtimeName,
-                definition: {
-                    displayMessage: functionDefinition.displayMessage || [],
-                    name: functionDefinition.name || [],
-                    documentation: functionDefinition.documentation || [],
-                    description: functionDefinition.description || [],
-                    deprecationMessage: functionDefinition.deprecationMessage || [],
-                    displayIcon: functionDefinition.displayIcon || "",
-                    alias: functionDefinition.alias || [],
-                    linkedDataTypeIdentifiers: functionDefinition.linkedDataTypes || [],
-                    definitionSource: "action",
-                    version: functionDefinition.version || config.version,
-                    runtimeName: functionDefinition.runtimeName,
-                    runtimeParameterDefinitions: (functionDefinition.parameters || []).map(param => ({
-                        runtimeName: param.runtimeName,
-                        name: param.name || [],
-                        description: param.description || [],
-                        documentation: param.documentation || [],
-                        defaultValue: constructValue(param.defaultValue || null),
-                    })),
-                    signature: functionDefinition.signature,
-                    throwsError: functionDefinition.throwsError || false,
-                },
-                handler: handler,
-            });
-        }
-        return Promise.resolve()
-    };
+                        optional: param.optional || false,
+                        defaultValue: param.defaultValue ? constructValue(param.defaultValue) : undefined,
+                    } as RuntimeParameterDefinition
+                }),
+                signature: signature,
+                throwsError: throwsError || false,
+                definitionSource: "action"
+            },
+            handler: runFunction
+        } as RegisteredRuntimeFunction
+    }
+
     return {
+        registerFunctionDefinitionClass<T>(klass: FunctionDefinitionConstructor<T>): Promise<void> {
+            const parentClass = Object.getPrototypeOf(klass)
+            const runtimeFunction = buildRuntimeFunctionDefinition(parentClass);
+            const runtimeDefinition = runtimeFunction.definition
+
+            const functionParameters: HerculesFunctionDefinitionParameter[] = Reflect.getMetadata('hercules:function_parameters', klass)
+            const names: HerculesFunctionDefinition["name"] = Reflect.getMetadata('hercules:name', klass)
+            const displayMessage: HerculesFunctionDefinition["displayMessage"] = Reflect.getMetadata('hercules:display_message', klass)
+            const description: HerculesFunctionDefinition["description"] = Reflect.getMetadata('hercules:description', klass)
+            const deprecationMessage: HerculesFunctionDefinition["deprecationMessage"] = Reflect.getMetadata('hercules:deprecation_message', klass)
+            const alias: HerculesFunctionDefinition["alias"] = Reflect.getMetadata('hercules:alias', klass)
+            const documentation: HerculesFunctionDefinition["documentation"] = Reflect.getMetadata('hercules:documentation', klass)
+            const signature: HerculesFunctionDefinition["signature"] = Reflect.getMetadata('hercules:signature', klass)
+            const linkedDataTypeIdentifiers: HerculesFunctionDefinition["linkedDataTypes"] = Reflect.getMetadata('hercules:linked_data_type_identifiers', klass)
+            const version: HerculesFunctionDefinition["version"] = Reflect.getMetadata('hercules:version', klass)
+            const displayIcon: HerculesFunctionDefinition["displayIcon"] = Reflect.getMetadata('hercules:display_icon', klass)
+            const throwsError: HerculesFunctionDefinition["throwsError"] = Reflect.getMetadata('hercules:throws_error', klass)
+
+            runtimeDefinition.runtimeParameterDefinitions.forEach(runtimeDefinition => {
+                if (functionParameters.find((param: HerculesFunctionDefinitionParameter) => param.runtimeName === runtimeDefinition.runtimeName)) {
+                    return;
+                }
+                functionParameters.push({
+                    ...runtimeDefinition,
+                    runtimeDefinitionName: runtimeDefinition.runtimeName
+                })
+            })
+
+            state.functions.push({
+                identifier: runtimeFunction.identifier,
+                definition: {
+                    runtimeDefinitionName: runtimeDefinition.runtimeName,
+                    runtimeName: runtimeDefinition.runtimeName || runtimeDefinition.runtimeName,
+                    signature: signature || runtimeDefinition.signature,
+                    throwsError: throwsError || runtimeDefinition.throwsError,
+                    alias: alias || runtimeDefinition.alias,
+                    version: version || runtimeDefinition.version,
+                    description: description || runtimeDefinition.description,
+                    name: names || runtimeDefinition.name,
+                    documentation: documentation || runtimeDefinition.documentation,
+                    deprecationMessage: deprecationMessage || runtimeDefinition.deprecationMessage,
+                    displayMessage: displayMessage || runtimeDefinition.displayMessage,
+                    displayIcon: displayIcon || runtimeDefinition.displayIcon,
+                    definitionSource: "action",
+                    linkedDataTypeIdentifiers: linkedDataTypeIdentifiers || runtimeDefinition.linkedDataTypeIdentifiers,
+                    parameterDefinitions: functionParameters.map(value => {
+                        return {
+                            ...value,
+                            runtimeDefinitionName: value.runtimeDefinitionName || value.runtimeName,
+                            name: value.name || [],
+                            description: value.description || [],
+                            documentation: value.documentation || [],
+                            hidden: value.hidden || false,
+                            optional: value.optional || false,
+                            defaultValue: value.defaultValue ? constructValue(value.defaultValue || null) : undefined,
+                        }
+                    })
+                },
+            } as RegisteredFunction)
+
+            return Promise.resolve();
+        }, registerRuntimeFunctionDefinitionClass(klass: RuntimeFunctionDefinitionClass): Promise<void> {
+            const omitFunctionDefinition = Reflect.getMetadata('hercules:omit_function_definition', klass) || false
+
+            const runtimeFunction = buildRuntimeFunctionDefinition(klass);
+            const definition = runtimeFunction.definition
+
+            state.runtimeFunctions.push(runtimeFunction as RegisteredRuntimeFunction)
+            if (!omitFunctionDefinition) {
+                state.functions.push({
+                    identifier: definition.runtimeName,
+                    definition: {
+                        ...definition,
+                        runtimeDefinitionName: definition.runtimeName,
+                        parameterDefinitions: definition.runtimeParameterDefinitions.map(param => {
+                            return {
+                                ...param,
+                                runtimeDefinitionName: param.runtimeName
+                            }
+                        })
+                    }
+                } as RegisteredFunction)
+            }
+
+            return Promise.resolve();
+        },
         fullyConnected(): boolean {
             return state.fullyConnected;
         },
@@ -209,29 +286,6 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
             })
             return Promise.resolve()
         },
-        registerRuntimeFunctionDefinitionsAndFunctionDefinitions: async (...runtimeFunctionDefinitions) => {
-            await Promise.all(runtimeFunctionDefinitions.map(async (register) => {
-                await Promise.all([
-                    registerRuntimeFunctionDefinitions(
-                        register
-                    ),
-                    registerFunctionDefinitions(
-                        {
-                            ...register.definition,
-                            runtimeDefinitionName: register.definition.runtimeName,
-                            parameters: register.definition.parameters?.map(param => {
-                                return {
-                                    ...param,
-                                    runtimeDefinitionName: param.runtimeName,
-                                }
-                            })
-                        }
-                    )
-                ])
-            }));
-        },
-        registerRuntimeFunctionDefinitions: registerRuntimeFunctionDefinitions,
-        registerFunctionDefinitions: registerFunctionDefinitions,
         dispatchEvent: async (eventType, projectId, payload) => {
             if (!state.stream) {
                 return Promise.reject("SDK is not connected. Call connect() before dispatching events.");
@@ -309,27 +363,40 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
 
     logger.debug("Successfully sent logon request")
 
-    const runtimeFunctionDefinitionClient = new RuntimeFunctionDefinitionServiceClient(state.transport)
-    await runtimeFunctionDefinitionClient.update(
-        RuntimeFunctionDefinitionUpdateRequest.create(
-            {
-                runtimeFunctions: [
-                    ...state.runtimeFunctions.map(func => ({
-                        ...func.definition,
-                    }))
-                ]
-            }
-        ), builtOptions
-    ).then(value => {
-        if (!value.response.success) {
-            logger.error({
-                err: value.response,
-                request: value.request,
-                config,
-            })
-            return Promise.reject(value.response);
+    const request = RuntimeFunctionDefinitionUpdateRequest.create(
+        {
+            runtimeFunctions: [
+                ...state.runtimeFunctions.map(func => ({
+                    ...func.definition,
+                }))
+            ]
         }
-    })
+    );
+    try {
+        const runtimeFunctionDefinitionClient = new RuntimeFunctionDefinitionServiceClient(state.transport)
+        await runtimeFunctionDefinitionClient.update(
+            request, builtOptions
+        ).then(value => {
+            if (!value.response.success) {
+                logger.error({
+                    err: value.response,
+                    request: value.request,
+                    config,
+                })
+                return Promise.reject(value.response);
+            }
+        })
+    } catch (error) {
+        logger.debug({
+            ...request.runtimeFunctions[0].runtimeParameterDefinitions[0].defaultValue
+        })
+        logger.error({
+            err: error,
+            request: request,
+            config,
+        }, "Error while updating runtime function definitions")
+        return Promise.reject(error);
+    }
     logger.debug("Successfully updated runtime function definitions")
 
     const FunctionDefinitionClient = new FunctionDefinitionServiceClient(state.transport)

@@ -1,8 +1,8 @@
 import {
     createSdk,
     HerculesActionProjectConfiguration,
-    HerculesFunctionContext,
-    RuntimeErrorException
+    HerculesFunctionContext, Identifier, LinkedDataTypeIdentifiers,
+    RuntimeErrorException, RuntimeParameter, Signature
 } from "@code0-tech/hercules";
 
 const sdk = createSdk({
@@ -22,33 +22,29 @@ sdk.registerDataTypes({
     type: "any",
 })
 
-sdk.registerRuntimeFunctionDefinitionsAndFunctionDefinitions({
-        definition: {
-            signature: "(number: number) => number",
-            parameters: [
-                {
-                    runtimeName: "number",
-                    defaultValue: 20,
-                }
-            ],
-            runtimeName: "fib",
-        },
-        //This param is optional and can be omitted
-        handler: (context: HerculesFunctionContext, number: bigint): bigint => {
-            console.log(context)
-            console.log("Project id:", context.projectId);
-            console.log("Execution id:", context.executionId);
-            console.log("Matched configs:", context.matchedConfig); // matched configs for the current execution
+@Identifier("fib")
+@Signature("(number: number) => number")
+@RuntimeParameter({
+    runtimeName: "number",
+    defaultValue: 20
+})
+class FibonacciFunction {
+    run(context: HerculesFunctionContext, number: number): number {
+        console.log(context)
+        console.log("Project id:", context.projectId);
+        console.log("Execution id:", context.executionId);
+        console.log("Matched configs:", context.matchedConfig); // matched configs for the current execution
 
-            function fibonacci(num: bigint): bigint {
-                if (num <= 1) return num;
-                return fibonacci(num - 1n) + fibonacci(num - 2n);
-            }
-
-            return fibonacci(number)
+        function fibonacci(num: number): number {
+            if (num <= 1) return num;
+            return fibonacci(num - 1) + fibonacci(num - 2);
         }
+
+        return fibonacci(number)
     }
-)
+}
+
+sdk.registerRuntimeFunctionDefinitionClass(FibonacciFunction)
 
 sdk.registerFlowTypes(
     {
