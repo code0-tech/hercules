@@ -22,7 +22,7 @@ sdk.registerDataTypes({
     type: "any",
 })
 
-sdk.registerRuntimeFunctionDefinitionsAndFunctionDefinitions({
+sdk.registerRuntimeFunctionDefinitions({
         definition: {
             signature: "(number: number) => number",
             parameters: [

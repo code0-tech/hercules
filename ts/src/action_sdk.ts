@@ -78,11 +78,9 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
                         defaultValue: constructValue(param.defaultValue || null),
                         hidden: param.hidden || false,
                         optional: param.hidden || false,
-                        runtimeDefinitionName: param.runtimeDefinitionName || param.runtimeName
                     })),
                     signature: functionDefinition.signature,
                     throwsError: functionDefinition.throwsError || false,
-                    runtimeDefinitionName: functionDefinition.runtimeDefinitionName
                 }
             });
         }
