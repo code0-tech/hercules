@@ -5,13 +5,16 @@ import {
     DefinitionDataType,
     DefinitionDataTypeRule, FlowType,
     FlowTypeSetting_UniquenessScope, FunctionDefinition,
-    RuntimeFunctionDefinition,
-    Translation
+    RuntimeFunctionDefinition
 } from "@code0-tech/tucana/shared";
 import {PlainValue} from "@code0-tech/tucana/helpers";
 import {ActionTransferServiceClient, TransferRequest, TransferResponse} from "@code0-tech/tucana/aquila";
 import 'reflect-metadata';
 
+export interface HerculesTranslation {
+    code: "en-US" | "de-DE" | string,
+    content: string
+}
 
 export interface HerculesFunctionContext {
     projectId: number | bigint,
@@ -21,9 +24,9 @@ export interface HerculesFunctionContext {
 
 export interface HerculesDataType {
     identifier: string,
-    name?: Translation[],
-    displayMessage?: Translation[],
-    alias?: Translation[],
+    name?: HerculesTranslation[],
+    displayMessage?: HerculesTranslation[],
+    alias?: HerculesTranslation[],
     rules?: DefinitionDataTypeRule[],
     genericKeys?: string[],
     type: string,
@@ -37,8 +40,8 @@ export interface HerculesFlowTypeSetting {
     unique?: FlowTypeSetting_UniquenessScope,
     linkedDataTypeIdentifiers?: string[],
     defaultValue?: PlainValue,
-    name?: Translation[],
-    description?: Translation[],
+    name?: HerculesTranslation[],
+    description?: HerculesTranslation[],
 }
 
 export interface HerculesFlowType {
@@ -47,11 +50,11 @@ export interface HerculesFlowType {
     signature: string,
     linkedDataTypes?: string[],
     editable: boolean,
-    name?: Translation[],
-    description?: Translation[],
-    documentation?: Translation[],
-    displayMessage?: Translation[],
-    alias?: Translation[],
+    name?: HerculesTranslation[],
+    description?: HerculesTranslation[],
+    documentation?: HerculesTranslation[],
+    displayMessage?: HerculesTranslation[],
+    alias?: HerculesTranslation[],
     version?: string,
     displayIcon?: string,
 }
@@ -59,9 +62,9 @@ export interface HerculesFlowType {
 export interface HerculesRuntimeFunctionDefinitionParameter {
     runtimeName: string,
     defaultValue?: PlainValue,
-    name?: Translation[],
-    description?: Translation[],
-    documentation?: Translation[],
+    name?: HerculesTranslation[],
+    description?: HerculesTranslation[],
+    documentation?: HerculesTranslation[],
     hidden?: boolean,
     optional?: boolean
 }
@@ -71,12 +74,12 @@ export interface HerculesRuntimeFunctionDefinition {
     parameters?: HerculesRuntimeFunctionDefinitionParameter[],
     signature: string,
     throwsError?: boolean,
-    name?: Translation[],
-    description?: Translation[],
-    documentation?: Translation[],
-    deprecationMessage?: Translation[],
-    displayMessage?: Translation[],
-    alias?: Translation[],
+    name?: HerculesTranslation[],
+    description?: HerculesTranslation[],
+    documentation?: HerculesTranslation[],
+    deprecationMessage?: HerculesTranslation[],
+    displayMessage?: HerculesTranslation[],
+    alias?: HerculesTranslation[],
     linkedDataTypes?: string[],
     version?: string,
     displayIcon?: string,
@@ -85,9 +88,9 @@ export interface HerculesRuntimeFunctionDefinition {
 export interface HerculesFunctionDefinitionParameter {
     runtimeName: string,
     defaultValue?: PlainValue,
-    name?: Translation[],
-    description?: Translation[],
-    documentation?: Translation[],
+    name?: HerculesTranslation[],
+    description?: HerculesTranslation[],
+    documentation?: HerculesTranslation[],
     hidden?: boolean,
     optional?: boolean,
     runtimeDefinitionName?: string
@@ -99,12 +102,12 @@ export interface HerculesFunctionDefinition {
     parameters?: HerculesFunctionDefinitionParameter[],
     signature: string,
     throwsError?: boolean,
-    name?: Translation[],
-    description?: Translation[],
-    documentation?: Translation[],
-    deprecationMessage?: Translation[],
-    displayMessage?: Translation[],
-    alias?: Translation[],
+    name?: HerculesTranslation[],
+    description?: HerculesTranslation[],
+    documentation?: HerculesTranslation[],
+    deprecationMessage?: HerculesTranslation[],
+    displayMessage?: HerculesTranslation[],
+    alias?: HerculesTranslation[],
     linkedDataTypes?: string[],
     version?: string,
     displayIcon?: string,
@@ -120,8 +123,8 @@ export interface HerculesActionProjectConfiguration {
 }
 
 export interface HerculesActionConfigurationDefinition {
-    name?: Translation[],
-    description?: Translation[],
+    name?: HerculesTranslation[],
+    description?: HerculesTranslation[],
     type: string,
     linkedDataTypes?: string[],
     defaultValue?: PlainValue,
@@ -199,18 +202,18 @@ export const FunctionParameter = (parameter: HerculesFunctionDefinitionParameter
         Reflect.defineMetadata('hercules:function_parameters', parameters, target)
     }
 
-export const Name = (...translation: Translation[]): ClassDecorator =>
+export const Name = (...translation: HerculesTranslation[]): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:name', translation, target)
 
-export const DisplayMessage = (...translation: Translation[]): ClassDecorator =>
+export const DisplayMessage = (...translation: HerculesTranslation[]): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:display_message', translation, target)
-export const Description = (...translation: Translation[]): ClassDecorator =>
+export const Description = (...translation: HerculesTranslation[]): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:description', translation, target)
-export const DeprecationMessage = (...translation: Translation[]): ClassDecorator =>
+export const DeprecationMessage = (...translation: HerculesTranslation[]): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:deprecation_message', translation, target)
-export const Alias = (...translation: Translation[]): ClassDecorator =>
+export const Alias = (...translation: HerculesTranslation[]): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:alias', translation, target)
-export const Documentation = (...translation: Translation[]): ClassDecorator =>
+export const Documentation = (...translation: HerculesTranslation[]): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:documentation', translation, target)
 
 export const Signature = (signature: string): ClassDecorator =>
