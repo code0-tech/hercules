@@ -23,7 +23,7 @@ sdk.registerDataTypes({
 })
 
 @Identifier("fib")
-@Signature("(number: number) => number")
+@Signature("(number: number): number")
 @RuntimeParameter({
     runtimeName: "number",
     defaultValue: 20
