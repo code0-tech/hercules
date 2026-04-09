@@ -7,8 +7,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "dev": "cd ../.. && npm install && npm run build && npm pack && cd examples/simple-example-ts && npm install ../../code0-tech-hercules-0.0.0.tgz && npx tsx index.ts"
+    "build": "vite build .",
+    "start": "cd ../.. && npm install && npm run build && npm pack && cd examples/simple-example-ts && npm install && npm run build && node dist/index.js"
   },
   "dependencies": {
     "@code0-tech/hercules": "file:../../code0-tech-hercules-0.0.0.tgz"
