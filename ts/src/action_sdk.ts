@@ -330,36 +330,36 @@ async function connect(state: SdkState, config: ActionSdk["config"], options?: R
     })
     logger.debug("Successfully updated runtime function definitions")
 
-    const FunctionDefinitionClient = new FunctionDefinitionServiceClient(state.transport)
-    try {
-        const finishedCall = await FunctionDefinitionClient.update(
-            FunctionDefinitionUpdateRequest.create(
-                {
-                    functions: [
-                        ...state.functions.map(func => ({
-                            ...func.definition,
-                        }))
-                    ]
-                }
-            ), builtOptions
-        );
-
-        if (!finishedCall.response.success) {
-            logger.error({
-                err: finishedCall.response,
-                request: finishedCall.request,
-                config,
-            }, "Error while updating function definitions")
-            return Promise.reject(finishedCall.response);
-        }
-    } catch (error) {
-        logger.error({
-            err: error,
-            config,
-        }, "Error while updating function definitions")
-        return Promise.reject(error);
-    }
-    logger.debug("Updated function definitions")
+    // const FunctionDefinitionClient = new FunctionDefinitionServiceClient(state.transport)
+    // try {
+    //     const finishedCall = await FunctionDefinitionClient.update(
+    //         FunctionDefinitionUpdateRequest.create(
+    //             {
+    //                 functions: [
+    //                     ...state.functions.map(func => ({
+    //                         ...func.definition,
+    //                     }))
+    //                 ]
+    //             }
+    //         ), builtOptions
+    //     );
+    //
+    //     if (!finishedCall.response.success) {
+    //         logger.error({
+    //             err: finishedCall.response,
+    //             request: finishedCall.request,
+    //             config,
+    //         }, "Error while updating function definitions")
+    //         return Promise.reject(finishedCall.response);
+    //     }
+    // } catch (error) {
+    //     logger.error({
+    //         err: error,
+    //         config,
+    //     }, "Error while updating function definitions")
+    //     return Promise.reject(error);
+    // }
+    // logger.debug("Updated function definitions")
 
     const flowTypeClient = new FlowTypeServiceClient(state.transport)
     await flowTypeClient.update(FlowTypeUpdateRequest.create({
