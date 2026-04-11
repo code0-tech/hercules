@@ -27,7 +27,6 @@ export function registerFunctionDefinitionClass(config: {
         const documentation: HerculesFunctionDefinition["documentation"] = Reflect.getMetadata('hercules:documentation', klass)
         const signature: HerculesFunctionDefinition["signature"] = Reflect.getMetadata('hercules:signature', klass)
         const linkedDataTypeIdentifiers: HerculesFunctionDefinition["linkedDataTypes"] = Reflect.getMetadata('hercules:linked_data_type_identifiers', klass)
-        const version: HerculesFunctionDefinition["version"] = Reflect.getMetadata('hercules:version', klass)
         const displayIcon: HerculesFunctionDefinition["displayIcon"] = Reflect.getMetadata('hercules:display_icon', klass)
         const throwsError: HerculesFunctionDefinition["throwsError"] = Reflect.getMetadata('hercules:throws_error', klass)
 
@@ -49,7 +48,7 @@ export function registerFunctionDefinitionClass(config: {
                 signature: signature || runtimeDefinition.signature,
                 throwsError: throwsError || runtimeDefinition.throwsError,
                 alias: alias || runtimeDefinition.alias,
-                version: version || runtimeDefinition.version,
+                version: config.version,
                 description: description || runtimeDefinition.description,
                 name: names || runtimeDefinition.name,
                 documentation: documentation || runtimeDefinition.documentation,

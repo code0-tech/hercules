@@ -4,7 +4,7 @@ import { resolve } from 'path';
 export default defineConfig({
     build: {
         target: "node18",
-        ssr: resolve(__dirname, 'index.ts'), // ✅ correct SSR entry
+        ssr: resolve(__dirname, 'src/index.ts'),
         rollupOptions: {
             external: (id) =>
                 [

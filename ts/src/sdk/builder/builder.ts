@@ -20,7 +20,6 @@ export function buildRuntimeFunctionDefinition(klass: RuntimeFunctionDefinitionC
     const documentation: HerculesRuntimeFunctionDefinition["documentation"] = Reflect.getMetadata('hercules:documentation', klass) || []
     const signature: HerculesRuntimeFunctionDefinition["signature"] = Reflect.getMetadata('hercules:signature', klass)
     const linkedDataTypeIdentifiers: HerculesRuntimeFunctionDefinition["linkedDataTypes"] = Reflect.getMetadata('hercules:linked_data_type_identifiers', klass) || []
-    const version: HerculesRuntimeFunctionDefinition["version"] = Reflect.getMetadata('hercules:version', klass) || config.version
     const displayIcon: HerculesRuntimeFunctionDefinition["displayIcon"] = Reflect.getMetadata('hercules:display_icon', klass) || ""
     const throwsError: HerculesRuntimeFunctionDefinition["throwsError"] = Reflect.getMetadata('hercules:throws_error', klass) || false
     const runFunction = new klass().run
@@ -38,7 +37,7 @@ export function buildRuntimeFunctionDefinition(klass: RuntimeFunctionDefinitionC
             alias: alias || [],
             name: names || [],
             description: description || [],
-            version: version || config.version,
+            version: config.version,
             runtimeName: identifier,
             deprecationMessage: deprecationMessage || [],
             displayIcon: displayIcon || "tabler:note",

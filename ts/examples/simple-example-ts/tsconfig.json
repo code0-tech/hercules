@@ -17,6 +17,6 @@
     "types": ["vite/client"]
   },
   "include": [
-    "index.ts"
+    "src/index.ts"
   ]
 }

@@ -35,7 +35,7 @@ export async function connect(state: SdkState, config: ActionSdk["config"], opti
 
     return new Promise(async (resolve, reject) => {
         try {
-            for await (let message of state?.stream?.responses || []) {
+            for await (const message of state?.stream?.responses || []) {
                 logger.debug({
                     message: message,
                     config,
