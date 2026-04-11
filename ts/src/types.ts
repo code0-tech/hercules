@@ -30,12 +30,10 @@ export interface HerculesDataType {
     rules?: DefinitionDataTypeRule[],
     genericKeys?: string[],
     type: string,
-    linkedDataTypes?: string[],
-    // Will default to sdk version
-    version?: string
+    linkedDataTypes?: string[]
 }
 
-export interface HerculesFlowTypeSetting {
+export interface HerculesEventTypeSetting {
     identifier: string,
     unique?: FlowTypeSetting_UniquenessScope,
     linkedDataTypeIdentifiers?: string[],
@@ -44,9 +42,9 @@ export interface HerculesFlowTypeSetting {
     description?: HerculesTranslation[],
 }
 
-export interface HerculesFlowType {
+export interface HerculesEventType {
     identifier: string,
-    settings?: HerculesFlowTypeSetting[],
+    settings?: HerculesEventTypeSetting[],
     signature: string,
     linkedDataTypes?: string[],
     editable: boolean,
@@ -55,7 +53,6 @@ export interface HerculesFlowType {
     documentation?: HerculesTranslation[],
     displayMessage?: HerculesTranslation[],
     alias?: HerculesTranslation[],
-    version?: string,
     displayIcon?: string,
 }
 
@@ -81,7 +78,6 @@ export interface HerculesRuntimeFunctionDefinition {
     displayMessage?: HerculesTranslation[],
     alias?: HerculesTranslation[],
     linkedDataTypes?: string[],
-    version?: string,
     displayIcon?: string,
 }
 
@@ -109,7 +105,6 @@ export interface HerculesFunctionDefinition {
     displayMessage?: HerculesTranslation[],
     alias?: HerculesTranslation[],
     linkedDataTypes?: string[],
-    version?: string,
     displayIcon?: string,
 }
 
@@ -151,7 +146,7 @@ export interface ActionSdk {
 
     registerConfigDefinitions: (...actionConfigurations: Array<HerculesActionConfigurationDefinition>) => Promise<void>,
     registerDataTypes: (...dataType: Array<HerculesDataType>) => Promise<void>,
-    registerFlowTypes: (...flowTypes: Array<HerculesFlowType>) => Promise<void>,
+    registerEventTypes: (...flowTypes: Array<HerculesEventType>) => Promise<void>,
     registerRuntimeFunctionDefinitionClass: (klass: RuntimeFunctionDefinitionClass) => Promise<void>,
     registerFunctionDefinitionClass: <T extends RuntimeFunctionDefinitionClass>(klass: FunctionDefinitionConstructor<T>) => Promise<void>,
     dispatchEvent: (eventType: string, projectId: number | bigint, payload: PlainValue) => Promise<void>,
@@ -221,9 +216,6 @@ export const Signature = (signature: string): ClassDecorator =>
 
 export const LinkedDataTypeIdentifiers = (...linkedDataTypeIdentifiers: string[]): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:linked_data_type_identifiers', linkedDataTypeIdentifiers, target)
-
-export const Version = (version: string): ClassDecorator =>
-    (target) => Reflect.defineMetadata('hercules:version', version, target)
 
 export const ThrowsError = (throwsError: boolean = true): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:throws_error', throwsError, target)

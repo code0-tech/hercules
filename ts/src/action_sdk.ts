@@ -5,7 +5,7 @@ import {ActionTransferServiceClient, TransferRequest} from "@code0-tech/tucana/a
 import {FlowTypeSetting,} from "@code0-tech/tucana/shared";
 import {constructValue, toAllowedValue} from "@code0-tech/tucana/helpers";
 import 'reflect-metadata';
-import {connect as connectHelper} from "./sdk/connection/connection";
+import {connect} from "./sdk/connection/connection";
 import {registerFunctionDefinitionClass} from "./sdk/builder/registerFunctionDefinitionClass";
 import {registerRuntimeFunctionDefinitionClass} from "./builder/registerRuntimeFunctionDefinitionClass";
 
@@ -52,7 +52,7 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
             state.stream?.responses.onError(handler)
         },
         connect: options => {
-            return connectHelper(state, config, options);
+            return connect(state, config, options);
         },
         getProjectActionConfigurations: () => {
             return state.projectConfigurations.map(value => {
@@ -97,14 +97,14 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
                     linkedDataTypeIdentifiers: dataType.linkedDataTypes || [],
                     displayMessage: dataType.displayMessage || [],
                     definitionSource: "action",
-                    version: dataType.version || config.version,
+                    version: config.version,
                 });
             })
 
 
             return Promise.resolve()
         },
-        registerFlowTypes: async (...flowTypes) => {
+        registerEventTypes: async (...flowTypes) => {
             flowTypes.forEach(flowType => {
                 state.flowTypes.push({
                     signature: flowType.signature,
@@ -116,7 +116,7 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
                     displayMessage: flowType.displayMessage || [],
                     documentation: flowType.documentation || [],
                     definitionSource: "action",
-                    version: flowType.version || config.version,
+                    version: config.version,
                     linkedDataTypeIdentifiers: flowType.linkedDataTypes || [],
                     settings: (flowType.settings || []).map(setting => ({
                         name: setting.name || [],
@@ -146,7 +146,7 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
                         event: {
                             projectId: projectIdBigInt,
                             eventType: eventType,
-                            payload: constructValue(payload) || constructValue(null),
+                            payload: constructValue(payload || null),
                         }
                     }
                 })
@@ -161,5 +161,5 @@ const createSdk = (config: ActionSdk["config"], configDefinitions?: HerculesActi
 
 export {
     createSdk,
-    connectHelper as connect
+    connect
 }

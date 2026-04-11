@@ -44,8 +44,7 @@ function buildContext(message: TransferResponse, execution: ExecutionRequest, st
     const params = buildParams(execution, func, message);
 
     let conf = state.projectConfigurations.find(config => {
-        //TODO
-        return true
+        return config.projectId === execution.projectId
     })
 
     if (!conf) {
@@ -97,7 +96,7 @@ export function handleExecutionRequest(state: SdkState, message: TransferRespons
         context
     })
 
-    const funcHandler = (func as any).handler
+    const funcHandler = func.handler
 
     if (funcHandler.length == params.length + 1) {
         // handler has context parameter
@@ -110,14 +109,7 @@ export function handleExecutionRequest(state: SdkState, message: TransferRespons
         return;
     }
 
-    const result = new Promise((resolve, reject) => {
-        try {
-            resolve(funcHandler(...params))
-        } catch (e) {
-            reject(e)
-        }
-    })
-    result.then((value: any) => {
+    Promise.resolve(funcHandler(...params)) .then((value: any) => {
         const request = TransferRequest.create({
             data: {
                 oneofKind: "result",
