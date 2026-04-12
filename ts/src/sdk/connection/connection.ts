@@ -25,10 +25,10 @@ export async function connect(state: SdkState, config: ActionSdk["config"], opti
     state.stream = state.client.transfer(builtOptions);
 
     await handleDataTypes(state, builtOptions, config);
-    await handleLogon(state, config);
     await handleRuntimeFunctionDefinitions(state, builtOptions, config)
     await handleFunctionDefinitions(state, builtOptions, config)
     await handleFlowTypes(state, builtOptions, config)
+    await handleLogon(state, config);
 
     logger.info("Connected successfully to aquila")
 
