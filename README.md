@@ -16,17 +16,15 @@ sequenceDiagram
 
     Hercules->>Aquila: Register datatypes<br>because maybe they are needed in the config definitions
     Aquila-->>Hercules: Validation result
- 
 
-    Hercules->>Stream: Open bi-directional stream
-    Hercules->>Stream: ActionLogon request
-
-   
     Hercules->>Aquila: Register function definitions
     Aquila-->>Hercules: Validation result
 
     Hercules->>Aquila: Register flow types
     Aquila-->>Hercules: Validation result
+
+    Hercules->>Stream: Open bi-directional stream
+    Hercules->>Stream: ActionLogon request
 
     Stream-->>Hercules: Receive action configurations
 ```
@@ -62,3 +60,4 @@ To use a simple test server use the following command:
 ./bin/test_server.rb
 ```
 This will start a test server on `localhost:50051` that you can connect to with the action sdk.
+Watch out this test server isnt really working its just an way to test the connection. 
