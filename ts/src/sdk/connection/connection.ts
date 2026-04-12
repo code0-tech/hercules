@@ -18,7 +18,7 @@ export async function connect(state: SdkState, config: ActionSdk["config"], opti
     logger.debug("Trying to connect to aquila")
     const builtOptions: RpcOptions = {
         meta: {
-            "Authorization": config.authToken,
+            "authorization": config.authToken,
         },
         ...options
     }
