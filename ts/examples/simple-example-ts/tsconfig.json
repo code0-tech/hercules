@@ -11,9 +11,12 @@
     "baseUrl": ".",
     "paths": {
       "@code0-tech/hercules": ["../../ts"]
-    }
+    },
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "types": ["vite/client"]
   },
   "include": [
-    "index.ts"
+    "src/index.ts"
   ]
 }
