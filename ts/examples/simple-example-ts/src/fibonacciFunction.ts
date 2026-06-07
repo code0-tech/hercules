@@ -1,10 +1,21 @@
-import {HerculesFunctionContext, Identifier, RuntimeParameter, Signature} from "@code0-tech/hercules";
+import {
+    DisplayMessage,
+    HerculesFunctionContext,
+    Identifier,
+    OmitFunctionDefinition,
+    RuntimeParameter,
+    Signature
+} from "@code0-tech/hercules";
 
 @Identifier("fib")
 @Signature("(number: number): number")
 @RuntimeParameter({
     runtimeName: "number",
     defaultValue: 20
+})
+@DisplayMessage({
+    code: "de-DE",
+    content: ""
 })
 export class FibonacciFunction {
     run(context: HerculesFunctionContext, number: number): number {
