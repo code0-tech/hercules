@@ -1,45 +1,65 @@
 import type {RpcOptions} from "@protobuf-ts/runtime-rpc";
-import {logger} from "../../logger";
 import {constructValue, toAllowedValue} from "@code0-tech/tucana/helpers";
-import type {
-    ActionSdk,
-    SdkState,
-    HerculesActionProjectConfiguration
-} from "../../types";
-import {handleExecutionRequest} from "../execution";
-import {handleLogon} from "./logon";
-import {handleRuntimeFunctionDefinitions} from "./runtimeFunctionDefinition";
-import {handleDataTypes} from "./dataType";
-import {handleFunctionDefinitions} from "./functionDefinition";
-import {handleFlowTypes} from "./flowTypes";
+import {handleExecutionRequest} from "../sdk/execution";
+import {handleLogon} from "../sdk/connection/logon";
+import {handleRuntimeFunctionDefinitions} from "../sdk/connection/runtimeFunctionDefinition";
+import {handleFunctionDefinitions} from "../sdk/connection/functionDefinition";
+import {handleFlowTypes} from "../sdk/connection/flowTypes";
+import {CodeZeroAction, CodeZeroEvent} from "../index";
+import {ActionTransferServiceClient} from "@code0-tech/tucana/aquila";
+import {GrpcTransport} from "@protobuf-ts/grpc-transport";
+import {ChannelCredentials} from "@grpc/grpc-js";
+import {handleDataTypes} from "./dataTypeHandler";
 
 
-export async function connect(state: SdkState, config: ActionSdk["config"], options?: RpcOptions): Promise<HerculesActionProjectConfiguration[]> {
-    logger.debug("Trying to connect to aquila")
+export async function connect(action: CodeZeroAction, aquilaUrl: string, authToken: string, options?: RpcOptions): Promise<void> {
+    console.debug("Trying to connect to aquila")
+    action.transport = new GrpcTransport({
+        host: aquilaUrl,
+        channelCredentials: ChannelCredentials.createInsecure()
+    })
+    const actionTransferServiceClient = new ActionTransferServiceClient(action.transport!)
     const builtOptions: RpcOptions = {
         meta: {
-            "authorization": config.authToken,
+            "authorization": authToken,
         },
         ...options
     }
-    state.stream = state.client.transfer(builtOptions);
+    action.stream = actionTransferServiceClient.transfer(builtOptions)
 
-    await handleDataTypes(state, builtOptions, config);
+    await handleDataTypes(action, builtOptions);
     await handleRuntimeFunctionDefinitions(state, builtOptions, config)
     await handleFunctionDefinitions(state, builtOptions, config)
     await handleFlowTypes(state, builtOptions, config)
     await handleLogon(state, config);
 
-    logger.info("Connected successfully to aquila")
+    console.info("Connected successfully to aquila")
 
+
+    for await (const message of action.stream!.responses) {
+        action.emit(CodeZeroEvent.streamMessageReceived, message)
+        console.debug({
+            message: message,
+        }, "Received message from stream")
+        switch (message.data.oneofKind) {
+            case "actionConfigurations": {
+                console.info("Received action configurations")
+                action.emit(CodeZeroEvent.actionConfigurationsReceived, message.data.actionConfigurations)
+                break
+            }
+            case "execution": {
+                action.emit(CodeZeroEvent.executionRequestReceived, message.data.execution)
+                break
+            }
+            default: {
+                action.emit(CodeZeroEvent.error, new Error("Received unknown message type from stream"))
+            }
+        }
+    }
 
     return new Promise(async (resolve, reject) => {
         try {
             for await (const message of state?.stream?.responses || []) {
-                logger.debug({
-                    message: message,
-                    config,
-                }, "Received message from stream")
                 switch (message?.data.oneofKind) {
                     case "actionConfigurations": {
                         logger.info("Received action configurations")

@@ -5,7 +5,7 @@ import {ActionTransferServiceClient, TransferRequest} from "@code0-tech/tucana/a
 import {FlowTypeSetting,} from "@code0-tech/tucana/shared";
 import {constructValue, toAllowedValue} from "@code0-tech/tucana/helpers";
 import 'reflect-metadata';
-import {connect} from "./sdk/connection/connection";
+import {connect} from "./handler/connection";
 import {registerFunctionDefinitionClass} from "./sdk/builder/registerFunctionDefinitionClass";
 import {registerRuntimeFunctionDefinitionClass} from "./builder/registerRuntimeFunctionDefinitionClass";
 

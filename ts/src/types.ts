@@ -10,6 +10,7 @@ import {
 import {PlainValue} from "@code0-tech/tucana/helpers";
 import {ActionTransferServiceClient, TransferRequest, TransferResponse} from "@code0-tech/tucana/aquila";
 import 'reflect-metadata';
+import {EventEmitter} from "node:events";
 
 export interface HerculesTranslation {
     code: "en-US" | "de-DE" | string,

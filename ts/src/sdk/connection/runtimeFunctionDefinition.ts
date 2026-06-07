@@ -4,7 +4,6 @@ import {
     RuntimeFunctionDefinitionServiceClient,
     RuntimeFunctionDefinitionUpdateRequest
 } from "@code0-tech/tucana/aquila";
-import {logger} from "../../logger";
 
 export async function handleRuntimeFunctionDefinitions(state: SdkState, builtOptions: RpcOptions | undefined, config: ActionSdk["config"]) {
     const request = RuntimeFunctionDefinitionUpdateRequest.create(
@@ -22,7 +21,7 @@ export async function handleRuntimeFunctionDefinitions(state: SdkState, builtOpt
             request, builtOptions
         ).then(value => {
             if (!value.response.success) {
-                logger.error({
+                console.error({
                     err: value.response,
                     request: value.request,
                     config,
@@ -31,7 +30,7 @@ export async function handleRuntimeFunctionDefinitions(state: SdkState, builtOpt
             }
         })
     } catch (error) {
-        logger.debug({
+        console.debug({
             ...request.runtimeFunctions[0].runtimeParameterDefinitions[0].defaultValue
         })
         logger.error({
