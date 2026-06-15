@@ -1,44 +1,50 @@
-import {createSdk, HerculesActionProjectConfiguration} from "@code0-tech/hercules";
-import {FibonacciFunction} from "./fibonacciFunction";
-import {someEventType} from "./exampleEventType";
-import {someDataType} from "./exampleDataType";
+import {CodeZeroAction, CodeZeroEvent} from "@code0-tech/hercules";
+import {FibonacciRuntimeFunction} from "./functions/fibonacciRuntimeFunction.js";
+import {FibonacciFunction} from "./functions/fibonacciFunction.js";
+import {UserCreatedRuntimeEvent} from "./events/userCreatedRuntimeEvent.js";
+import {UserCreatedEvent} from "./events/userCreatedEvent.js";
+import {EmailDataType} from "./data_types/emailDataType.js";
 
-const sdk = createSdk({
-    authToken: process.env.AUTH_TOKEN || "token",
-    aquilaUrl: process.env.AQUILA_URL || "127.0.0.1:8081",
-    actionId: process.env.ACTION_ID || "example",
-    version: process.env.VERSION || "0.0.0",
-}, [
-    {
-        type: "string[]",
-        identifier: "EXAMPLE_CONFIG_IDENTIFIER",
-    }
-])
+const action = new CodeZeroAction(
+    process.env.ACTION_ID ?? "example-action",
+    process.env.VERSION ?? "0.0.0",
+    process.env.AQUILA_URL ?? "127.0.0.1:8081",
+    "code0-tech",
+    "tabler:bolt",
+    "A simple example action",
+    [{code: "en-US", content: "Example Action"}],
+    [{
+        identifier: "EXAMPLE_CONFIG",
+        type: "string",
+        name: [{code: "en-US", content: "Example Config"}],
+    }],
+);
 
-sdk.registerDataTypes(someDataType)
-sdk.registerRuntimeFunctionDefinitionClass(FibonacciFunction)
-sdk.registerEventTypes(someEventType)
+// Runtime function (with OmitFunctionDefinition — no auto-generated function def)
+action.registerRuntimeFunction(FibonacciRuntimeFunction);
+
+// Function: named public variant that extends the runtime function
+action.registerFunction(FibonacciFunction);
+
+// Data type: derived from Zod schema
+action.registerDataTypeClass(EmailDataType);
+
+// Runtime flow type: the internal event definition
+action.registerRuntimeEventClass(UserCreatedRuntimeEvent);
+
+// Flow type: the user-facing event linked to the runtime flow type
+action.registerEventClass(UserCreatedEvent);
+
+action.on(CodeZeroEvent.connected, () => {
+    console.log("Connected to aquila");
+});
+
+action.on(CodeZeroEvent.error, (error: Error) => {
+    console.error("Stream error:", error.message);
+});
 
 
-connectToSdk();
-
-function connectToSdk() {
-    sdk.connect().then((configs: HerculesActionProjectConfiguration[]) => {
-        console.log("SDK connected successfully");
-
-        sdk.dispatchEvent("test_flow", configs[0].projectId, "Hello, World! Configs loaded: " + configs.length).then(() => {
-            console.log("Event dispatched successfully");
-        })
-    }).catch(() => {
-        // will be handled by logger internally
-        process.exit(1)
-    })
-
-    sdk.onError((error) => {
-        console.error("SDK Error occurred:", error.message);
-        console.log("Attempting to reconnect in 5s...");
-        setTimeout(() => {
-            connectToSdk();
-        }, 5000)
-    })
-}
+action.connect(process.env.AUTH_TOKEN ?? "token").catch((err: unknown) => {
+    console.error("Failed to connect:", err);
+    process.exit(1);
+});

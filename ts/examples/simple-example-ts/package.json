@@ -7,10 +7,14 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "build": "vite build .",
-    "start": "cd ../.. && npm install && npm run build && npm pack && cd examples/simple-example-ts && npm install && npm run build && node dist/index.js"
+    "start": "npm run build && node dist/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
   },
   "dependencies": {
-    "@code0-tech/hercules": "file:../../code0-tech-hercules-0.0.0.tgz"
+    "zod": "^4.4.3"
   }
 }
