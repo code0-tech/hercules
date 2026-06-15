@@ -1,4 +1,33 @@
-node_modules
-dist
-code0-tech-hercules-*.tgz
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Packed tarballs
+*.tgz
+
+# Environment
 .env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+CLAUDE.md
+
+# Test coverage
+coverage/
