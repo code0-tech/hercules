@@ -4,17 +4,24 @@ import { resolve } from 'path';
 
 export default defineConfig({
     build: {
-        target: "node18",
-        ssr: true,
         lib: {
             entry: resolve(__dirname, 'src/index.ts'),
-            name: 'hercules',
-            fileName: 'hercules',
+            name: 'triangulum',
+            fileName: (format) => `hercules.${format}.js`,
             formats: ['es', 'cjs']
         },
         rollupOptions: {
-            external: (id) =>
-                ['fs', 'path', 'typescript'].includes(id) || id.startsWith('node:')
+            external: [
+                'typescript',
+                '@code0-tech/tucana',
+                'path',
+                'fs'
+            ],
+            output: {
+                globals: {
+                    typescript: 'ts'
+                }
+            }
         }
     },
     plugins: [
@@ -29,3 +36,4 @@ export default defineConfig({
         })
     ]
 });
+

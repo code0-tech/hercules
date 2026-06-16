@@ -1,15 +1,21 @@
 {
   "compilerOptions": {
     "esModuleInterop": true,
-    "module": "esnext",
     "moduleResolution": "bundler",
+    "module": "commonjs",
     "target": "es2020",
-    "lib": ["es2020", "dom"],
+    "lib": ["ESNext", "dom"],
     "strict": true,
     "skipLibCheck": true,
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
-    "types": ["vite/client"]
+    "rootDir": "src",
+    "baseUrl": "src/"
   },
-  "include": ["src/**/*"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "examples"
+  ],
+  "types": [
+    "typePatches"
+  ]
 }
