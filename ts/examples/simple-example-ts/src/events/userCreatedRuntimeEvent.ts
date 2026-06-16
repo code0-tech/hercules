@@ -1,9 +1,9 @@
-import {Identifier, Name, RuntimeEventSetting, Signature} from "@code0-tech/hercules";
+import {Identifier, Name, EventSetting, Signature} from "@code0-tech/hercules";
 
 @Identifier("user_created")
 @Signature("(userId: number): void")
 @Name({code: "en-US", content: "User Created"})
-@RuntimeEventSetting({
+@EventSetting({
     identifier: "FILTER_ROLE",
     name: [{code: "en-US", content: "Role Filter"}],
     description: [{code: "en-US", content: "Only trigger for users with this role"}],
