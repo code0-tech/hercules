@@ -1,7 +1,7 @@
 import type {Translation} from "../types";
 import type {EventClass, EventModel, EventSettingProps} from "../models/event.model";
 import type {RuntimeEventClass} from "../models/runtime_event.model";
-import {runtimeEventMap} from "./runtime-event";
+import {runtimeEventMap} from "./runtime_event.map";
 
 export const eventMap = <T extends RuntimeEventClass>(klass: EventClass<T>): EventModel => {
     const parentClass = Object.getPrototypeOf(klass);

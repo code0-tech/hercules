@@ -1,6 +1,6 @@
 import {FunctionClass, FunctionProps, FunctionParameterProps} from "../models/function.model";
 import {RuntimeFunctionClass} from "../models/runtime_function.model";
-import {runtimeFunctionMap} from "./runtime-function";
+import {runtimeFunctionMap} from "./runtime_function.map";
 
 export const functionMap = <T extends RuntimeFunctionClass>(klass: FunctionClass<T>): FunctionProps => {
     const parentClass = Object.getPrototypeOf(klass);
