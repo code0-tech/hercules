@@ -1,4 +1,4 @@
-import {BaseManager} from "./BaseManager.ts";
-import type {HerculesRuntimeFunctionDefinition} from "../models/runtime-function.ts";
+import {BaseManager} from "./BaseManager";
+import type {HerculesRuntimeFunctionDefinition} from "../models/runtime-function";
 
 export class RuntimeFunctionManager extends BaseManager<string, HerculesRuntimeFunctionDefinition> {}

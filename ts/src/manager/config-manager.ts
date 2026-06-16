@@ -1,7 +1,7 @@
 import {constructValue, toAllowedValue} from "@code0-tech/tucana/helpers";
 import type {ModuleProjectConfigurations} from "@code0-tech/tucana/shared";
-import type {HerculesActionProjectConfiguration} from "../types.ts";
-import {BaseManager} from "./BaseManager.ts";
+import type {HerculesActionProjectConfiguration} from "../types";
+import {BaseManager} from "./BaseManager";
 
 export class ConfigManager extends BaseManager<bigint, HerculesActionProjectConfiguration> {
     update(configs: ModuleProjectConfigurations[]): void {

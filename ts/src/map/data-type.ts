@@ -1,6 +1,6 @@
-import {zodToRules, zodToTypeString} from "../internal/zod-schema.ts";
-import type {HerculesTranslation} from "../types.ts";
-import type {DataTypeClass, HerculesDataType} from "../models/data-type.ts";
+import {zodToRules, zodToTypeString} from "../internal/zod-schema";
+import type {HerculesTranslation} from "../types";
+import type {DataTypeClass, HerculesDataType} from "../models/data-type";
 
 export const dataTypeMap = (klass: DataTypeClass): HerculesDataType => {
     const identifier: string = Reflect.getMetadata('hercules:identifier', klass);

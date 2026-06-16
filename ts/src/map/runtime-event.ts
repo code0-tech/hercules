@@ -1,5 +1,5 @@
-import type {HerculesTranslation} from "../types.ts";
-import type {HerculesRuntimeEvent, HerculesRuntimeEventSetting, RuntimeEventClass} from "../models/runtime-event.ts";
+import type {HerculesTranslation} from "../types";
+import type {HerculesRuntimeEvent, HerculesRuntimeEventSetting, RuntimeEventClass} from "../models/runtime-event";
 
 export const runtimeEventMap = (klass: RuntimeEventClass): HerculesRuntimeEvent => {
     const identifier: string = Reflect.getMetadata('hercules:identifier', klass);

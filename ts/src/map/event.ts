@@ -1,7 +1,7 @@
-import type {HerculesTranslation} from "../types.ts";
-import type {EventClass, HerculesEvent, HerculesEventSetting} from "../models/event.ts";
-import type {RuntimeEventClass} from "../models/runtime-event.ts";
-import {runtimeEventMap} from "./runtime-event.ts";
+import type {HerculesTranslation} from "../types";
+import type {EventClass, HerculesEvent, HerculesEventSetting} from "../models/event";
+import type {RuntimeEventClass} from "../models/runtime-event";
+import {runtimeEventMap} from "./runtime-event";
 
 export const eventMap = <T extends RuntimeEventClass>(klass: EventClass<T>): HerculesEvent => {
     const parentClass = Object.getPrototypeOf(klass);

@@ -1,5 +1,5 @@
-import {HerculesFunctionDefinitionParameter} from "../models/function.ts";
-import {HerculesRuntimeFunctionDefinitionParameter} from "../models/runtime-function.ts";
+import {HerculesFunctionDefinitionParameter} from "../models/function";
+import {HerculesRuntimeFunctionDefinitionParameter} from "../models/runtime-function";
 
 export const OmitFunctionDefinition = (): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:omit_function_definition', true, target)

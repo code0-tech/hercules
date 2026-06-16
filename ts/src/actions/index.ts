@@ -1,6 +1,6 @@
-import type {CodeZeroAction} from "../CodeZeroAction.ts";
-import * as ModuleConfigurations from "./ModuleConfigurations.ts";
-import * as Execution from "./Execution.ts";
+import type {CodeZeroAction} from "../CodeZeroAction";
+import * as ModuleConfigurations from "./ModuleConfigurations";
+import * as Execution from "./Execution";
 
 export interface Action {
     packetType: string;

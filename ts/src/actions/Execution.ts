@@ -1,10 +1,10 @@
 import {constructValue, PlainValue, toAllowedValue} from "@code0-tech/tucana/helpers";
 import {ActionExecutionRequest, ActionExecutionResponse, ActionTransferRequest} from "@code0-tech/tucana/aquila";
 import {NodeExecutionResult, Error as ProtoError} from "@code0-tech/tucana/shared";
-import {HerculesFunctionContext, RuntimeErrorException} from "../types.ts";
-import {HerculesRuntimeFunctionDefinition} from "../models/runtime-function.ts";
-import {CodeZeroEvent} from "../events.ts";
-import type {CodeZeroAction} from "../CodeZeroAction.ts";
+import {HerculesFunctionContext, RuntimeErrorException} from "../types";
+import {HerculesRuntimeFunctionDefinition} from "../models/runtime-function";
+import {CodeZeroEvent} from "../events";
+import type {CodeZeroAction} from "../CodeZeroAction";
 
 export const packetType = "execution";
 

@@ -1,4 +1,4 @@
-import {DefinitionDataTypeRule, FlowTypeSetting_UniquenessScope, RuntimeFlowTypeSetting_UniquenessScope} from "@code0-tech/tucana/shared";
+import {FlowTypeSetting_UniquenessScope, RuntimeFlowTypeSetting_UniquenessScope} from "@code0-tech/tucana/shared";
 import {PlainValue} from "@code0-tech/tucana/helpers";
 import 'reflect-metadata';
 
@@ -17,7 +17,7 @@ export interface HerculesFunctionContext {
 
 export interface HerculesActionProjectConfiguration {
     projectId: number | bigint,
-    configValues: {identifier: string, value: PlainValue}[],
+    configValues: { identifier: string, value: PlainValue }[],
     findConfig: (identifier: string) => PlainValue | undefined
 }
 

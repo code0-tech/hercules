@@ -1,4 +1,4 @@
-import {HerculesRuntimeEventSetting} from "../models/runtime-event.ts";
+import {HerculesRuntimeEventSetting} from "../models/runtime-event";
 
 export const RuntimeEventSetting = (setting: HerculesRuntimeEventSetting): ClassDecorator =>
     (target) => {

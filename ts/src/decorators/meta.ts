@@ -1,4 +1,4 @@
-import {HerculesTranslation} from "../types.ts";
+import {HerculesTranslation} from "../types";
 
 export const Identifier = (id: string): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:identifier', id, target)

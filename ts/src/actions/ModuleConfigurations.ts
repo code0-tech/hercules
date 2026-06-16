@@ -1,6 +1,6 @@
 import type {ModuleConfigurations} from "@code0-tech/tucana/shared";
-import {CodeZeroEvent} from "../events.ts";
-import type {CodeZeroAction} from "../CodeZeroAction.ts";
+import {CodeZeroEvent} from "../events";
+import type {CodeZeroAction} from "../CodeZeroAction";
 
 export const packetType = "moduleConfigurations";
 

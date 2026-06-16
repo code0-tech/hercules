@@ -1,5 +1,5 @@
 import {DefinitionDataTypeRule} from "@code0-tech/tucana/shared";
-import {HerculesTranslation} from "../types.ts";
+import {HerculesTranslation} from "../types";
 
 export interface HerculesDataType {
     identifier: string,

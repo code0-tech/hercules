@@ -1,4 +1,4 @@
-import {HerculesEventSetting} from "../models/event.ts";
+import {HerculesEventSetting} from "../models/event";
 
 export const EventSetting = (setting: HerculesEventSetting): ClassDecorator =>
     (target) => {

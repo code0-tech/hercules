@@ -1,7 +1,7 @@
 import {PlainValue} from "@code0-tech/tucana/helpers";
-import {HerculesTranslation} from "../types.ts";
+import {HerculesTranslation} from "../types";
 import {FlowTypeSetting_UniquenessScope} from "@code0-tech/tucana/shared";
-import {RuntimeEventClass} from "./runtime-event.ts";
+import {RuntimeEventClass} from "./runtime-event";
 
 export interface HerculesEventSetting {
     identifier: string,

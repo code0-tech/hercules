@@ -1,6 +1,6 @@
-import {FunctionDefinitionClass, HerculesFunctionDefinition, HerculesFunctionDefinitionParameter} from "../models/function.ts";
-import {RuntimeFunctionDefinitionClass} from "../models/runtime-function.ts";
-import {runtimeFunctionMap} from "./runtime-function.ts";
+import {FunctionDefinitionClass, HerculesFunctionDefinition, HerculesFunctionDefinitionParameter} from "../models/function";
+import {RuntimeFunctionDefinitionClass} from "../models/runtime-function";
+import {runtimeFunctionMap} from "./runtime-function";
 
 export const functionMap = <T extends RuntimeFunctionDefinitionClass>(klass: FunctionDefinitionClass<T>): HerculesFunctionDefinition => {
     const parentClass = Object.getPrototypeOf(klass);

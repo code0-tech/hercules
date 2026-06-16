@@ -1,4 +1,4 @@
-import {BaseManager} from "./BaseManager.ts";
-import {HerculesRuntimeEvent} from "../models/runtime-event.ts";
+import {BaseManager} from "./BaseManager";
+import {HerculesRuntimeEvent} from "../models/runtime-event";
 
 export class RuntimeEventManager extends BaseManager<string, HerculesRuntimeEvent> {}

@@ -3,7 +3,7 @@ import {
     HerculesRuntimeFunctionDefinition,
     HerculesRuntimeFunctionDefinitionParameter,
     RuntimeFunctionDefinitionClass,
-} from "../models/runtime-function.ts";
+} from "../models/runtime-function";
 
 export const runtimeFunctionMap = (klass: RuntimeFunctionDefinitionClass): HerculesRuntimeFunctionDefinition => {
     const identifier: string = Reflect.getMetadata('hercules:identifier', klass);

@@ -1,11 +1,11 @@
 import {constructValue} from "@code0-tech/tucana/helpers";
 import {DefinitionDataType, FlowType, FlowTypeSetting, Module, ModuleConfigurationDefinition, RuntimeFlowType, RuntimeFlowTypeSetting} from "@code0-tech/tucana/shared";
-import type {HerculesFunctionDefinition} from "../models/function.ts";
-import type {HerculesRuntimeFunctionDefinition} from "../models/runtime-function.ts";
-import type {HerculesActionConfigurationDefinition, HerculesTranslation} from "../types.ts";
-import {HerculesDataType} from "../models/data-type.ts";
-import {HerculesEvent} from "../models/event.ts";
-import {HerculesRuntimeEvent} from "../models/runtime-event.ts";
+import type {HerculesFunctionDefinition} from "../models/function";
+import type {HerculesRuntimeFunctionDefinition} from "../models/runtime-function";
+import type {HerculesActionConfigurationDefinition, HerculesTranslation} from "../types";
+import {HerculesDataType} from "../models/data-type";
+import {HerculesEvent} from "../models/event";
+import {HerculesRuntimeEvent} from "../models/runtime-event";
 
 export interface ModuleBuildData {
     identifier: string;

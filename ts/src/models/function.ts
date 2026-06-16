@@ -1,6 +1,6 @@
-import {HerculesTranslation} from "../types.ts";
+import {HerculesTranslation} from "../types";
 import {PlainValue} from "@code0-tech/tucana/helpers";
-import {RuntimeFunctionDefinitionClass} from "./runtime-function.ts";
+import {RuntimeFunctionDefinitionClass} from "./runtime-function";
 
 export interface HerculesFunctionDefinitionParameter {
     runtimeName: string,
