@@ -21,11 +21,24 @@ export const eventMap = <T extends RuntimeEventClass>(klass: EventClass<T>): Eve
 
     if (!identifier) throw new Error(`Event class ${klass.name} is missing an identifier. Add @Identifier("your_identifier") to the class.`);
 
+    for (const es of settings) {
+        if (!runtimeEvent.settings?.find(s => s.identifier === es.identifier)) {
+            throw new Error(`Event class ${klass.name} has a setting "${es.identifier}" that does not exist in its runtime event.`);
+        }
+    }
+
+    const mergedSettings: EventSettingProps[] = [...settings];
+    for (const rs of runtimeEvent.settings ?? []) {
+        if (!mergedSettings.find(s => s.identifier === rs.identifier)) {
+            mergedSettings.push({...rs});
+        }
+    }
+
     return {
         runtimeIdentifier: runtimeEvent.identifier,
         identifier,
         signature: signature || runtimeEvent.signature,
-        settings,
+        settings: mergedSettings,
         name: name || runtimeEvent.name,
         description: description || runtimeEvent.description,
         documentation: documentation || runtimeEvent.documentation,

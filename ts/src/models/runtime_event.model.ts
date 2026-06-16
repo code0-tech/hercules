@@ -1,22 +1,11 @@
-import {PlainValue} from "@code0-tech/tucana/helpers";
 import {Translation} from "../types";
-import {RuntimeFlowTypeSetting_UniquenessScope} from "@code0-tech/tucana/shared";
+import {EventSettingProps} from "./event.model";
 
 export interface RuntimeEventRunnable {}
 
-export interface RuntimeEventSettingProps {
-    identifier: string,
-    unique?: RuntimeFlowTypeSetting_UniquenessScope,
-    defaultValue?: PlainValue,
-    name?: Translation[],
-    description?: Translation[],
-    optional?: boolean,
-    hidden?: boolean,
-}
-
 export interface RuntimeEventProps {
     identifier: string,
-    runtimeSettings?: RuntimeEventSettingProps[],
+    settings?: EventSettingProps[],
     signature: string,
     linkedDataTypes?: string[],
     editable?: boolean,

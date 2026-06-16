@@ -1,8 +1,2 @@
-import {RuntimeEventSettingProps} from "../models/runtime_event.model";
-
-export const RuntimeEventSetting = (setting: RuntimeEventSettingProps): ClassDecorator =>
-    (target) => {
-        const settings = Reflect.getMetadata('hercules:runtime_flow_settings', target) || [];
-        settings.push(setting);
-        Reflect.defineMetadata('hercules:runtime_flow_settings', settings, target);
-    }
+export const OmitEventDefinition = (): ClassDecorator =>
+    (target) => Reflect.defineMetadata('hercules:omit_event_definition', true, target)

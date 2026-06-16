@@ -80,7 +80,7 @@ export function buildModule(data: ModuleBuildData): Module {
         } as FlowType)),
         runtimeFlowTypes: data.runtimeEvents.map(rft => ({
             identifier: rft.identifier,
-            runtimeSettings: (rft.runtimeSettings ?? []).map(s => ({
+            runtimeSettings: (rft.settings ?? []).map(s => ({
                 identifier: s.identifier,
                 unique: s.unique ?? 0,
                 defaultValue: s.defaultValue != null ? constructValue(s.defaultValue) : undefined,

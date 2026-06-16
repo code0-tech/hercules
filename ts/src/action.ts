@@ -83,8 +83,15 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
     }
 
     registerRuntimeEventClass(klass: RuntimeEventClass) {
+        const omitDefinition = Reflect.getMetadata('hercules:omit_event_definition', klass) || false;
         const def = runtimeEventMap(klass);
         this.runtimeEvents.set(def.identifier, def);
+        if (!omitDefinition) {
+            this.events.set(def.identifier, {
+                ...def,
+                runtimeIdentifier: def.identifier,
+            });
+        }
     }
 
     async fire(eventClass: EventClass | RuntimeEventClass, projectId: number | bigint, payload: PlainValue) {
