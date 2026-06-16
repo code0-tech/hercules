@@ -1,10 +1,9 @@
 import {
     DisplayMessage,
-    FunctionContext,
+    FunctionContext, FunctionParameter,
     Identifier,
     Name,
     OmitFunctionDefinition,
-    RuntimeParameter,
     Signature,
 } from "@code0-tech/hercules";
 
@@ -13,7 +12,7 @@ import {
 @Name({code: "en-US", content: "Fibonacci (Runtime)"})
 @DisplayMessage({code: "en-US", content: "Computes the n-th Fibonacci number"})
 @OmitFunctionDefinition()
-@RuntimeParameter({runtimeName: "n", name: [{code: "en-US", content: "N"}]})
+@FunctionParameter({runtimeName: "n", name: [{code: "en-US", content: "N"}]})
 export class FibonacciRuntimeFunction {
     run(context: FunctionContext, n: number): number {
         console.log(`[fibonacci] project=${context.projectId} execution=${context.executionId}`);
