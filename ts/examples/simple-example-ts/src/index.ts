@@ -1,11 +1,11 @@
-import {CodeZeroAction, CodeZeroEvent} from "@code0-tech/hercules";
+import {Action, CodeZeroEvent} from "@code0-tech/hercules";
 import {FibonacciRuntimeFunction} from "./functions/fibonacciRuntimeFunction.js";
 import {FibonacciFunction} from "./functions/fibonacciFunction.js";
 import {UserCreatedRuntimeEvent} from "./events/userCreatedRuntimeEvent.js";
 import {UserCreatedEvent} from "./events/userCreatedEvent.js";
 import {EmailDataType} from "./data_types/emailDataType.js";
 
-const action = new CodeZeroAction(
+const action = new Action(
     process.env.ACTION_ID ?? "example-action",
     process.env.VERSION ?? "0.0.0",
     process.env.AQUILA_URL ?? "127.0.0.1:8081",

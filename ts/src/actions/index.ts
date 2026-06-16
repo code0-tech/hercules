@@ -1,13 +1,13 @@
-import type {CodeZeroAction} from "../CodeZeroAction";
+import type {Action} from "../action";
 import * as ModuleConfigurations from "./ModuleConfigurations";
 import * as Execution from "./Execution";
 
-export interface Action {
+export interface ActionHandler {
     packetType: string;
-    handle(action: CodeZeroAction, data: unknown): void;
+    handle(action: Action, data: unknown): void;
 }
 
-export const actions: Action[] = [
+export const actions: ActionHandler[] = [
     ModuleConfigurations,
     Execution,
 ];

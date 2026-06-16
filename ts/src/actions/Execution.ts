@@ -4,7 +4,7 @@ import {NodeExecutionResult, Error as ProtoError} from "@code0-tech/tucana/share
 import {HerculesFunctionContext, RuntimeErrorException} from "../types";
 import {HerculesRuntimeFunctionDefinition} from "../models/runtime-function";
 import {CodeZeroEvent} from "../events";
-import type {CodeZeroAction} from "../CodeZeroAction";
+import type {Action} from "../action";
 
 export const packetType = "execution";
 
@@ -15,7 +15,7 @@ function buildParams(execution: ActionExecutionRequest, func: HerculesRuntimeFun
     });
 }
 
-export function handle(action: CodeZeroAction, execution: ActionExecutionRequest): void {
+export function handle(action: Action, execution: ActionExecutionRequest): void {
     action.emit(CodeZeroEvent.executionRequestReceived, execution);
 
     const func = action.runtimeFunctions.get(execution.functionIdentifier);

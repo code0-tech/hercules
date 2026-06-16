@@ -25,7 +25,7 @@ import {EventManager} from "./manager/EventManager";
 import {RuntimeEventManager} from "./manager/RuntimeEventManager";
 import {actions} from "./actions";
 
-export class CodeZeroAction extends EventEmitter<CodeZeroEventMap> {
+export class Action extends EventEmitter<CodeZeroEventMap> {
     private _transport?: GrpcTransport;
     private _stream?: DuplexStreamingCall<ActionTransferRequest, ActionTransferResponse>;
     private readonly _actions = new Map(actions.map(a => [a.packetType, a.handle]));
