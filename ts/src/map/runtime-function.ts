@@ -1,13 +1,10 @@
 import type {PlainValue} from "@code0-tech/tucana/helpers";
-import {
-    RuntimeFunctionProps,
-    RuntimeFunctionParameterProps,
-    RuntimeFunctionClass,
-} from "../models/runtime_function.model";
+import {RuntimeFunctionProps, RuntimeFunctionClass} from "../models/runtime_function.model";
+import {FunctionParameterProps} from "../models/function.model";
 
 export const runtimeFunctionMap = (klass: RuntimeFunctionClass): RuntimeFunctionProps => {
     const identifier: string = Reflect.getMetadata('hercules:identifier', klass);
-    const runtimeParameters: RuntimeFunctionParameterProps[] = Reflect.getMetadata('hercules:runtime_parameters', klass) || [];
+    const runtimeParameters: FunctionParameterProps[] = Reflect.getMetadata('hercules:function_parameters', klass) || [];
     const name: RuntimeFunctionProps["name"] = Reflect.getMetadata('hercules:name', klass) || [];
     const displayMessage: RuntimeFunctionProps["displayMessage"] = Reflect.getMetadata('hercules:display_message', klass) || [];
     const description: RuntimeFunctionProps["description"] = Reflect.getMetadata('hercules:description', klass) || [];

@@ -1,5 +1,4 @@
 import {FunctionParameterProps} from "../models/function.model";
-import {RuntimeFunctionParameterProps} from "../models/runtime_function.model";
 
 export const OmitFunctionDefinition = (): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:omit_function_definition', true, target)
@@ -9,13 +8,6 @@ export const ThrowsError = (throwsError: boolean = true): ClassDecorator =>
 
 export const LinkedDataTypeIdentifiers = (...linkedDataTypeIdentifiers: string[]): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:linked_data_type_identifiers', linkedDataTypeIdentifiers, target)
-
-export const RuntimeParameter = (parameter: RuntimeFunctionParameterProps): ClassDecorator =>
-    (target) => {
-        const parameters = Reflect.getMetadata('hercules:runtime_parameters', target) || [];
-        parameters.push(parameter);
-        Reflect.defineMetadata('hercules:runtime_parameters', parameters, target);
-    }
 
 export const FunctionParameter = (parameter: FunctionParameterProps): ClassDecorator =>
     (target) => {

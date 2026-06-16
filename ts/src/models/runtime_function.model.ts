@@ -1,19 +1,10 @@
 import {PlainValue} from "@code0-tech/tucana/helpers";
 import {Translation} from "../types";
-
-export interface RuntimeFunctionParameterProps {
-    runtimeName: string,
-    defaultValue?: PlainValue,
-    name?: Translation[],
-    description?: Translation[],
-    documentation?: Translation[],
-    hidden?: boolean,
-    optional?: boolean,
-}
+import {FunctionParameterProps} from "./function.model";
 
 export interface RuntimeFunctionProps {
     runtimeName: string,
-    parameters?: RuntimeFunctionParameterProps[],
+    parameters?: FunctionParameterProps[],
     signature: string,
     throwsError?: boolean,
     name?: Translation[],
