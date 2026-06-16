@@ -1,4 +1,4 @@
 import {BaseManager} from "./BaseManager";
-import {HerculesEvent} from "../models/event";
+import {EventModel} from "../models/event.model";
 
-export class EventManager extends BaseManager<string, HerculesEvent> {}
+export class EventManager extends BaseManager<string, EventModel> {}

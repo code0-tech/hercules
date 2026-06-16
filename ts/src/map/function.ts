@@ -1,23 +1,23 @@
-import {FunctionDefinitionClass, HerculesFunctionDefinition, HerculesFunctionDefinitionParameter} from "../models/function";
-import {RuntimeFunctionDefinitionClass} from "../models/runtime-function";
+import {FunctionClass, FunctionProps, FunctionParameterProps} from "../models/function.model";
+import {RuntimeFunctionClass} from "../models/runtime_function.model";
 import {runtimeFunctionMap} from "./runtime-function";
 
-export const functionMap = <T extends RuntimeFunctionDefinitionClass>(klass: FunctionDefinitionClass<T>): HerculesFunctionDefinition => {
+export const functionMap = <T extends RuntimeFunctionClass>(klass: FunctionClass<T>): FunctionProps => {
     const parentClass = Object.getPrototypeOf(klass);
     const runtimeFunction = runtimeFunctionMap(parentClass);
 
     const identifier: string = Reflect.getMetadata('hercules:identifier', klass);
-    const functionParameters: HerculesFunctionDefinitionParameter[] = Reflect.getMetadata('hercules:function_parameters', klass) || [];
-    const name: HerculesFunctionDefinition["name"] = Reflect.getMetadata('hercules:name', klass);
-    const displayMessage: HerculesFunctionDefinition["displayMessage"] = Reflect.getMetadata('hercules:display_message', klass);
-    const description: HerculesFunctionDefinition["description"] = Reflect.getMetadata('hercules:description', klass);
-    const deprecationMessage: HerculesFunctionDefinition["deprecationMessage"] = Reflect.getMetadata('hercules:deprecation_message', klass);
-    const alias: HerculesFunctionDefinition["alias"] = Reflect.getMetadata('hercules:alias', klass);
-    const documentation: HerculesFunctionDefinition["documentation"] = Reflect.getMetadata('hercules:documentation', klass);
-    const signature: HerculesFunctionDefinition["signature"] = Reflect.getMetadata('hercules:signature', klass);
-    const linkedDataTypes: HerculesFunctionDefinition["linkedDataTypes"] = Reflect.getMetadata('hercules:linked_data_type_identifiers', klass);
-    const displayIcon: HerculesFunctionDefinition["displayIcon"] = Reflect.getMetadata('hercules:display_icon', klass);
-    const throwsError: HerculesFunctionDefinition["throwsError"] = Reflect.getMetadata('hercules:throws_error', klass);
+    const functionParameters: FunctionParameterProps[] = Reflect.getMetadata('hercules:function_parameters', klass) || [];
+    const name: FunctionProps["name"] = Reflect.getMetadata('hercules:name', klass);
+    const displayMessage: FunctionProps["displayMessage"] = Reflect.getMetadata('hercules:display_message', klass);
+    const description: FunctionProps["description"] = Reflect.getMetadata('hercules:description', klass);
+    const deprecationMessage: FunctionProps["deprecationMessage"] = Reflect.getMetadata('hercules:deprecation_message', klass);
+    const alias: FunctionProps["alias"] = Reflect.getMetadata('hercules:alias', klass);
+    const documentation: FunctionProps["documentation"] = Reflect.getMetadata('hercules:documentation', klass);
+    const signature: FunctionProps["signature"] = Reflect.getMetadata('hercules:signature', klass);
+    const linkedDataTypes: FunctionProps["linkedDataTypes"] = Reflect.getMetadata('hercules:linked_data_type_identifiers', klass);
+    const displayIcon: FunctionProps["displayIcon"] = Reflect.getMetadata('hercules:display_icon', klass);
+    const throwsError: FunctionProps["throwsError"] = Reflect.getMetadata('hercules:throws_error', klass);
 
     if (functionParameters.length > (runtimeFunction.parameters?.length ?? 0)) {
         throw new Error(`Function definition class ${klass.name} has more function parameters than its runtime function.`);
@@ -29,7 +29,7 @@ export const functionMap = <T extends RuntimeFunctionDefinitionClass>(klass: Fun
         }
     }
 
-    const mergedParameters: HerculesFunctionDefinitionParameter[] = [...functionParameters];
+    const mergedParameters: FunctionParameterProps[] = [...functionParameters];
     for (const rp of runtimeFunction.parameters ?? []) {
         if (!mergedParameters.find(p => p.runtimeName === rp.runtimeName)) {
             mergedParameters.push({...rp, runtimeDefinitionName: rp.runtimeName});

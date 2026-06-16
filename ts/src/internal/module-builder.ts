@@ -1,11 +1,11 @@
 import {constructValue} from "@code0-tech/tucana/helpers";
 import {DefinitionDataType, FlowType, FlowTypeSetting, Module, ModuleConfigurationDefinition, RuntimeFlowType, RuntimeFlowTypeSetting} from "@code0-tech/tucana/shared";
-import type {HerculesFunctionDefinition} from "../models/function";
-import type {HerculesRuntimeFunctionDefinition} from "../models/runtime-function";
-import type {HerculesActionConfigurationDefinition, HerculesTranslation} from "../types";
-import {HerculesDataType} from "../models/data-type";
-import {HerculesEvent} from "../models/event";
-import {HerculesRuntimeEvent} from "../models/runtime-event";
+import type {FunctionProps} from "../models/function.model";
+import type {RuntimeFunctionProps} from "../models/runtime_function.model";
+import type {ConfigurationDefinition, Translation} from "../types";
+import {DataTypeProps} from "../models/datatype.model";
+import {EventModel} from "../models/event.model";
+import {RuntimeEventProps} from "../models/runtime_event.model";
 
 export interface ModuleBuildData {
     identifier: string;
@@ -13,13 +13,13 @@ export interface ModuleBuildData {
     author: string;
     icon: string;
     documentation: string;
-    name: HerculesTranslation[];
-    configurationDefinitions: HerculesActionConfigurationDefinition[];
-    dataTypes: HerculesDataType[];
-    events: HerculesEvent[];
-    runtimeEvents: HerculesRuntimeEvent[];
-    functions: HerculesFunctionDefinition[];
-    runtimeFunctions: HerculesRuntimeFunctionDefinition[];
+    name: Translation[];
+    configurationDefinitions: ConfigurationDefinition[];
+    dataTypes: DataTypeProps[];
+    events: EventModel[];
+    runtimeEvents: RuntimeEventProps[];
+    functions: FunctionProps[];
+    runtimeFunctions: RuntimeFunctionProps[];
 }
 
 export function buildModule(data: ModuleBuildData): Module {

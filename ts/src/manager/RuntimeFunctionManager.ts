@@ -1,4 +1,4 @@
 import {BaseManager} from "./BaseManager";
-import type {HerculesRuntimeFunctionDefinition} from "../models/runtime-function";
+import type {RuntimeFunctionProps} from "../models/runtime_function.model";
 
-export class RuntimeFunctionManager extends BaseManager<string, HerculesRuntimeFunctionDefinition> {}
+export class RuntimeFunctionManager extends BaseManager<string, RuntimeFunctionProps> {}

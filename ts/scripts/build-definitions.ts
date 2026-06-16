@@ -170,7 +170,7 @@ function generateRuntimeFlowType(json: Record<string, unknown>, className: strin
     const metaDecorators = collectMetaDecorators(json);
 
     const imports = [
-        `import {RuntimeEventDefinitionRunnable} from "${src("models/runtime-event")}";`,
+        `import {RuntimeEventRunnable} from "${src("models/runtime_event.model")}";`,
         `import {${metaDecorators.join(", ")}} from "${src("decorators/meta")}";`,
         ...(linkedIds?.length ? [`import {LinkedDataTypeIdentifiers} from "${src("decorators/function")}";`] : []),
         ...(settings?.length ? [`import {RuntimeEventSetting} from "${src("decorators/runtime-event")}";`] : []),
@@ -186,7 +186,7 @@ function generateRuntimeFlowType(json: Record<string, unknown>, className: strin
         ...imports,
         "",
         ...decorators,
-        `export class ${className} implements RuntimeEventDefinitionRunnable {}`,
+        `export class ${className} implements RuntimeEventRunnable {}`,
         "",
     ].join("\n");
 }
@@ -204,7 +204,7 @@ function generateRuntimeFunction(json: Record<string, unknown>, className: strin
     ];
 
     const imports = [
-        `import {RuntimeFunctionDefinitionRunnable} from "${src("models/runtime-function")}";`,
+        `import {RuntimeFunctionRunnable} from "${src("models/runtime_function.model")}";`,
         `import {${metaDecorators.join(", ")}} from "${src("decorators/meta")}";`,
         `import {${funcDecorators.join(", ")}} from "${src("decorators/function")}";`,
         `import type {PlainValue} from "@code0-tech/tucana/helpers";`,
@@ -222,7 +222,7 @@ function generateRuntimeFunction(json: Record<string, unknown>, className: strin
         ...imports,
         "",
         ...decorators,
-        `export class ${className} implements RuntimeFunctionDefinitionRunnable {`,
+        `export class ${className} implements RuntimeFunctionRunnable {`,
         `    run(..._args: (PlainValue | undefined)[]): Promise<PlainValue> | PlainValue {`,
         `        throw new Error(\`${className}.run() is not implemented\`);`,
         `    }`,

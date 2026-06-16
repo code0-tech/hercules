@@ -1,4 +1,4 @@
 import {BaseManager} from "./BaseManager";
-import {HerculesDataType} from "../models/data-type";
+import {DataTypeProps} from "../models/datatype.model";
 
-export class DataTypeManager extends BaseManager<string, HerculesDataType> {}
+export class DataTypeManager extends BaseManager<string, DataTypeProps> {}

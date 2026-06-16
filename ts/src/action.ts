@@ -3,17 +3,17 @@ import type {GrpcOptions, GrpcTransport} from "@protobuf-ts/grpc-transport";
 import {ActionTransferRequest, type ActionTransferResponse} from "@code0-tech/tucana/aquila";
 import {constructValue, type PlainValue} from "@code0-tech/tucana/helpers";
 import type {DuplexStreamingCall} from "@protobuf-ts/runtime-rpc";
-import type {FunctionDefinitionClass} from "./models/function";
-import type {RuntimeFunctionDefinitionClass} from "./models/runtime-function";
+import type {FunctionClass} from "./models/function.model";
+import type {RuntimeFunctionClass} from "./models/runtime_function.model";
 import {runtimeFunctionMap} from "./map/runtime-function";
 import {functionMap} from "./map/function";
-import type {DataTypeClass} from "./models/data-type";
+import type {DataTypeClass} from "./models/datatype.model";
 import {dataTypeMap} from "./map/data-type";
-import type {EventClass} from "./models/event";
+import type {EventClass} from "./models/event.model";
 import {eventMap} from "./map/event";
-import type {RuntimeEventClass} from "./models/runtime-event";
+import type {RuntimeEventClass} from "./models/runtime_event.model";
 import {runtimeEventMap} from "./map/runtime-event";
-import type {HerculesActionConfigurationDefinition, HerculesTranslation} from "./types";
+import type {ConfigurationDefinition, Translation} from "./types";
 import {CodeZeroEvent, type CodeZeroEventMap} from "./events";
 import {createConnection} from "./internal/connection";
 import {buildModule} from "./internal/module-builder";
@@ -44,8 +44,8 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
         private readonly _author: string,
         private readonly _icon: string,
         private readonly _documentation: string,
-        private readonly _name: HerculesTranslation[],
-        private readonly _configurationDefinitions: HerculesActionConfigurationDefinition[] = [],
+        private readonly _name: Translation[],
+        private readonly _configurationDefinitions: ConfigurationDefinition[] = [],
     ) {
         super();
     }
@@ -54,12 +54,12 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
     get version() { return this._version; }
     get stream() { return this._stream; }
 
-    registerFunction<T extends RuntimeFunctionDefinitionClass>(klass: FunctionDefinitionClass<T>) {
+    registerFunction<T extends RuntimeFunctionClass>(klass: FunctionClass<T>) {
         const def = functionMap(klass);
         this.functions.set(def.runtimeName, def);
     }
 
-    registerRuntimeFunction(klass: RuntimeFunctionDefinitionClass) {
+    registerRuntimeFunction(klass: RuntimeFunctionClass) {
         const omitDefinition = Reflect.getMetadata('hercules:omit_function_definition', klass) || false;
         const def = runtimeFunctionMap(klass);
         this.runtimeFunctions.set(def.runtimeName, def);

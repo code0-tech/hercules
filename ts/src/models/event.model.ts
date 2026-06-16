@@ -1,34 +1,31 @@
 import {PlainValue} from "@code0-tech/tucana/helpers";
-import {HerculesTranslation} from "../types";
+import {Translation} from "../types";
 import {FlowTypeSetting_UniquenessScope} from "@code0-tech/tucana/shared";
-import {RuntimeEventClass} from "./runtime-event";
+import {RuntimeEventClass} from "./runtime_event.model";
 
-export interface HerculesEventSetting {
+export interface EventSettingProps {
     identifier: string,
     unique?: FlowTypeSetting_UniquenessScope,
     linkedDataTypeIdentifiers?: string[],
     defaultValue?: PlainValue,
-    name?: HerculesTranslation[],
-    description?: HerculesTranslation[],
+    name?: Translation[],
+    description?: Translation[],
     optional?: boolean,
     hidden?: boolean,
 }
 
-export interface HerculesEvent {
+export interface EventModel {
     identifier: string,
-    settings?: HerculesEventSetting[],
+    settings?: EventSettingProps[],
     signature: string,
     linkedDataTypes?: string[],
     editable?: boolean,
-    name?: HerculesTranslation[],
-    description?: HerculesTranslation[],
-    documentation?: HerculesTranslation[],
-    displayMessage?: HerculesTranslation[],
-    alias?: HerculesTranslation[],
+    name?: Translation[],
+    description?: Translation[],
+    documentation?: Translation[],
+    displayMessage?: Translation[],
+    alias?: Translation[],
     displayIcon?: string,
     runtimeIdentifier?: string,
 }
-
-export interface EventDefinitionRunnable {}
-
 export type EventClass<T extends RuntimeEventClass = RuntimeEventClass> = new () => InstanceType<T>;

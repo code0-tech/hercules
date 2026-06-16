@@ -1,4 +1,4 @@
 import {BaseManager} from "./BaseManager";
-import type {HerculesFunctionDefinition} from "../models/function";
+import type {FunctionProps} from "../models/function.model";
 
-export class FunctionManager extends BaseManager<string, HerculesFunctionDefinition> {}
+export class FunctionManager extends BaseManager<string, FunctionProps> {}

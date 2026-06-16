@@ -1,12 +1,12 @@
 import {zodToRules, zodToTypeString} from "../internal/zod-schema";
-import type {HerculesTranslation} from "../types";
-import type {DataTypeClass, HerculesDataType} from "../models/data-type";
+import type {Translation} from "../types";
+import type {DataTypeClass, DataTypeProps} from "../models/datatype.model";
 
-export const dataTypeMap = (klass: DataTypeClass): HerculesDataType => {
+export const dataTypeMap = (klass: DataTypeClass): DataTypeProps => {
     const identifier: string = Reflect.getMetadata('hercules:identifier', klass);
-    const name: HerculesTranslation[] = Reflect.getMetadata('hercules:name', klass) || [];
-    const displayMessage: HerculesTranslation[] = Reflect.getMetadata('hercules:display_message', klass) || [];
-    const alias: HerculesTranslation[] = Reflect.getMetadata('hercules:alias', klass) || [];
+    const name: Translation[] = Reflect.getMetadata('hercules:name', klass) || [];
+    const displayMessage: Translation[] = Reflect.getMetadata('hercules:display_message', klass) || [];
+    const alias: Translation[] = Reflect.getMetadata('hercules:alias', klass) || [];
     const linkedDataTypes: string[] = Reflect.getMetadata('hercules:linked_data_type_identifiers', klass) || [];
     const genericKeys: string[] = Reflect.getMetadata('hercules:generic_keys', klass) || [];
 

@@ -1,9 +1,9 @@
 import {constructValue, toAllowedValue} from "@code0-tech/tucana/helpers";
 import type {ModuleProjectConfigurations} from "@code0-tech/tucana/shared";
-import type {HerculesActionProjectConfiguration} from "../types";
+import type {ProjectConfiguration} from "../types";
 import {BaseManager} from "./BaseManager";
 
-export class ConfigManager extends BaseManager<bigint, HerculesActionProjectConfiguration> {
+export class ConfigManager extends BaseManager<bigint, ProjectConfiguration> {
     update(configs: ModuleProjectConfigurations[]): void {
         this.clear();
         for (const config of configs) {

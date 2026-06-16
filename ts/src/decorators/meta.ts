@@ -1,24 +1,24 @@
-import {HerculesTranslation} from "../types";
+import {Translation} from "../types";
 
 export const Identifier = (id: string): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:identifier', id, target)
 
-export const Name = (...translation: HerculesTranslation[]): ClassDecorator =>
+export const Name = (...translation: Translation[]): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:name', translation, target)
 
-export const Description = (...translation: HerculesTranslation[]): ClassDecorator =>
+export const Description = (...translation: Translation[]): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:description', translation, target)
 
-export const Documentation = (...translation: HerculesTranslation[]): ClassDecorator =>
+export const Documentation = (...translation: Translation[]): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:documentation', translation, target)
 
-export const DisplayMessage = (...translation: HerculesTranslation[]): ClassDecorator =>
+export const DisplayMessage = (...translation: Translation[]): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:display_message', translation, target)
 
-export const Alias = (...translation: HerculesTranslation[]): ClassDecorator =>
+export const Alias = (...translation: Translation[]): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:alias', translation, target)
 
-export const DeprecationMessage = (...translation: HerculesTranslation[]): ClassDecorator =>
+export const DeprecationMessage = (...translation: Translation[]): ClassDecorator =>
     (target) => Reflect.defineMetadata('hercules:deprecation_message', translation, target)
 
 export const Signature = (signature: string): ClassDecorator =>

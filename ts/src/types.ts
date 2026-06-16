@@ -4,26 +4,26 @@ import 'reflect-metadata';
 
 export {FlowTypeSetting_UniquenessScope, RuntimeFlowTypeSetting_UniquenessScope};
 
-export interface HerculesTranslation {
+export interface Translation {
     code: "en-US" | "de-DE" | string,
     content: string
 }
 
-export interface HerculesFunctionContext {
+export interface FunctionContext {
     projectId: number | bigint,
     executionId: string,
-    matchedConfig: HerculesActionProjectConfiguration
+    matchedConfig: ProjectConfiguration
 }
 
-export interface HerculesActionProjectConfiguration {
+export interface ProjectConfiguration {
     projectId: number | bigint,
     configValues: { identifier: string, value: PlainValue }[],
     findConfig: (identifier: string) => PlainValue | undefined
 }
 
-export interface HerculesActionConfigurationDefinition {
-    name?: HerculesTranslation[],
-    description?: HerculesTranslation[],
+export interface ConfigurationDefinition {
+    name?: Translation[],
+    description?: Translation[],
     type: string,
     hidden?: boolean,
     optional?: boolean,
@@ -32,7 +32,7 @@ export interface HerculesActionConfigurationDefinition {
     identifier: string,
 }
 
-export class RuntimeErrorException extends Error {
+export class RuntimeError extends Error {
     code: string
     description?: string
 

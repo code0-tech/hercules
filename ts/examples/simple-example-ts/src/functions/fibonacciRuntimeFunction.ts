@@ -1,6 +1,6 @@
 import {
     DisplayMessage,
-    HerculesFunctionContext,
+    FunctionContext,
     Identifier,
     Name,
     OmitFunctionDefinition,
@@ -15,7 +15,7 @@ import {
 @OmitFunctionDefinition()
 @RuntimeParameter({runtimeName: "n", name: [{code: "en-US", content: "N"}]})
 export class FibonacciRuntimeFunction {
-    run(context: HerculesFunctionContext, n: number): number {
+    run(context: FunctionContext, n: number): number {
         console.log(`[fibonacci] project=${context.projectId} execution=${context.executionId}`);
         return this.fib(n);
     }

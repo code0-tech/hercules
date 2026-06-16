@@ -1,14 +1,14 @@
 import {constructValue, PlainValue, toAllowedValue} from "@code0-tech/tucana/helpers";
 import {ActionExecutionRequest, ActionExecutionResponse, ActionTransferRequest} from "@code0-tech/tucana/aquila";
 import {NodeExecutionResult, Error as ProtoError} from "@code0-tech/tucana/shared";
-import {HerculesFunctionContext, RuntimeErrorException} from "../types";
-import {HerculesRuntimeFunctionDefinition} from "../models/runtime-function";
+import {FunctionContext, RuntimeError} from "../types";
+import {RuntimeFunctionProps} from "../models/runtime_function.model";
 import {CodeZeroEvent} from "../events";
 import type {Action} from "../action";
 
 export const packetType = "execution";
 
-function buildParams(execution: ActionExecutionRequest, func: HerculesRuntimeFunctionDefinition): (PlainValue | undefined)[] {
+function buildParams(execution: ActionExecutionRequest, func: RuntimeFunctionProps): (PlainValue | undefined)[] {
     return (func.parameters || []).map(param => {
         const field = execution.parameters?.fields?.[param.runtimeName];
         return field ? toAllowedValue(field) : undefined;
@@ -32,7 +32,7 @@ export function handle(action: Action, execution: ActionExecutionRequest): void 
         findConfig: () => undefined,
     };
 
-    const context: HerculesFunctionContext = {
+    const context: FunctionContext = {
         projectId: execution.projectId,
         executionId: execution.executionIdentifier,
         matchedConfig: conf,
@@ -63,7 +63,7 @@ export function handle(action: Action, execution: ActionExecutionRequest): void 
 
     }).catch((error: unknown) => {
         const finishedAt = BigInt(Date.now());
-        const isRuntimeError = error instanceof RuntimeErrorException;
+        const isRuntimeError = error instanceof RuntimeError;
         action.stream!.requests.send(ActionTransferRequest.create({
             data: {
                 oneofKind: "result",
@@ -77,10 +77,10 @@ export function handle(action: Action, execution: ActionExecutionRequest): void 
                         result: {
                             oneofKind: "error",
                             error: ProtoError.create({
-                                code: isRuntimeError ? (error as RuntimeErrorException).code : "UNKNOWN_ERROR",
+                                code: isRuntimeError ? (error as RuntimeError).code : "UNKNOWN_ERROR",
                                 category: "RUNTIME",
                                 message: isRuntimeError
-                                    ? ((error as RuntimeErrorException).description || (error as Error).message)
+                                    ? ((error as RuntimeError).description || (error as Error).message)
                                     : String(error),
                                 timestamp: finishedAt,
                                 version: action.version,

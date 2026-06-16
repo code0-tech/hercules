@@ -1,20 +1,20 @@
-import type {HerculesTranslation} from "../types";
-import type {EventClass, HerculesEvent, HerculesEventSetting} from "../models/event";
-import type {RuntimeEventClass} from "../models/runtime-event";
+import type {Translation} from "../types";
+import type {EventClass, EventModel, EventSettingProps} from "../models/event.model";
+import type {RuntimeEventClass} from "../models/runtime_event.model";
 import {runtimeEventMap} from "./runtime-event";
 
-export const eventMap = <T extends RuntimeEventClass>(klass: EventClass<T>): HerculesEvent => {
+export const eventMap = <T extends RuntimeEventClass>(klass: EventClass<T>): EventModel => {
     const parentClass = Object.getPrototypeOf(klass);
     const runtimeEvent = runtimeEventMap(parentClass);
 
     const identifier: string = Reflect.getMetadata('hercules:identifier', klass);
     const signature: string = Reflect.getMetadata('hercules:signature', klass);
-    const settings: HerculesEventSetting[] = Reflect.getMetadata('hercules:flow_settings', klass) || [];
-    const name: HerculesTranslation[] = Reflect.getMetadata('hercules:name', klass);
-    const description: HerculesTranslation[] = Reflect.getMetadata('hercules:description', klass);
-    const documentation: HerculesTranslation[] = Reflect.getMetadata('hercules:documentation', klass);
-    const displayMessage: HerculesTranslation[] = Reflect.getMetadata('hercules:display_message', klass);
-    const alias: HerculesTranslation[] = Reflect.getMetadata('hercules:alias', klass);
+    const settings: EventSettingProps[] = Reflect.getMetadata('hercules:flow_settings', klass) || [];
+    const name: Translation[] = Reflect.getMetadata('hercules:name', klass);
+    const description: Translation[] = Reflect.getMetadata('hercules:description', klass);
+    const documentation: Translation[] = Reflect.getMetadata('hercules:documentation', klass);
+    const displayMessage: Translation[] = Reflect.getMetadata('hercules:display_message', klass);
+    const alias: Translation[] = Reflect.getMetadata('hercules:alias', klass);
     const linkedDataTypes: string[] = Reflect.getMetadata('hercules:linked_data_type_identifiers', klass);
     const displayIcon: string | undefined = Reflect.getMetadata('hercules:display_icon', klass);
     const editable: boolean = Reflect.getMetadata('hercules:editable', klass) ?? false;
