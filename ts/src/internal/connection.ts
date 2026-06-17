@@ -1,5 +1,5 @@
 import {GrpcOptions, GrpcTransport} from "@protobuf-ts/grpc-transport";
-import {ActionTransferRequest, ActionTransferResponse, ActionTransferServiceClient, ModuleServiceClient, ModuleUpdateRequest} from "@code0-tech/tucana/aquila";
+import {ActionTransferRequest, ActionTransferResponse, ActionTransferServiceClient} from "@code0-tech/tucana/aquila";
 import type {Module} from "@code0-tech/tucana/shared";
 import {ChannelCredentials} from "@grpc/grpc-js";
 import {type RpcOptions} from "@protobuf-ts/runtime-rpc";
@@ -24,16 +24,14 @@ export async function createConnection(
 
     const rpcOptions: RpcOptions = {meta: {"authorization": authToken}};
 
-    const response = await new ModuleServiceClient(transport).update(
-        ModuleUpdateRequest.create({modules: [module]}),
-        rpcOptions,
-    );
-
-    if (!response.response.success) {
-        throw new Error("Module update failed");
-    }
-
     const stream = new ActionTransferServiceClient(transport).transfer(rpcOptions);
+
+    await stream.requests.send(ActionTransferRequest.create({
+        data: {
+            oneofKind: "logon",
+            logon: {module},
+        },
+    }));
 
     return {transport, stream};
 }
