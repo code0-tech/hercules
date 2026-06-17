@@ -41,6 +41,7 @@ action.on(CodeZeroEvent.connected, () => {
 
 action.on(CodeZeroEvent.error, (error: Error) => {
     console.error("Stream error:", error.message);
+    process.exit(0);
 });
 
 
