@@ -8,15 +8,15 @@ import {
 } from "@code0-tech/hercules";
 
 @Identifier("fibonacci_runtime")
-@Signature("(n: number): number")
+@Signature("(test: number): number")
 @Name({code: "en-US", content: "Fibonacci (Runtime)"})
 @DisplayMessage({code: "en-US", content: "Computes the n-th Fibonacci number"})
 @OmitFunctionDefinition()
-@FunctionParameter({runtimeName: "n", name: [{code: "en-US", content: "N"}]})
+@FunctionParameter({runtimeName: "test", name: [{code: "en-US", content: "N"}]})
 export class FibonacciRuntimeFunction {
-    run(context: FunctionContext, n: number): number {
+    run(context: FunctionContext, test: number): number {
         console.log(`[fibonacci] project=${context.projectId} execution=${context.executionId}`);
-        return this.fib(n);
+        return this.fib(test);
     }
 
     private fib(n: number): number {

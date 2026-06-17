@@ -4,7 +4,7 @@ import {FibonacciRuntimeFunction} from "./fibonacciRuntimeFunction.js";
 @Identifier("fibonacci")
 @Name({code: "en-US", content: "Compute Fibonacci Number"})
 @FunctionParameter({
-    runtimeName: "n",
+    runtimeName: "test",
     name: [{code: "en-US", content: "Input Number"}],
     description: [{code: "en-US", content: "The position in the Fibonacci sequence"}],
     defaultValue: 10,
