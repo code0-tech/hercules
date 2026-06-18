@@ -1,0 +1,28 @@
+---
+title: "@Design"
+description: Attaches a visual design token to a function
+---
+
+Attaches a visual design token string to a Function or RuntimeFunction definition. Used by the platform UI to style
+the node.
+
+```ts
+import { Design } from '@code0-tech/hercules';
+```
+
+## Signature
+
+```ts
+@Design(design: string): ClassDecorator
+```
+
+## Example
+
+```ts
+@Design('math')
+export class FibonacciFunction extends FibonacciRuntimeFunction {}
+```
+
+## Applies to
+
+Function, RuntimeFunction

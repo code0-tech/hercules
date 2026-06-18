@@ -1,0 +1,29 @@
+---
+title: "@Documentation"
+description: Sets long-form documentation text
+---
+
+Sets long-form documentation text. Accepts multiple translations.
+
+```ts
+import { Documentation } from '@code0-tech/hercules';
+```
+
+## Signature
+
+```ts
+@Documentation(...translations: Translation[]): ClassDecorator
+```
+
+## Example
+
+```ts
+@Documentation(
+  { code: 'en-US', content: 'Returns the n-th number in the Fibonacci sequence starting from 0.' },
+)
+export class FibonacciFunction extends FibonacciRuntimeFunction {}
+```
+
+## Applies to
+
+Function, RuntimeFunction, Event, RuntimeEvent

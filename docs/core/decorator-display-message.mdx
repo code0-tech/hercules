@@ -1,0 +1,29 @@
+---
+title: "@DisplayMessage"
+description: Sets the summary text shown in the flow UI
+---
+
+Sets the summary text shown inside the node in the flow UI. Accepts multiple translations.
+
+```ts
+import { DisplayMessage } from '@code0-tech/hercules';
+```
+
+## Signature
+
+```ts
+@DisplayMessage(...translations: Translation[]): ClassDecorator
+```
+
+## Example
+
+```ts
+@DisplayMessage(
+  { code: 'en-US', content: 'Computes the n-th Fibonacci number' },
+)
+export class FibonacciFunction extends FibonacciRuntimeFunction {}
+```
+
+## Applies to
+
+Function, RuntimeFunction, Event, RuntimeEvent

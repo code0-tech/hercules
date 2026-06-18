@@ -1,0 +1,29 @@
+---
+title: "@Alias"
+description: Sets alternative search terms for the platform UI
+---
+
+Sets alternative search terms used when searching for this item in the platform UI. Accepts multiple translations.
+
+```ts
+import { Alias } from '@code0-tech/hercules';
+```
+
+## Signature
+
+```ts
+@Alias(...translations: Translation[]): ClassDecorator
+```
+
+## Example
+
+```ts
+@Alias(
+  { code: 'en-US', content: 'fib sequence' },
+)
+export class FibonacciFunction extends FibonacciRuntimeFunction {}
+```
+
+## Applies to
+
+Function, RuntimeFunction, Event, RuntimeEvent, DataType

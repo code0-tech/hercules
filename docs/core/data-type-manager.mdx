@@ -1,0 +1,83 @@
+---
+title: DataTypeManager
+description: Stores registered custom data type definitions
+---
+
+import { TypeTable } from 'fumadocs-ui/components/type-table';
+
+`DataTypeManager` stores all custom data type definitions registered via `action.registerDataTypeClass()`. It extends
+[`BaseManager`](./base-manager.mdx) with key type `string` (identifier) and value type `DataTypeProps`.
+
+```ts
+action.dataTypes.get('email_address');
+action.dataTypes.values();
+```
+
+## Interfaces
+
+### `DataTypeRunnable`
+
+An empty marker interface. DataType classes do not need to implement any methods.
+
+```ts
+interface DataTypeRunnable {}
+```
+
+### `DataTypeProps`
+
+The descriptor stored for each registered data type.
+
+```ts
+interface DataTypeProps {
+  identifier: string;
+  name?: Translation[];
+  displayMessage?: Translation[];
+  alias?: Translation[];
+  rules?: DefinitionDataTypeRule[];
+  genericKeys?: string[];
+  type: string;
+}
+```
+
+<TypeTable
+  type={{
+    identifier: {
+      description: 'Unique identifier for this data type. Used as the map key.',
+      type: 'string',
+      required: true,
+    },
+    type: {
+      description: 'The underlying primitive or structural type string.',
+      type: 'string',
+      required: true,
+    },
+    name: {
+      description: 'Localised display name.',
+      type: 'Translation[]',
+    },
+    displayMessage: {
+      description: 'Summary text shown in the flow UI.',
+      type: 'Translation[]',
+    },
+    alias: {
+      description: 'Alternative search terms for the platform UI.',
+      type: 'Translation[]',
+    },
+    rules: {
+      description: 'Validation rules derived from the Zod schema attached via @Schema().',
+      type: 'DefinitionDataTypeRule[]',
+    },
+    genericKeys: {
+      description: 'Generic type parameter keys for parameterised data types.',
+      type: 'string[]',
+    },
+  }}
+/>
+
+### `DataTypeClass`
+
+```ts
+type DataTypeClass = new () => DataTypeRunnable;
+```
+
+The constructor type used when calling `action.registerDataTypeClass()`.

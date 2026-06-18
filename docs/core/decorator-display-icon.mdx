@@ -1,0 +1,27 @@
+---
+title: "@DisplayIcon"
+description: Sets the icon shown in the flow UI
+---
+
+Sets the icon shown for this item in the flow UI.
+
+```ts
+import { DisplayIcon } from '@code0-tech/hercules';
+```
+
+## Signature
+
+```ts
+@DisplayIcon(icon: string): ClassDecorator
+```
+
+## Example
+
+```ts
+@DisplayIcon('tabler:calculator')
+export class FibonacciFunction extends FibonacciRuntimeFunction {}
+```
+
+## Applies to
+
+Function, RuntimeFunction, Event, RuntimeEvent

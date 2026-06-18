@@ -1,0 +1,90 @@
+---
+title: BaseManager
+description: Shared base class for all managers in Hercules
+---
+
+import { TypeTable } from 'fumadocs-ui/components/type-table';
+
+`BaseManager<K, V>` is the abstract base class extended by all managers on the `Action` instance. It wraps a `Map<K,
+V>` and exposes a consistent set of read and write methods.
+
+All specific managers — `FunctionManager`, `RuntimeFunctionManager`, `EventManager`, `RuntimeEventManager`,
+`DataTypeManager`, and `ConfigManager` — inherit these methods exactly.
+
+## Methods
+
+<TypeTable
+  type={{
+    size: {
+      description: 'Number of entries currently in the manager.',
+      type: 'number',
+    },
+    get: {
+      description: 'Retrieve a value by key. Returns undefined if not found.',
+      type: '(key: K) => V | undefined',
+    },
+    set: {
+      description: 'Store a value. Returns the manager instance for chaining.',
+      type: '(key: K, value: V) => this',
+    },
+    has: {
+      description: 'Check whether a key exists.',
+      type: '(key: K) => boolean',
+    },
+    delete: {
+      description: 'Remove an entry by key. Returns true if the entry existed.',
+      type: '(key: K) => boolean',
+    },
+    clear: {
+      description: 'Remove all entries.',
+      type: '() => void',
+    },
+    values: {
+      description: 'All values as an array.',
+      type: '() => V[]',
+    },
+    keys: {
+      description: 'All keys as an array.',
+      type: '() => K[]',
+    },
+    entries: {
+      description: 'All key-value pairs as an array of tuples.',
+      type: '() => [K, V][]',
+    },
+    find: {
+      description: 'Returns the first value for which the predicate returns true, or undefined.',
+      type: '(predicate: (value: V, key: K) => boolean) => V | undefined',
+    },
+    filter: {
+      description: 'Returns all values for which the predicate returns true.',
+      type: '(predicate: (value: V, key: K) => boolean) => V[]',
+    },
+    map: {
+      description: 'Transforms all values into a new array.',
+      type: '<T>(fn: (value: V, key: K) => T) => T[]',
+    },
+    some: {
+      description: 'Returns true if at least one value satisfies the predicate.',
+      type: '(predicate: (value: V, key: K) => boolean) => boolean',
+    },
+    every: {
+      description: 'Returns true if all values satisfy the predicate.',
+      type: '(predicate: (value: V, key: K) => boolean) => boolean',
+    },
+    forEach: {
+      description: 'Calls the function once for each entry.',
+      type: '(fn: (value: V, key: K) => void) => void',
+    },
+  }}
+/>
+
+## Implementations
+
+| Manager | Key | Value |
+|---|---|---|
+| [`FunctionManager`](./function-manager.mdx) | `string` (runtimeName) | `FunctionProps` |
+| [`RuntimeFunctionManager`](./runtime-function-manager.mdx) | `string` (runtimeName) | `RuntimeFunctionProps` |
+| [`EventManager`](./event-manager.mdx) | `string` (identifier) | `EventModel` |
+| [`RuntimeEventManager`](./runtime-event-manager.mdx) | `string` (identifier) | `RuntimeEventProps` |
+| [`DataTypeManager`](./data-type-manager.mdx) | `string` (identifier) | `DataTypeProps` |
+| [`ConfigManager`](./config-manager.mdx) | `bigint` (projectId) | `ProjectConfiguration` |

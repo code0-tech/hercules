@@ -1,0 +1,177 @@
+---
+title: First Simple Action
+description: Build a complete action with a function, event, and data type from scratch
+---
+
+This tutorial walks through building a complete action that:
+
+- Exposes a `fibonacci` function
+- Fires a `user_created` event
+- Registers an `email_address` data type
+
+## 1. Create the RuntimeFunction
+
+A `RuntimeFunction` contains the actual implementation. Decorate it with `@Identifier`, `@Signature`, and `@Name`,
+then implement the `run()` method.
+
+```ts
+// src/functions/fibonacciRuntimeFunction.ts
+import {
+  Identifier,
+  Signature,
+  Name,
+  DisplayMessage,
+  Parameter,
+  OmitRuntimeFunction,
+  FunctionContext,
+} from '@code0-tech/hercules';
+
+@Identifier('fibonacci_runtime')
+@Signature('(test: number): number')
+@Name({ code: 'en-US', content: 'Fibonacci (Runtime)' })
+@DisplayMessage({ code: 'en-US', content: 'Computes the n-th Fibonacci number' })
+@OmitRuntimeFunction()
+@Parameter({ runtimeName: 'test', name: [{ code: 'en-US', content: 'N' }] })
+export class FibonacciRuntimeFunction {
+  run(context: FunctionContext, test: number): number {
+    console.log(`[fibonacci] project=${context.projectId} execution=${context.executionId}`);
+    return this.fib(test);
+  }
+
+  private fib(n: number): number {
+    if (n <= 1) return n;
+    return this.fib(n - 1) + this.fib(n - 2);
+  }
+}
+```
+
+`@OmitRuntimeFunction()` prevents Hercules from auto-generating a public function definition from this class — we'll
+define that separately below.
+
+## 2. Create the Function
+
+A `Function` extends the `RuntimeFunction` and adds public-facing metadata without changing the implementation.
+
+```ts
+// src/functions/fibonacciFunction.ts
+import { Identifier, Name, Parameter } from '@code0-tech/hercules';
+import { FibonacciRuntimeFunction } from './fibonacciRuntimeFunction.js';
+
+@Identifier('fibonacci')
+@Name({ code: 'en-US', content: 'Compute Fibonacci Number' })
+@Parameter({
+  runtimeName: 'test',
+  name: [{ code: 'en-US', content: 'Input Number' }],
+  description: [{ code: 'en-US', content: 'The position in the Fibonacci sequence' }],
+  defaultValue: 10,
+})
+export class FibonacciFunction extends FibonacciRuntimeFunction {}
+```
+
+## 3. Create the RuntimeEvent
+
+```ts
+// src/events/userCreatedRuntimeEvent.ts
+import { Identifier, Signature, Name, EventSetting } from '@code0-tech/hercules';
+
+@Identifier('user_created')
+@Signature('(userId: number): void')
+@Name({ code: 'en-US', content: 'User Created' })
+@EventSetting({
+  identifier: 'FILTER_ROLE',
+  name: [{ code: 'en-US', content: 'Role Filter' }],
+  description: [{ code: 'en-US', content: 'Only trigger for users with this role' }],
+  optional: true,
+})
+export class UserCreatedRuntimeEvent {}
+```
+
+## 4. Create the Event
+
+```ts
+// src/events/userCreatedEvent.ts
+import { Identifier, Name, Editable } from '@code0-tech/hercules';
+import { UserCreatedRuntimeEvent } from './userCreatedRuntimeEvent.js';
+
+@Identifier('user_created_event')
+@Name({ code: 'en-US', content: 'On User Created' })
+@Editable(false)
+export class UserCreatedEvent extends UserCreatedRuntimeEvent {}
+```
+
+## 5. Create the DataType
+
+Data types are backed by a Zod schema. Decorate the class with `@Identifier`, `@Name`, and `@Schema`.
+
+```ts
+// src/data_types/emailDataType.ts
+import { Identifier, Name, Schema } from '@code0-tech/hercules';
+import { z } from 'zod';
+
+const EmailSchema = z.string().regex(/^[^@]+@[^@]+\.[^@]+$/);
+
+@Identifier('email_address')
+@Name({ code: 'en-US', content: 'Email Address' })
+@Schema(EmailSchema)
+export class EmailDataType {}
+```
+
+## 6. Wire It All Together
+
+```ts
+// src/index.ts
+import { Action, CodeZeroEvent } from '@code0-tech/hercules';
+import { FibonacciRuntimeFunction } from './functions/fibonacciRuntimeFunction.js';
+import { FibonacciFunction } from './functions/fibonacciFunction.js';
+import { UserCreatedRuntimeEvent } from './events/userCreatedRuntimeEvent.js';
+import { UserCreatedEvent } from './events/userCreatedEvent.js';
+import { EmailDataType } from './data_types/emailDataType.js';
+
+const action = new Action(
+  process.env.ACTION_ID ?? 'example-action',
+  process.env.VERSION ?? '0.0.0',
+  process.env.AQUILA_URL ?? '127.0.0.1:8081',
+  'my-org',
+  'tabler:bolt',
+  'A simple example action',
+  [{ code: 'en-US', content: 'Example Action' }],
+  [
+    {
+      identifier: 'EXAMPLE_CONFIG',
+      type: 'string',
+      name: [{ code: 'en-US', content: 'Example Config' }],
+    },
+  ],
+);
+
+action.registerRuntimeFunction(FibonacciRuntimeFunction);
+action.registerFunction(FibonacciFunction);
+action.registerDataTypeClass(EmailDataType);
+action.registerRuntimeEventClass(UserCreatedRuntimeEvent);
+action.registerEventClass(UserCreatedEvent);
+
+action.on(CodeZeroEvent.connected, () => {
+  console.log('Connected to Aquila');
+});
+
+action.on(CodeZeroEvent.error, (error: Error) => {
+  console.error('Stream error:', error.message);
+  process.exit(1);
+});
+
+action.connect(process.env.AUTH_TOKEN ?? 'token').catch((err: unknown) => {
+  console.error('Failed to connect:', err);
+  process.exit(1);
+});
+```
+
+## Firing an Event
+
+To fire the `user_created` event from within your action (e.g. after a webhook call):
+
+```ts
+await action.fire(UserCreatedRuntimeEvent, projectId, { userId: 42 });
+```
+
+The second argument is the project ID this event belongs to, and the third is the payload matching the event's
+signature.

@@ -1,0 +1,64 @@
+---
+title: RuntimeEvent
+description: Internal event definitions and decorators
+---
+
+A **RuntimeEvent** is the internal definition of an event. It holds the identifier, signature, and settings that the
+platform uses to route and configure event triggers. Unlike RuntimeFunctions, RuntimeEvents have no `run()` method —
+they are purely declarative.
+
+```ts
+import { Identifier, Signature, Name, EventSetting } from '@code0-tech/hercules';
+```
+
+## Overview
+
+RuntimeEvents are the internal counterpart to public-facing [Events](./event.mdx). Your action fires them explicitly
+via `action.fire()`.
+
+```ts
+@Identifier('user_created')
+@Signature('(userId: number): void')
+@Name({ code: 'en-US', content: 'User Created' })
+@EventSetting({
+  identifier: 'FILTER_ROLE',
+  name: [{ code: 'en-US', content: 'Role Filter' }],
+  optional: true,
+})
+export class UserCreatedRuntimeEvent {}
+```
+
+The descriptor stored in `action.runtimeEvents` is documented on the
+[RuntimeEventManager](./runtime-event-manager.mdx) page.
+
+## `RuntimeEventClass`
+
+```ts
+type RuntimeEventClass = new () => RuntimeEventRunnable;
+```
+
+The constructor type accepted by `action.registerRuntimeEventClass()` and `action.fire()`.
+
+## Firing
+
+```ts
+await action.fire(UserCreatedRuntimeEvent, projectId, { userId: 42 });
+```
+
+See [`action.fire()`](./action.mdx#fire) for the full reference.
+
+## Decorators
+
+| Decorator | Description |
+|---|---|
+| [`@Identifier`](./decorator-identifier.mdx) | Sets the unique runtime identifier |
+| [`@Name`](./decorator-name.mdx) | Sets the localised display name |
+| [`@Description`](./decorator-description.mdx) | Sets a short localised description |
+| [`@Documentation`](./decorator-documentation.mdx) | Sets long-form documentation text |
+| [`@DisplayMessage`](./decorator-display-message.mdx) | Sets the summary text shown in the flow UI |
+| [`@Alias`](./decorator-alias.mdx) | Sets alternative search terms |
+| [`@Signature`](./decorator-signature.mdx) | Sets the TypeScript-like signature string |
+| [`@DisplayIcon`](./decorator-display-icon.mdx) | Sets the icon shown in the flow UI |
+| [`@Editable`](./decorator-editable.mdx) | Controls editability in the platform UI |
+| [`@EventSetting`](./decorator-event-setting.mdx) | Adds a configurable setting |
+| [`@OmitEvent`](./decorator-omit-event.mdx) | Prevents auto-generation of a public event definition |

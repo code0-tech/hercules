@@ -1,0 +1,28 @@
+---
+title: "@Identifier"
+description: Sets the unique runtime identifier for a class
+---
+
+Sets the unique runtime identifier for a class. Required for all registerable classes — without it, registration and
+event firing will fail.
+
+```ts
+import { Identifier } from '@code0-tech/hercules';
+```
+
+## Signature
+
+```ts
+@Identifier(id: string): ClassDecorator
+```
+
+## Example
+
+```ts
+@Identifier('my_function')
+export class MyFunction extends MyRuntimeFunction {}
+```
+
+## Applies to
+
+Function, RuntimeFunction, Event, RuntimeEvent, DataType

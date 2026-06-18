@@ -1,0 +1,271 @@
+---
+title: Action
+description: The root class for every Hercules action
+---
+
+import { TypeTable } from 'fumadocs-ui/components/type-table';
+
+`Action` is the entry point of every Hercules action. It manages the gRPC connection to Aquila, holds all registered
+functions, events, and data types, and emits lifecycle events you can subscribe to.
+
+```ts
+import { Action } from '@code0-tech/hercules';
+```
+
+## Constructor
+
+```ts
+new Action(
+  identifier: string,
+  version: string,
+  aquilaUrl: string | undefined,
+  author: string,
+  icon: string,
+  documentation: string,
+  name: Translation[],
+  configurationDefinitions?: ConfigurationDefinition[]
+)
+```
+
+<TypeTable
+  type={{
+    identifier: {
+      description: 'Unique identifier for this action.',
+      type: 'string',
+      required: true,
+    },
+    version: {
+      description: 'Semver version string.',
+      type: 'string',
+      required: true,
+    },
+    aquilaUrl: {
+      description: 'Default gRPC endpoint for Aquila. Can be overridden in connect().',
+      type: 'string | undefined',
+      required: true,
+    },
+    author: {
+      description: 'Author or organisation name.',
+      type: 'string',
+      required: true,
+    },
+    icon: {
+      description: 'Icon identifier (e.g. "tabler:bolt").',
+      type: 'string',
+      required: true,
+    },
+    documentation: {
+      description: 'Short documentation string for this action.',
+      type: 'string',
+      required: true,
+    },
+    name: {
+      description: 'Localised display names.',
+      type: 'Translation[]',
+      required: true,
+    },
+    configurationDefinitions: {
+      description: 'Per-project configuration fields shown in the platform UI.',
+      type: 'ConfigurationDefinition[]',
+      default: '[]',
+    },
+  }}
+/>
+
+### Example
+
+```ts
+const action = new Action(
+  'my-action',
+  '1.0.0',
+  'aquila.example.com:8081',
+  'my-org',
+  'tabler:bolt',
+  'Does something useful',
+  [{ code: 'en-US', content: 'My Action' }],
+  [
+    {
+      identifier: 'API_KEY',
+      type: 'string',
+      name: [{ code: 'en-US', content: 'API Key' }],
+    },
+  ],
+);
+```
+
+## Properties
+
+### Managers
+
+Each manager is a key-value store backed by a `Map`. See [BaseManager](./base-manager.mdx) for available methods.
+
+<TypeTable
+  type={{
+    configs: {
+      description: 'Stores per-project configurations keyed by project ID. Updated automatically when Aquila sends module configurations.',
+      type: 'ConfigManager',
+    },
+    functions: {
+      description: 'Stores registered public-facing function definitions keyed by runtimeName.',
+      type: 'FunctionManager',
+    },
+    runtimeFunctions: {
+      description: 'Stores registered runtime function definitions keyed by runtimeName.',
+      type: 'RuntimeFunctionManager',
+    },
+    dataTypes: {
+      description: 'Stores registered data type definitions keyed by identifier.',
+      type: 'DataTypeManager',
+    },
+    events: {
+      description: 'Stores registered public-facing event definitions keyed by identifier.',
+      type: 'EventManager',
+    },
+    runtimeEvents: {
+      description: 'Stores registered runtime event definitions keyed by identifier.',
+      type: 'RuntimeEventManager',
+    },
+  }}
+/>
+
+### Getters
+
+<TypeTable
+  type={{
+    identifier: {
+      description: 'The action identifier passed to the constructor.',
+      type: 'string',
+    },
+    version: {
+      description: 'The version string passed to the constructor.',
+      type: 'string',
+    },
+    stream: {
+      description: 'The active gRPC duplex stream. undefined until connect() resolves.',
+      type: 'DuplexStreamingCall | undefined',
+    },
+  }}
+/>
+
+## Methods
+
+### `registerFunction`
+
+```ts
+action.registerFunction<T extends RuntimeFunctionClass>(klass: FunctionClass<T>): void
+```
+
+Registers a public-facing function definition. The class must extend a `RuntimeFunctionClass`.
+
+```ts
+action.registerFunction(FibonacciFunction);
+```
+
+### `registerRuntimeFunction`
+
+```ts
+action.registerRuntimeFunction(klass: RuntimeFunctionClass): void
+```
+
+Registers a runtime function implementation. Unless `@OmitRuntimeFunction()` is applied, a matching `FunctionProps`
+entry is also created automatically.
+
+```ts
+action.registerRuntimeFunction(FibonacciRuntimeFunction);
+```
+
+### `registerDataTypeClass`
+
+```ts
+action.registerDataTypeClass(klass: DataTypeClass): void
+```
+
+Registers a custom data type.
+
+### `registerEventClass`
+
+```ts
+action.registerEventClass(klass: EventClass): void
+```
+
+Registers a user-facing event (flow type).
+
+### `registerRuntimeEventClass`
+
+```ts
+action.registerRuntimeEventClass(klass: RuntimeEventClass): void
+```
+
+Registers a runtime event definition. Unless `@OmitEvent()` is applied, a matching `EventModel` entry is also created
+automatically.
+
+### `connect`
+
+```ts
+action.connect(authToken: string, aquilaUrl?: string, grpcOptions?: GrpcOptions): Promise<void>
+```
+
+Opens the gRPC connection to Aquila, sends the module descriptor, and starts processing the incoming stream.
+
+<TypeTable
+  type={{
+    authToken: {
+      description: 'Authentication token for Aquila.',
+      type: 'string',
+      required: true,
+    },
+    aquilaUrl: {
+      description: 'Override the URL set in the constructor.',
+      type: 'string',
+    },
+    grpcOptions: {
+      description: 'Additional gRPC transport options.',
+      type: 'GrpcOptions',
+    },
+  }}
+/>
+
+```ts
+await action.connect(process.env.AUTH_TOKEN!);
+```
+
+### `fire`
+
+```ts
+action.fire(
+  eventClass: EventClass | RuntimeEventClass,
+  projectId: number | bigint,
+  payload: PlainValue
+): Promise<void>
+```
+
+Dispatches an event to Aquila for a specific project. Throws if `connect()` has not been called or if the class is
+missing an `@Identifier` decorator.
+
+<TypeTable
+  type={{
+    eventClass: {
+      description: 'The EventClass or RuntimeEventClass to fire. Must have an @Identifier decorator.',
+      type: 'EventClass | RuntimeEventClass',
+      required: true,
+    },
+    projectId: {
+      description: 'ID of the project this event belongs to.',
+      type: 'number | bigint',
+      required: true,
+    },
+    payload: {
+      description: 'Event payload matching the event signature.',
+      type: 'PlainValue',
+      required: true,
+    },
+  }}
+/>
+
+```ts
+await action.fire(UserCreatedRuntimeEvent, projectId, { userId: 42 });
+```
+
+All manager properties on `Action` extend [`BaseManager`](./base-manager.mdx).
+
+`Action` extends Node.js `EventEmitter` — see [`CodeZeroEvent`](./code-zero-event.mdx) for all available events.

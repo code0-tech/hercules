@@ -1,0 +1,30 @@
+---
+title: "@DeprecationMessage"
+description: Marks a class as deprecated with a localised message
+---
+
+Marks the class as deprecated and provides a localised message shown to users in the platform UI. Accepts multiple
+translations.
+
+```ts
+import { DeprecationMessage } from '@code0-tech/hercules';
+```
+
+## Signature
+
+```ts
+@DeprecationMessage(...translations: Translation[]): ClassDecorator
+```
+
+## Example
+
+```ts
+@DeprecationMessage(
+  { code: 'en-US', content: 'Use ComputeFibonacci instead.' },
+)
+export class LegacyFibonacciFunction extends FibonacciRuntimeFunction {}
+```
+
+## Applies to
+
+Function, RuntimeFunction, Event, RuntimeEvent

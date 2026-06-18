@@ -1,0 +1,41 @@
+---
+title: "@EventSetting"
+description: Adds a configurable setting to an event
+---
+
+Adds a configurable setting to an Event or RuntimeEvent. Apply multiple times for multiple settings — they are
+collected in declaration order.
+
+```ts
+import { EventSetting } from '@code0-tech/hercules';
+```
+
+## Signature
+
+```ts
+@EventSetting(setting: EventSettingProps): ClassDecorator
+```
+
+See [EventSettingProps](./event-manager.mdx#eventsettingprops) for the full interface.
+
+## Example
+
+```ts
+@EventSetting({
+  identifier: 'FILTER_ROLE',
+  name: [{ code: 'en-US', content: 'Role Filter' }],
+  description: [{ code: 'en-US', content: 'Only trigger for users with this role' }],
+  optional: true,
+})
+@EventSetting({
+  identifier: 'MIN_AGE',
+  name: [{ code: 'en-US', content: 'Minimum Age' }],
+  defaultValue: 18,
+  optional: true,
+})
+export class UserCreatedRuntimeEvent {}
+```
+
+## Applies to
+
+Event, RuntimeEvent

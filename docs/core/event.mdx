@@ -1,0 +1,74 @@
+---
+title: Event
+description: User-facing event (flow type) definitions and decorators
+---
+
+An **Event** is a user-facing flow type that appears in the Code0 platform UI as a trigger for flows. It is always
+linked to a `RuntimeEvent` which defines the internal behaviour.
+
+```ts
+import { Identifier, Name, Editable } from '@code0-tech/hercules';
+```
+
+## Overview
+
+Events follow the same two-layer pattern as functions:
+
+- **RuntimeEvent** — the internal event definition (identifier, signature, settings)
+- **Event** — extends the RuntimeEvent, adds public metadata, registered separately
+
+```ts
+// Internal layer
+@Identifier('user_created')
+@Signature('(userId: number): void')
+@Name({ code: 'en-US', content: 'User Created' })
+export class UserCreatedRuntimeEvent {}
+
+// Public layer
+@Identifier('user_created_event')
+@Name({ code: 'en-US', content: 'On User Created' })
+@Editable(false)
+export class UserCreatedEvent extends UserCreatedRuntimeEvent {}
+```
+
+Register both with the `Action`:
+
+```ts
+action.registerRuntimeEventClass(UserCreatedRuntimeEvent);
+action.registerEventClass(UserCreatedEvent);
+```
+
+The resulting descriptor stored in `action.events` is documented on the [EventManager](./event-manager.mdx) page.
+
+## `EventClass`
+
+```ts
+type EventClass<T extends RuntimeEventClass = RuntimeEventClass> = new () => InstanceType<T>;
+```
+
+The constructor type used when calling `action.registerEventClass()`.
+
+## Firing an Event
+
+```ts
+await action.fire(UserCreatedRuntimeEvent, projectId, { userId: 42 });
+```
+
+See [`action.fire()`](./action.mdx#fire) for the full reference.
+
+## Decorators
+
+| Decorator | Description |
+|---|---|
+| [`@Identifier`](./decorator-identifier.mdx) | Sets the unique runtime identifier |
+| [`@Name`](./decorator-name.mdx) | Sets the localised display name |
+| [`@Description`](./decorator-description.mdx) | Sets a short localised description |
+| [`@Documentation`](./decorator-documentation.mdx) | Sets long-form documentation text |
+| [`@DisplayMessage`](./decorator-display-message.mdx) | Sets the summary text shown in the flow UI |
+| [`@Alias`](./decorator-alias.mdx) | Sets alternative search terms |
+| [`@DeprecationMessage`](./decorator-deprecation-message.mdx) | Marks the event as deprecated |
+| [`@Signature`](./decorator-signature.mdx) | Sets the TypeScript-like signature string |
+| [`@DisplayIcon`](./decorator-display-icon.mdx) | Sets the icon shown in the flow UI |
+| [`@Editable`](./decorator-editable.mdx) | Controls editability in the platform UI |
+| [`@EventSetting`](./decorator-event-setting.mdx) | Adds a configurable setting |
+| [`@OmitEvent`](./decorator-omit-event.mdx) | Prevents auto-generation of a public event definition |

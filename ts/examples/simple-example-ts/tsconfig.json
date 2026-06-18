@@ -5,15 +5,20 @@
     "moduleResolution": "Bundler",
     "declaration": true,
     "outDir": "dist",
-    "strict": false,
+    "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@code0-tech/hercules": ["../../ts"]
-    }
+      "@code0-tech/hercules": ["../../src/index.ts"]
+    },
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "types": ["node", "vite/client"]
   },
   "include": [
-    "index.ts"
+    "src/**/*"
   ]
 }

@@ -1,20 +1,30 @@
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 import { resolve } from 'path';
+import { builtinModules } from 'module';
 
 export default defineConfig({
     build: {
-        target: "node18",
-        ssr: true,
+        target: 'node18',
         lib: {
             entry: resolve(__dirname, 'src/index.ts'),
-            name: 'hercules',
-            fileName: 'hercules',
+            name: 'triangulum',
+            fileName: (format) => `hercules.${format}.js`,
             formats: ['es', 'cjs']
         },
         rollupOptions: {
-            external: (id) =>
-                ['fs', 'path', 'typescript'].includes(id) || id.startsWith('node:')
+            external: [
+                ...builtinModules,
+                ...builtinModules.map(m => `node:${m}`),
+                'typescript',
+                '@code0-tech/tucana',
+                '@grpc/grpc-js',
+            ],
+            output: {
+                globals: {
+                    typescript: 'ts'
+                }
+            }
         }
     },
     plugins: [
@@ -29,3 +39,4 @@ export default defineConfig({
         })
     ]
 });
+
