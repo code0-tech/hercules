@@ -15,7 +15,6 @@ export const eventMap = <T extends RuntimeEventClass>(klass: EventClass<T>): Eve
     const documentation: Translation[] = Reflect.getMetadata('hercules:documentation', klass);
     const displayMessage: Translation[] = Reflect.getMetadata('hercules:display_message', klass);
     const alias: Translation[] = Reflect.getMetadata('hercules:alias', klass);
-    const linkedDataTypes: string[] = Reflect.getMetadata('hercules:linked_data_type_identifiers', klass);
     const displayIcon: string | undefined = Reflect.getMetadata('hercules:display_icon', klass);
     const editable: boolean = Reflect.getMetadata('hercules:editable', klass) ?? false;
 
@@ -44,7 +43,6 @@ export const eventMap = <T extends RuntimeEventClass>(klass: EventClass<T>): Eve
         documentation: documentation || runtimeEvent.documentation,
         displayMessage: displayMessage || runtimeEvent.displayMessage,
         alias: alias || runtimeEvent.alias,
-        linkedDataTypes: linkedDataTypes || runtimeEvent.linkedDataTypes,
         displayIcon: displayIcon || runtimeEvent.displayIcon,
         editable,
     };

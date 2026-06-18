@@ -9,7 +9,6 @@ export interface DataTypeProps {
     rules?: DefinitionDataTypeRule[],
     genericKeys?: string[],
     type: string,
-    linkedDataTypes?: string[],
 }
 
 export interface DataTypeRunnable {}

@@ -12,7 +12,6 @@ export const runtimeFunctionMap = (klass: RuntimeFunctionClass): RuntimeFunction
     const alias: RuntimeFunctionProps["alias"] = Reflect.getMetadata('hercules:alias', klass) || [];
     const documentation: RuntimeFunctionProps["documentation"] = Reflect.getMetadata('hercules:documentation', klass) || [];
     const signature: RuntimeFunctionProps["signature"] = Reflect.getMetadata('hercules:signature', klass);
-    const linkedDataTypes: RuntimeFunctionProps["linkedDataTypes"] = Reflect.getMetadata('hercules:linked_data_type_identifiers', klass) || [];
     const displayIcon: RuntimeFunctionProps["displayIcon"] = Reflect.getMetadata('hercules:display_icon', klass) || "";
     const throwsError: RuntimeFunctionProps["throwsError"] = Reflect.getMetadata('hercules:throws_error', klass) || false;
     const design: RuntimeFunctionProps["design"] = Reflect.getMetadata('hercules:design', klass);
@@ -33,7 +32,6 @@ export const runtimeFunctionMap = (klass: RuntimeFunctionClass): RuntimeFunction
         deprecationMessage,
         displayMessage,
         alias,
-        linkedDataTypes,
         displayIcon: displayIcon || "tabler:note",
         design,
         parameters: runtimeParameters.map(param => ({

@@ -25,7 +25,6 @@ export interface FunctionProps {
     deprecationMessage?: Translation[],
     displayMessage?: Translation[],
     alias?: Translation[],
-    linkedDataTypes?: string[],
     displayIcon?: string,
     design?: string,
 }

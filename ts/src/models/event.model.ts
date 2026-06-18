@@ -18,7 +18,6 @@ export interface EventModel {
     identifier: string,
     settings?: EventSettingProps[],
     signature: string,
-    linkedDataTypes?: string[],
     editable?: boolean,
     name?: Translation[],
     description?: Translation[],

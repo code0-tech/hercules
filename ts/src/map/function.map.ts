@@ -15,7 +15,6 @@ export const functionMap = <T extends RuntimeFunctionClass>(klass: FunctionClass
     const alias: FunctionProps["alias"] = Reflect.getMetadata('hercules:alias', klass);
     const documentation: FunctionProps["documentation"] = Reflect.getMetadata('hercules:documentation', klass);
     const signature: FunctionProps["signature"] = Reflect.getMetadata('hercules:signature', klass);
-    const linkedDataTypes: FunctionProps["linkedDataTypes"] = Reflect.getMetadata('hercules:linked_data_type_identifiers', klass);
     const displayIcon: FunctionProps["displayIcon"] = Reflect.getMetadata('hercules:display_icon', klass);
     const throwsError: FunctionProps["throwsError"] = Reflect.getMetadata('hercules:throws_error', klass);
     const design: FunctionProps["design"] = Reflect.getMetadata('hercules:design', klass);
@@ -49,7 +48,6 @@ export const functionMap = <T extends RuntimeFunctionClass>(klass: FunctionClass
         deprecationMessage: deprecationMessage || runtimeFunction.deprecationMessage,
         displayMessage: displayMessage || runtimeFunction.displayMessage,
         displayIcon: displayIcon || runtimeFunction.displayIcon,
-        linkedDataTypes: linkedDataTypes || runtimeFunction.linkedDataTypes,
         design: design || runtimeFunction.design,
         parameters: mergedParameters.map(p => ({
             ...p,
