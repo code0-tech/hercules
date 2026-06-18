@@ -1,0 +1,33 @@
+---
+title: "@Schema"
+description: Attaches a Zod schema to a DataType class
+---
+
+Attaches a Zod schema to a DataType class. Hercules uses the schema to derive validation rules and the type structure
+sent to Aquila.
+
+```ts
+import { Schema } from '@code0-tech/hercules';
+import { z } from 'zod';
+```
+
+## Signature
+
+```ts
+@Schema(schema: ZodTypeAny): ClassDecorator
+```
+
+## Example
+
+```ts
+const EmailSchema = z.string().regex(/^[^@]+@[^@]+\.[^@]+$/);
+
+@Identifier('email_address')
+@Name({ code: 'en-US', content: 'Email Address' })
+@Schema(EmailSchema)
+export class EmailDataType {}
+```
+
+## Applies to
+
+DataType

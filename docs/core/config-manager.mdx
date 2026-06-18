@@ -1,0 +1,109 @@
+---
+title: ConfigManager
+description: Stores per-project configurations received from Aquila
+---
+
+import { TypeTable } from 'fumadocs-ui/components/type-table';
+
+`ConfigManager` stores per-project configurations that Aquila sends after the gRPC connection is established. It
+extends [`BaseManager`](./base-manager.mdx) with key type `bigint` (projectId) and value type `ProjectConfiguration`.
+
+The manager is updated automatically whenever Aquila sends new project configurations — you never write to it directly.
+
+```ts
+const config = action.configs.get(projectId);
+config?.findConfig('API_KEY');
+```
+
+## Interfaces
+
+### `ProjectConfiguration`
+
+The configuration object stored for each project.
+
+```ts
+interface ProjectConfiguration {
+  projectId: number | bigint;
+  configValues: { identifier: string; value: PlainValue }[];
+  findConfig: (identifier: string) => PlainValue | undefined;
+}
+```
+
+<TypeTable
+  type={{
+    projectId: {
+      description: 'ID of the project this configuration belongs to.',
+      type: 'number | bigint',
+      required: true,
+    },
+    configValues: {
+      description: 'All raw configuration entries for this project.',
+      type: '{ identifier: string; value: PlainValue }[]',
+      required: true,
+    },
+    findConfig: {
+      description: 'Looks up a configuration value by its identifier. Returns undefined if not set.',
+      type: '(identifier: string) => PlainValue | undefined',
+      required: true,
+    },
+  }}
+/>
+
+### `ConfigurationDefinition`
+
+Defines a per-project configuration field declared in the `Action` constructor. These are shown in the platform UI for
+each project using the action.
+
+```ts
+interface ConfigurationDefinition {
+  identifier: string;
+  type: string;
+  name?: Translation[];
+  description?: Translation[];
+  hidden?: boolean;
+  optional?: boolean;
+  linkedDataTypes?: string[];
+  defaultValue?: PlainValue;
+}
+```
+
+<TypeTable
+  type={{
+    identifier: {
+      description: 'Unique key for this configuration field. Used to look it up via findConfig().',
+      type: 'string',
+      required: true,
+    },
+    type: {
+      description: 'The value type expected for this configuration field.',
+      type: 'string',
+      required: true,
+    },
+    name: {
+      description: 'Localised display name shown in the project settings UI.',
+      type: 'Translation[]',
+    },
+    description: {
+      description: 'Short localised description shown in the project settings UI.',
+      type: 'Translation[]',
+    },
+    hidden: {
+      description: 'Hide this field from the project settings UI.',
+      type: 'boolean',
+      default: 'false',
+    },
+    optional: {
+      description: 'Whether this field can be left empty.',
+      type: 'boolean',
+      default: 'false',
+    },
+    linkedDataTypes: {
+      description: 'Data type identifiers this configuration field accepts.',
+      type: 'string[]',
+    },
+    defaultValue: {
+      description: 'Default value used when the field is not set.',
+      type: 'PlainValue',
+    },
+  }}
+/>

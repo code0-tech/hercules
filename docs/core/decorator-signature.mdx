@@ -1,0 +1,35 @@
+---
+title: "@Signature"
+description: Sets the TypeScript-like signature string
+---
+
+Sets the TypeScript-like signature string that describes the inputs and outputs of a function or event. Used by the
+platform to understand the shape of data flowing through a node.
+
+```ts
+import { Signature } from '@code0-tech/hercules';
+```
+
+## Signature
+
+```ts
+@Signature(signature: string): ClassDecorator
+```
+
+## Example
+
+```ts
+@Signature('(n: number): number')
+export class FibonacciRuntimeFunction {
+  run(context: FunctionContext, n: number): number { ... }
+}
+```
+
+```ts
+@Signature('(userId: number): void')
+export class UserCreatedRuntimeEvent {}
+```
+
+## Applies to
+
+Function, RuntimeFunction, Event, RuntimeEvent

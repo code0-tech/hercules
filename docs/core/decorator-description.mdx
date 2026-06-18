@@ -1,0 +1,29 @@
+---
+title: "@Description"
+description: Sets a short localised description
+---
+
+Sets a short localised description shown in the platform UI. Accepts multiple translations.
+
+```ts
+import { Description } from '@code0-tech/hercules';
+```
+
+## Signature
+
+```ts
+@Description(...translations: Translation[]): ClassDecorator
+```
+
+## Example
+
+```ts
+@Description(
+  { code: 'en-US', content: 'Computes the n-th Fibonacci number' },
+)
+export class FibonacciFunction extends FibonacciRuntimeFunction {}
+```
+
+## Applies to
+
+Function, RuntimeFunction, Event, RuntimeEvent

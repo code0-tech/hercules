@@ -1,0 +1,40 @@
+---
+title: "@Parameter"
+description: Adds a parameter definition to a function
+---
+
+Adds a parameter definition to a Function or RuntimeFunction. Apply multiple times for multiple parameters — they are
+collected in declaration order.
+
+```ts
+import { Parameter } from '@code0-tech/hercules';
+```
+
+## Signature
+
+```ts
+@Parameter(parameter: FunctionParameterProps): ClassDecorator
+```
+
+See [FunctionParameterProps](./function-manager.mdx#functionparameterprops) for the full interface.
+
+## Example
+
+```ts
+@Parameter({
+  runtimeName: 'n',
+  name: [{ code: 'en-US', content: 'Input Number' }],
+  description: [{ code: 'en-US', content: 'The position in the Fibonacci sequence' }],
+  defaultValue: 10,
+})
+@Parameter({
+  runtimeName: 'offset',
+  optional: true,
+  defaultValue: 0,
+})
+export class FibonacciFunction extends FibonacciRuntimeFunction {}
+```
+
+## Applies to
+
+Function, RuntimeFunction

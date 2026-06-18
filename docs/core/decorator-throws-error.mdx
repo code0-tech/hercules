@@ -1,0 +1,42 @@
+---
+title: "@ThrowsError"
+description: Marks a function as capable of throwing a RuntimeError
+---
+
+Marks a Function or RuntimeFunction as capable of throwing a `RuntimeError`. This signals to the platform that the
+error case must be handled in the flow. Defaults to `true` when called without arguments.
+
+```ts
+import { ThrowsError } from '@code0-tech/hercules';
+```
+
+## Signature
+
+```ts
+@ThrowsError(throwsError?: boolean): ClassDecorator
+```
+
+## Example
+
+```ts
+@ThrowsError()
+export class ParseJsonFunction extends ParseJsonRuntimeFunction {}
+```
+
+```ts
+import { RuntimeError } from '@code0-tech/hercules';
+
+export class ParseJsonRuntimeFunction {
+  run(context: FunctionContext, input: string): object {
+    try {
+      return JSON.parse(input);
+    } catch {
+      throw new RuntimeError('INVALID_JSON', 'The input is not valid JSON');
+    }
+  }
+}
+```
+
+## Applies to
+
+Function, RuntimeFunction

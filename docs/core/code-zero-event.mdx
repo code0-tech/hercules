@@ -1,0 +1,46 @@
+---
+title: CodeZeroEvent
+description: Lifecycle events emitted by the Action instance
+---
+
+import { TypeTable } from 'fumadocs-ui/components/type-table';
+
+`Action` extends Node.js `EventEmitter`. Use `action.on(event, handler)` to subscribe to lifecycle events.
+
+```ts
+import { CodeZeroEvent } from '@code0-tech/hercules';
+
+action.on(CodeZeroEvent.connected, () => console.log('Ready'));
+action.on(CodeZeroEvent.error, (err) => console.error(err.message));
+```
+
+## Events
+
+<TypeTable
+  type={{
+    'CodeZeroEvent.connected': {
+      description: 'Emitted when the gRPC stream is open and the action is ready to receive requests.',
+      type: '(action: Action) => void',
+    },
+    'CodeZeroEvent.error': {
+      description: 'Emitted when a connection or stream error occurs.',
+      type: '(error: Error) => void',
+    },
+    'CodeZeroEvent.streamMessageReceived': {
+      description: 'Emitted when a raw message arrives from Aquila.',
+      type: '(message: ActionTransferResponse) => void',
+    },
+    'CodeZeroEvent.streamMessageSent': {
+      description: 'Emitted when a raw message is sent to Aquila.',
+      type: '(message: ActionTransferRequest) => void',
+    },
+    'CodeZeroEvent.moduleUpdated': {
+      description: 'Emitted when project configurations are updated by Aquila.',
+      type: '(configs: ModuleConfigurations) => void',
+    },
+    'CodeZeroEvent.executionRequestReceived': {
+      description: 'Emitted when an execution request arrives from Aquila.',
+      type: '(request: ActionExecutionRequest) => void',
+    },
+  }}
+/>

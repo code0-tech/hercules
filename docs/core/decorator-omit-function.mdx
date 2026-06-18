@@ -1,0 +1,27 @@
+---
+title: "@OmitFunction"
+description: Prevents a class from generating a public function definition
+---
+
+Prevents the class from generating a public `FunctionProps` entry when registered via `action.registerFunction()`.
+
+```ts
+import { OmitFunction } from '@code0-tech/hercules';
+```
+
+## Signature
+
+```ts
+@OmitFunction(): ClassDecorator
+```
+
+## Example
+
+```ts
+@OmitFunction()
+export class InternalHelper extends SomeRuntimeFunction {}
+```
+
+## Applies to
+
+Function

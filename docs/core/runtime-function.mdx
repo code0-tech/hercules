@@ -1,0 +1,76 @@
+---
+title: RuntimeFunction
+description: The implementation layer for callable functions
+---
+
+A **RuntimeFunction** is a class with a `run()` method that Hercules calls when an execution request arrives from
+Aquila. It is the implementation layer — all logic lives here.
+
+```ts
+import { Identifier, Signature, Name, OmitRuntimeFunction } from '@code0-tech/hercules';
+```
+
+## Overview
+
+When `action.registerRuntimeFunction()` is called, Hercules automatically also registers a `FunctionProps` entry using
+the same metadata. Apply [`@OmitRuntimeFunction`](./decorator-omit-runtime-function.mdx) to suppress this and register
+the public definition manually via `action.registerFunction()`.
+
+The descriptor stored in `action.runtimeFunctions` is documented on the
+[RuntimeFunctionManager](./runtime-function-manager.mdx) page.
+
+## `RuntimeFunctionClass`
+
+```ts
+type RuntimeFunctionClass<T extends RuntimeFunctionRunnable = RuntimeFunctionRunnable> =
+  new () => T;
+```
+
+The constructor type accepted by `action.registerRuntimeFunction()`.
+
+## Example
+
+```ts
+@Identifier('fibonacci_runtime')
+@Signature('(n: number): number')
+@OmitRuntimeFunction()
+export class FibonacciRuntimeFunction {
+  run(context: FunctionContext, n: number): number {
+    if (n <= 1) return n;
+    return this.run(context, n - 1) + this.run(context, n - 2);
+  }
+}
+```
+
+## Error Handling
+
+Throw a `RuntimeError` to signal a recoverable error back to the platform:
+
+```ts
+import { RuntimeError } from '@code0-tech/hercules';
+
+run(context: FunctionContext, input: string): string {
+  if (!input) throw new RuntimeError('INVALID_INPUT', 'Input must not be empty');
+  return input.toUpperCase();
+}
+```
+
+Mark the function with [`@ThrowsError`](./decorator-throws-error.mdx) so the platform knows to handle the error case.
+
+## Decorators
+
+| Decorator | Description |
+|---|---|
+| [`@Identifier`](./decorator-identifier.mdx) | Sets the unique runtime identifier |
+| [`@Name`](./decorator-name.mdx) | Sets the localised display name |
+| [`@Description`](./decorator-description.mdx) | Sets a short localised description |
+| [`@Documentation`](./decorator-documentation.mdx) | Sets long-form documentation text |
+| [`@DisplayMessage`](./decorator-display-message.mdx) | Sets the summary text shown in the flow UI |
+| [`@Alias`](./decorator-alias.mdx) | Sets alternative search terms |
+| [`@DeprecationMessage`](./decorator-deprecation-message.mdx) | Marks the function as deprecated |
+| [`@Signature`](./decorator-signature.mdx) | Sets the TypeScript-like signature string |
+| [`@DisplayIcon`](./decorator-display-icon.mdx) | Sets the icon shown in the flow UI |
+| [`@Parameter`](./decorator-parameter.mdx) | Adds a parameter definition |
+| [`@Design`](./decorator-design.mdx) | Attaches a visual design token |
+| [`@ThrowsError`](./decorator-throws-error.mdx) | Marks the function as capable of throwing a RuntimeError |
+| [`@OmitRuntimeFunction`](./decorator-omit-runtime-function.mdx) | Prevents auto-generation of a public function definition |

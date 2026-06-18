@@ -1,0 +1,27 @@
+---
+title: "@Editable"
+description: Controls whether the item is editable in the platform UI
+---
+
+Controls whether the item can be edited by users in the platform UI. Defaults to `true` when called without arguments.
+
+```ts
+import { Editable } from '@code0-tech/hercules';
+```
+
+## Signature
+
+```ts
+@Editable(editable?: boolean): ClassDecorator
+```
+
+## Example
+
+```ts
+@Editable(false)
+export class UserCreatedEvent extends UserCreatedRuntimeEvent {}
+```
+
+## Applies to
+
+Function, RuntimeFunction, Event, RuntimeEvent

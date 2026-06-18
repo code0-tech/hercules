@@ -1,0 +1,24 @@
+---
+title: Installation
+description: Install the Hercules SDK and configure peer dependencies
+icon: IconDownload
+---
+
+## Install the Package
+
+```bash
+npm install @code0-tech/hercules
+```
+
+## TypeScript Configuration
+
+Hercules uses decorators with `reflect-metadata`. Enable the following options in your `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  }
+}
+```

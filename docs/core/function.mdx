@@ -1,0 +1,69 @@
+---
+title: Function
+description: Public-facing function definitions and decorators
+---
+
+A **Function** is a public-facing callable definition that exposes a `RuntimeFunction` to the Code0 platform. It
+carries display metadata without containing any implementation logic.
+
+```ts
+import { /* decorators */ } from '@code0-tech/hercules';
+```
+
+## Overview
+
+Functions and RuntimeFunctions are always paired. The `RuntimeFunction` holds the `run()` method; the `Function`
+extends it and adds metadata for the platform UI.
+
+```ts
+// Runtime layer — implementation
+@Identifier('fibonacci_runtime')
+@Signature('(n: number): number')
+@OmitRuntimeFunction()
+export class FibonacciRuntimeFunction {
+  run(context: FunctionContext, n: number): number { ... }
+}
+
+// Public layer — metadata only
+@Identifier('fibonacci')
+@Name({ code: 'en-US', content: 'Compute Fibonacci' })
+@Parameter({ runtimeName: 'n', name: [{ code: 'en-US', content: 'N' }] })
+export class FibonacciFunction extends FibonacciRuntimeFunction {}
+```
+
+Register both with the `Action`:
+
+```ts
+action.registerRuntimeFunction(FibonacciRuntimeFunction);
+action.registerFunction(FibonacciFunction);
+```
+
+The resulting descriptor stored in `action.functions` is documented on the [FunctionManager](./function-manager.mdx)
+page.
+
+## `FunctionClass`
+
+```ts
+type FunctionClass<T extends RuntimeFunctionClass> = new () => InstanceType<T>;
+```
+
+The constructor type used when calling `action.registerFunction()`.
+
+## Decorators
+
+| Decorator | Description |
+|---|---|
+| [`@Identifier`](./decorator-identifier.mdx) | Sets the unique runtime identifier |
+| [`@Name`](./decorator-name.mdx) | Sets the localised display name |
+| [`@Description`](./decorator-description.mdx) | Sets a short localised description |
+| [`@Documentation`](./decorator-documentation.mdx) | Sets long-form documentation text |
+| [`@DisplayMessage`](./decorator-display-message.mdx) | Sets the summary text shown in the flow UI |
+| [`@Alias`](./decorator-alias.mdx) | Sets alternative search terms |
+| [`@DeprecationMessage`](./decorator-deprecation-message.mdx) | Marks the function as deprecated |
+| [`@Signature`](./decorator-signature.mdx) | Sets the TypeScript-like signature string |
+| [`@DisplayIcon`](./decorator-display-icon.mdx) | Sets the icon shown in the flow UI |
+| [`@Editable`](./decorator-editable.mdx) | Controls editability in the platform UI |
+| [`@Parameter`](./decorator-parameter.mdx) | Adds a parameter definition |
+| [`@Design`](./decorator-design.mdx) | Attaches a visual design token |
+| [`@ThrowsError`](./decorator-throws-error.mdx) | Marks the function as capable of throwing a RuntimeError |
+| [`@OmitFunction`](./decorator-omit-function.mdx) | Prevents auto-generation of a public function definition |

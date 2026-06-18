@@ -1,0 +1,145 @@
+---
+title: EventManager
+description: Stores registered public-facing event definitions
+---
+
+import { TypeTable } from 'fumadocs-ui/components/type-table';
+
+`EventManager` stores all public-facing event definitions registered via `action.registerEventClass()`. It extends
+[`BaseManager`](./base-manager.mdx) with key type `string` (identifier) and value type `EventModel`.
+
+```ts
+action.events.get('user_created_event');
+action.events.values();
+```
+
+## Interfaces
+
+### `EventModel`
+
+The descriptor stored for each registered event.
+
+```ts
+interface EventModel {
+  identifier: string;
+  settings?: EventSettingProps[];
+  signature: string;
+  editable?: boolean;
+  name?: Translation[];
+  description?: Translation[];
+  documentation?: Translation[];
+  displayMessage?: Translation[];
+  alias?: Translation[];
+  displayIcon?: string;
+  runtimeIdentifier?: string;
+}
+```
+
+<TypeTable
+  type={{
+    identifier: {
+      description: 'Unique identifier for this event. Used as the map key.',
+      type: 'string',
+      required: true,
+    },
+    settings: {
+      description: 'Configurable settings users can provide for this event (e.g. filters).',
+      type: 'EventSettingProps[]',
+    },
+    signature: {
+      description: 'TypeScript-like signature string (e.g. "(userId: number): void").',
+      type: 'string',
+      required: true,
+    },
+    editable: {
+      description: 'Whether users can edit this event in the platform UI.',
+      type: 'boolean',
+      default: 'true',
+    },
+    name: {
+      description: 'Localised display name.',
+      type: 'Translation[]',
+    },
+    description: {
+      description: 'Short localised description.',
+      type: 'Translation[]',
+    },
+    documentation: {
+      description: 'Long-form documentation text.',
+      type: 'Translation[]',
+    },
+    displayMessage: {
+      description: 'Summary text shown in the flow UI.',
+      type: 'Translation[]',
+    },
+    alias: {
+      description: 'Alternative search terms for the platform UI.',
+      type: 'Translation[]',
+    },
+    displayIcon: {
+      description: 'Icon identifier shown in the flow UI (e.g. "tabler:user").',
+      type: 'string',
+    },
+    runtimeIdentifier: {
+      description: 'Identifier of the linked RuntimeEvent.',
+      type: 'string',
+    },
+  }}
+/>
+
+### `EventSettingProps`
+
+Configuration settings that users can provide for an event (e.g. filters, options).
+
+```ts
+interface EventSettingProps {
+  identifier: string;
+  unique?: FlowTypeSetting_UniquenessScope;
+  linkedDataTypeIdentifiers?: string[];
+  defaultValue?: PlainValue;
+  name?: Translation[];
+  description?: Translation[];
+  optional?: boolean;
+  hidden?: boolean;
+}
+```
+
+<TypeTable
+  type={{
+    identifier: {
+      description: 'Unique key for this setting.',
+      type: 'string',
+      required: true,
+    },
+    unique: {
+      description: 'Uniqueness constraint scope for this setting.',
+      type: 'FlowTypeSetting_UniquenessScope',
+    },
+    linkedDataTypeIdentifiers: {
+      description: 'Data type identifiers this setting accepts.',
+      type: 'string[]',
+    },
+    defaultValue: {
+      description: 'Default value used when the setting is not provided.',
+      type: 'PlainValue',
+    },
+    name: {
+      description: 'Localised display name.',
+      type: 'Translation[]',
+    },
+    description: {
+      description: 'Short description shown in the UI.',
+      type: 'Translation[]',
+    },
+    optional: {
+      description: 'Whether the setting can be omitted.',
+      type: 'boolean',
+      default: 'false',
+    },
+    hidden: {
+      description: 'Hide this setting from the platform UI.',
+      type: 'boolean',
+      default: 'false',
+    },
+  }}
+/>

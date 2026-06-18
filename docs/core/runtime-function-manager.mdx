@@ -1,0 +1,147 @@
+---
+title: RuntimeFunctionManager
+description: Stores registered runtime function implementations
+---
+
+import { TypeTable } from 'fumadocs-ui/components/type-table';
+
+`RuntimeFunctionManager` stores all runtime function definitions registered via `action.registerRuntimeFunction()`. It
+extends [`BaseManager`](./base-manager.mdx) with key type `string` (runtimeName) and value type
+`RuntimeFunctionProps`.
+
+```ts
+action.runtimeFunctions.get('fibonacci_runtime');
+action.runtimeFunctions.values();
+```
+
+## Interfaces
+
+### `RuntimeFunctionRunnable`
+
+The interface implemented by all RuntimeFunction classes.
+
+```ts
+interface RuntimeFunctionRunnable {
+  run(...args: (PlainValue | undefined)[]): Promise<PlainValue> | PlainValue;
+}
+```
+
+The first argument to `run()` is always a [`FunctionContext`](#functioncontext) object. Subsequent arguments
+correspond to the declared parameters in order.
+
+### `RuntimeFunctionProps`
+
+The descriptor stored for each registered runtime function.
+
+```ts
+interface RuntimeFunctionProps {
+  runtimeName: string;
+  parameters?: FunctionParameterProps[];
+  signature: string;
+  throwsError?: boolean;
+  name?: Translation[];
+  description?: Translation[];
+  documentation?: Translation[];
+  deprecationMessage?: Translation[];
+  displayMessage?: Translation[];
+  alias?: Translation[];
+  displayIcon?: string;
+  design?: string;
+  handler: (...args: (PlainValue | undefined)[]) => Promise<PlainValue> | PlainValue;
+}
+```
+
+<TypeTable
+  type={{
+    runtimeName: {
+      description: 'Unique runtime key for this function. Used as the map key.',
+      type: 'string',
+      required: true,
+    },
+    parameters: {
+      description: 'Parameter definitions for this function.',
+      type: 'FunctionParameterProps[]',
+      typeDescriptionLink: '/core/function-manager#functionparameterprops',
+    },
+    signature: {
+      description: 'TypeScript-like signature string (e.g. "(n: number): number").',
+      type: 'string',
+      required: true,
+    },
+    throwsError: {
+      description: 'Whether this function can throw a RuntimeError.',
+      type: 'boolean',
+      default: 'false',
+    },
+    name: {
+      description: 'Localised display name.',
+      type: 'Translation[]',
+    },
+    description: {
+      description: 'Short localised description.',
+      type: 'Translation[]',
+    },
+    documentation: {
+      description: 'Long-form documentation text.',
+      type: 'Translation[]',
+    },
+    deprecationMessage: {
+      description: 'Shown in the UI when the function is deprecated.',
+      type: 'Translation[]',
+    },
+    displayMessage: {
+      description: 'Summary text shown in the flow UI.',
+      type: 'Translation[]',
+    },
+    alias: {
+      description: 'Alternative search terms for the platform UI.',
+      type: 'Translation[]',
+    },
+    displayIcon: {
+      description: 'Icon identifier shown in the flow UI.',
+      type: 'string',
+    },
+    design: {
+      description: 'Visual design token string.',
+      type: 'string',
+    },
+    handler: {
+      description: 'Populated automatically from the class run() method during registration.',
+      type: '(...args: (PlainValue | undefined)[]) => Promise<PlainValue> | PlainValue',
+      required: true,
+    },
+  }}
+/>
+
+### `FunctionContext`
+
+Passed as the first argument to every `run()` call.
+
+```ts
+interface FunctionContext {
+  projectId: number | bigint;
+  executionId: string;
+  matchedConfig: ProjectConfiguration;
+}
+```
+
+<TypeTable
+  type={{
+    projectId: {
+      description: 'ID of the project that triggered execution.',
+      type: 'number | bigint',
+      required: true,
+    },
+    executionId: {
+      description: 'Unique ID for this execution.',
+      type: 'string',
+      required: true,
+    },
+    matchedConfig: {
+      description: 'The project configuration for this execution. Use findConfig() to look up values by identifier.',
+      type: 'ProjectConfiguration',
+      typeDescriptionLink: '/core/config-manager#projectconfiguration',
+      required: true,
+    },
+  }}
+/>

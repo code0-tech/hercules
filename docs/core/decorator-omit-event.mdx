@@ -1,0 +1,37 @@
+---
+title: "@OmitEvent"
+description: Prevents auto-generation of a public event definition from a RuntimeEvent
+---
+
+Prevents Hercules from automatically generating a public `EventModel` entry when this class is registered via
+`action.registerRuntimeEventClass()`. Use this when you want to define the public-facing event separately by
+registering a dedicated Event class with `action.registerEventClass()`.
+
+```ts
+import { OmitEvent } from '@code0-tech/hercules';
+```
+
+## Signature
+
+```ts
+@OmitEvent(): ClassDecorator
+```
+
+## Example
+
+```ts
+@Identifier('user_created')
+@Signature('(userId: number): void')
+@OmitEvent()
+export class UserCreatedRuntimeEvent {}
+
+// Public definition registered separately
+@Identifier('user_created_event')
+@Name({ code: 'en-US', content: 'On User Created' })
+@Editable(false)
+export class UserCreatedEvent extends UserCreatedRuntimeEvent {}
+```
+
+## Applies to
+
+RuntimeEvent

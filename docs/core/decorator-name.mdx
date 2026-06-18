@@ -1,0 +1,30 @@
+---
+title: "@Name"
+description: Sets the localised display name
+---
+
+Sets the localised display name shown in the platform UI. Accepts multiple translations.
+
+```ts
+import { Name } from '@code0-tech/hercules';
+```
+
+## Signature
+
+```ts
+@Name(...translations: Translation[]): ClassDecorator
+```
+
+## Example
+
+```ts
+@Name(
+  { code: 'en-US', content: 'My Function' },
+  { code: 'de-DE', content: 'Meine Funktion' },
+)
+export class MyFunction extends MyRuntimeFunction {}
+```
+
+## Applies to
+
+Function, RuntimeFunction, Event, RuntimeEvent, DataType

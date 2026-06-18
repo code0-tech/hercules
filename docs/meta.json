@@ -1,5 +1,14 @@
 {
   "title": "Hercules",
   "root": true,
-  "pages": []
+  "pages": [
+    "[IconBrandGithub][Github](https://github.com/code0-tech/hercules)",
+    "[IconWorldWww][Website](https://codezero.build/)",
+    "---Getting Started---",
+    "...getting-started",
+    "---Tutorials---",
+    "...tutorials",
+    "---Core---",
+    "...core"
+  ]
 }

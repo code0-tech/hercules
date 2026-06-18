@@ -1,0 +1,154 @@
+---
+title: FunctionManager
+description: Stores registered public-facing function definitions
+---
+
+import { TypeTable } from 'fumadocs-ui/components/type-table';
+
+`FunctionManager` stores all public-facing function definitions registered via `action.registerFunction()`. It extends
+[`BaseManager`](./base-manager.mdx) with key type `string` (runtimeName) and value type `FunctionProps`.
+
+```ts
+action.functions.get('fibonacci');
+action.functions.values();
+```
+
+## Interfaces
+
+### `FunctionProps`
+
+The descriptor stored for each registered function.
+
+```ts
+interface FunctionProps {
+  runtimeDefinitionName: string;
+  runtimeName: string;
+  parameters?: FunctionParameterProps[];
+  signature: string;
+  throwsError?: boolean;
+  name?: Translation[];
+  description?: Translation[];
+  documentation?: Translation[];
+  deprecationMessage?: Translation[];
+  displayMessage?: Translation[];
+  alias?: Translation[];
+  displayIcon?: string;
+  design?: string;
+}
+```
+
+<TypeTable
+  type={{
+    runtimeDefinitionName: {
+      description: 'Identifier of the linked RuntimeFunction.',
+      type: 'string',
+      required: true,
+    },
+    runtimeName: {
+      description: 'Unique runtime key for this function. Used as the map key.',
+      type: 'string',
+      required: true,
+    },
+    parameters: {
+      description: 'Parameter definitions for this function.',
+      type: 'FunctionParameterProps[]',
+    },
+    signature: {
+      description: 'TypeScript-like signature string (e.g. "(n: number): number").',
+      type: 'string',
+      required: true,
+    },
+    throwsError: {
+      description: 'Whether this function can throw a RuntimeError.',
+      type: 'boolean',
+      default: 'false',
+    },
+    name: {
+      description: 'Localised display name.',
+      type: 'Translation[]',
+    },
+    description: {
+      description: 'Short localised description.',
+      type: 'Translation[]',
+    },
+    documentation: {
+      description: 'Long-form documentation text.',
+      type: 'Translation[]',
+    },
+    deprecationMessage: {
+      description: 'Shown in the UI when the function is deprecated.',
+      type: 'Translation[]',
+    },
+    displayMessage: {
+      description: 'Summary text shown in the flow UI.',
+      type: 'Translation[]',
+    },
+    alias: {
+      description: 'Alternative search terms for the platform UI.',
+      type: 'Translation[]',
+    },
+    displayIcon: {
+      description: 'Icon identifier shown in the flow UI (e.g. "tabler:math").',
+      type: 'string',
+    },
+    design: {
+      description: 'Visual design token string.',
+      type: 'string',
+    },
+  }}
+/>
+
+### `FunctionParameterProps`
+
+```ts
+interface FunctionParameterProps {
+  runtimeName: string;
+  defaultValue?: PlainValue;
+  name?: Translation[];
+  description?: Translation[];
+  documentation?: Translation[];
+  hidden?: boolean;
+  optional?: boolean;
+  runtimeDefinitionName?: string;
+}
+```
+
+<TypeTable
+  type={{
+    runtimeName: {
+      description: 'Parameter key used in the function signature.',
+      type: 'string',
+      required: true,
+    },
+    defaultValue: {
+      description: 'Default value used when none is provided.',
+      type: 'PlainValue',
+    },
+    name: {
+      description: 'Localised display name.',
+      type: 'Translation[]',
+    },
+    description: {
+      description: 'Short description shown in the UI.',
+      type: 'Translation[]',
+    },
+    documentation: {
+      description: 'Long-form documentation text.',
+      type: 'Translation[]',
+    },
+    hidden: {
+      description: 'Hide this parameter from the platform UI.',
+      type: 'boolean',
+      default: 'false',
+    },
+    optional: {
+      description: 'Whether the parameter can be omitted.',
+      type: 'boolean',
+      default: 'false',
+    },
+    runtimeDefinitionName: {
+      description: 'Links to a RuntimeFunction parameter name.',
+      type: 'string',
+    },
+  }}
+/>

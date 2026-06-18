@@ -1,0 +1,59 @@
+---
+title: Introduction
+description: What Hercules is and how it fits into the Code0 platform
+icon: IconRocket
+---
+
+The Code0 platform lets users build automation flows visually — connecting triggers, logic, and outputs without writing
+code. **Actions** are the building blocks of those flows.
+
+An action is a service **you** build and run. It connects to the Code0 runtime (Aquila) and tells it:
+what functions it provides, what events it can fire, and what custom data types it understands.
+Users then pick your functions and events inside the flow editor.
+
+Hercules is the TypeScript SDK for building actions.
+
+## What an Action does
+
+When your action starts, it connects to Aquila over a persistent gRPC stream. From that point on:
+
+- **Aquila calls your functions** whenever a user's flow reaches one of them. Your function runs, returns a value,
+  and Aquila continues the flow.
+- **You fire events** whenever something happens on your side — an incoming webhook, a scheduled job, a database
+  change — and Aquila starts the matching user flows.
+
+That's the whole model. Everything else (functions, events, data types, config) is just detail on top of this.
+
+## What you register
+
+| What | Why |
+|---|---|
+| **RuntimeFunction** | A class with a `run()` method — the actual logic Aquila calls |
+| **Function** | A named, public-facing variant of a RuntimeFunction shown in the flow editor |
+| **RuntimeEvent** | An internal event definition with a signature and optional settings |
+| **Event** | A user-facing trigger shown in the flow editor, linked to a RuntimeEvent |
+| **DataType** | A custom value shape backed by a Zod schema, usable in parameters and settings |
+
+RuntimeFunction and RuntimeEvent are the implementation layer — they hold the code.
+Function and Event are the presentation layer — they hold the names, descriptions, and parameters
+users see in the editor. One RuntimeFunction can back multiple Functions, each with different metadata.
+
+## Quick start
+
+```ts
+import { Action, CodeZeroEvent } from '@code0-tech/hercules';
+
+const action = new Action(
+  'my-action', '1.0.0', 'aquila:8081',
+  'my-org', 'tabler:bolt', 'My first action',
+  [{ code: 'en-US', content: 'My Action' }],
+);
+
+action.registerRuntimeFunction(MyRuntimeFunction);
+action.registerFunction(MyFunction);
+
+action.on(CodeZeroEvent.connected, () => console.log('connected'));
+await action.connect(process.env.AUTH_TOKEN!);
+```
+
+See the [First Simple Action](../tutorials/first-simple-action.mdx) tutorial for a full walkthrough.

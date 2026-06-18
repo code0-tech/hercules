@@ -1,0 +1,38 @@
+---
+title: "@OmitRuntimeFunction"
+description: Prevents auto-generation of a public function definition from a RuntimeFunction
+---
+
+Prevents Hercules from automatically generating a `FunctionProps` entry when this class is registered via
+`action.registerRuntimeFunction()`. Use this when you want to control the public-facing definition separately by
+registering a dedicated Function class with `action.registerFunction()`.
+
+```ts
+import { OmitRuntimeFunction } from '@code0-tech/hercules';
+```
+
+## Signature
+
+```ts
+@OmitRuntimeFunction(): ClassDecorator
+```
+
+## Example
+
+```ts
+@Identifier('fibonacci_runtime')
+@Signature('(n: number): number')
+@OmitRuntimeFunction()
+export class FibonacciRuntimeFunction {
+  run(context: FunctionContext, n: number): number { ... }
+}
+
+// Public definition registered separately
+@Identifier('fibonacci')
+@Name({ code: 'en-US', content: 'Compute Fibonacci' })
+export class FibonacciFunction extends FibonacciRuntimeFunction {}
+```
+
+## Applies to
+
+RuntimeFunction
