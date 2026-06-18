@@ -39,6 +39,10 @@ action.on(CodeZeroEvent.connected, () => {
     console.log("Connected to aquila");
 });
 
+action.on(CodeZeroEvent.streamMessageReceived, (message: any) => {
+    console.log(message);
+});
+
 action.on(CodeZeroEvent.error, (error: Error) => {
     console.error("Stream error:", error.message);
     process.exit(0);
