@@ -146,7 +146,7 @@ function buildSettingDecorators(settings: any[]): string[] {
             ...(s.optional ? [`optional: true,`] : []),
             ...(s.hidden ? [`hidden: true,`] : []),
         ];
-        return [`@RuntimeEventSetting({`, ...props.map(p => `    ${p}`), `})`];
+        return [`@EventSetting({`, ...props.map(p => `    ${p}`), `})`];
     });
 }
 
@@ -159,26 +159,23 @@ function buildParameterDecorators(params: any[]): string[] {
             ...(p.optional ? [`optional: true,`] : []),
             ...(p.hidden ? [`hidden: true,`] : []),
         ];
-        return [`@RuntimeParameter({`, ...props.map(p => `    ${p}`), `})`];
+        return [`@Parameter({`, ...props.map(p => `    ${p}`), `})`];
     });
 }
 
 function generateRuntimeFlowType(json: Record<string, unknown>, className: string, relModule: string): string {
     const src = (seg: string) => srcRelativePath(relModule, seg);
-    const linkedIds = json.linkedDataTypeIdentifiers as string[] | undefined;
     const settings = json.runtimeSettings as any[] | undefined;
     const metaDecorators = collectMetaDecorators(json);
 
     const imports = [
         `import {RuntimeEventRunnable} from "${src("models/runtime_event.model")}";`,
-        `import {${metaDecorators.join(", ")}} from "${src("decorators/meta")}";`,
-        ...(linkedIds?.length ? [`import {LinkedDataTypeIdentifiers} from "${src("decorators/function")}";`] : []),
-        ...(settings?.length ? [`import {RuntimeEventSetting} from "${src("decorators/runtime-event")}";`] : []),
+        `import {${metaDecorators.join(", ")}} from "${src("decorators/meta.dec")}";`,
+        ...(settings?.length ? [`import {EventSetting} from "${src("decorators/event.dec")}";`] : []),
     ];
 
     const decorators = [
         ...buildMetaDecorators(json, "identifier"),
-        ...(linkedIds?.length ? [`@LinkedDataTypeIdentifiers(${linkedIds.map(s => JSON.stringify(s)).join(", ")})`] : []),
         ...buildSettingDecorators(settings ?? []),
     ];
 
@@ -193,28 +190,25 @@ function generateRuntimeFlowType(json: Record<string, unknown>, className: strin
 
 function generateRuntimeFunction(json: Record<string, unknown>, className: string, relModule: string): string {
     const src = (seg: string) => srcRelativePath(relModule, seg);
-    const linkedIds = json.linkedDataTypeIdentifiers as string[] | undefined;
     const params = json.runtimeParameterDefinitions as any[] | undefined;
     const metaDecorators = collectMetaDecorators(json);
     const funcDecorators = [
-        "OmitFunctionDefinition",
         ...(json.throwsError ? ["ThrowsError"] : []),
-        ...(params?.length ? ["RuntimeParameter"] : []),
-        ...(linkedIds?.length ? ["LinkedDataTypeIdentifiers"] : []),
+        ...(params?.length ? ["Parameter"] : []),
     ];
 
     const imports = [
         `import {RuntimeFunctionRunnable} from "${src("models/runtime_function.model")}";`,
-        `import {${metaDecorators.join(", ")}} from "${src("decorators/meta")}";`,
-        `import {${funcDecorators.join(", ")}} from "${src("decorators/function")}";`,
+        `import {${metaDecorators.join(", ")}} from "${src("decorators/meta.dec")}";`,
+        `import {OmitRuntimeFunction} from "${src("decorators/runtime_function.dec")}";`,
+        ...(funcDecorators.length ? [`import {${funcDecorators.join(", ")}} from "${src("decorators/function.dec")}";`] : []),
         `import type {PlainValue} from "@code0-tech/tucana/helpers";`,
     ];
 
     const decorators = [
-        `@OmitFunctionDefinition()`,
+        `@OmitRuntimeFunction()`,
         ...buildMetaDecorators(json, "runtimeName"),
         ...(json.throwsError ? [`@ThrowsError()`] : []),
-        ...(linkedIds?.length ? [`@LinkedDataTypeIdentifiers(${linkedIds.map(s => JSON.stringify(s)).join(", ")})`] : []),
         ...buildParameterDecorators(params ?? []),
     ];
 

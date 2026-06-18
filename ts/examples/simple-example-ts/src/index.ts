@@ -20,7 +20,7 @@ const action = new Action(
     }],
 );
 
-// Runtime function (with OmitFunctionDefinition — no auto-generated function def)
+// Runtime function (with OmitRuntimeFunction — no auto-generated function def)
 action.registerRuntimeFunction(FibonacciRuntimeFunction);
 
 // Function: named public variant that extends the runtime function

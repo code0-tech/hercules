@@ -3,7 +3,7 @@ import {
     FunctionContext, Parameter,
     Identifier,
     Name,
-    OmitFunction,
+    OmitRuntimeFunction,
     Signature,
 } from "@code0-tech/hercules";
 
@@ -11,7 +11,7 @@ import {
 @Signature("(test: number): number")
 @Name({code: "en-US", content: "Fibonacci (Runtime)"})
 @DisplayMessage({code: "en-US", content: "Computes the n-th Fibonacci number"})
-@OmitFunction()
+@OmitRuntimeFunction()
 @Parameter({runtimeName: "test", name: [{code: "en-US", content: "N"}]})
 export class FibonacciRuntimeFunction {
     run(context: FunctionContext, test: number): number {
