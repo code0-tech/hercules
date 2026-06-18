@@ -116,6 +116,7 @@ export function buildModule(data: ModuleBuildData): Module {
             displayIcon: f.displayIcon ?? "tabler:note",
             version: data.version,
             definitionSource: "action",
+            ...(f.design != null ? {design: f.design} : {}),
             parameterDefinitions: (f.parameters ?? []).map(p => ({
                 runtimeName: p.runtimeName,
                 runtimeDefinitionName: p.runtimeDefinitionName ?? p.runtimeName,
@@ -141,6 +142,7 @@ export function buildModule(data: ModuleBuildData): Module {
             displayIcon: f.displayIcon ?? "tabler:note",
             version: data.version,
             definitionSource: "action",
+            ...(f.design != null ? {design: f.design} : {}),
             runtimeParameterDefinitions: (f.parameters ?? []).map(p => ({
                 runtimeName: p.runtimeName,
                 name: p.name ?? [],

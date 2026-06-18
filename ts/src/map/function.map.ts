@@ -18,6 +18,7 @@ export const functionMap = <T extends RuntimeFunctionClass>(klass: FunctionClass
     const linkedDataTypes: FunctionProps["linkedDataTypes"] = Reflect.getMetadata('hercules:linked_data_type_identifiers', klass);
     const displayIcon: FunctionProps["displayIcon"] = Reflect.getMetadata('hercules:display_icon', klass);
     const throwsError: FunctionProps["throwsError"] = Reflect.getMetadata('hercules:throws_error', klass);
+    const design: FunctionProps["design"] = Reflect.getMetadata('hercules:design', klass);
 
     if (functionParameters.length > (runtimeFunction.parameters?.length ?? 0)) {
         throw new Error(`Function definition class ${klass.name} has more function parameters than its runtime function.`);
@@ -49,6 +50,7 @@ export const functionMap = <T extends RuntimeFunctionClass>(klass: FunctionClass
         displayMessage: displayMessage || runtimeFunction.displayMessage,
         displayIcon: displayIcon || runtimeFunction.displayIcon,
         linkedDataTypes: linkedDataTypes || runtimeFunction.linkedDataTypes,
+        design: design || runtimeFunction.design,
         parameters: mergedParameters.map(p => ({
             ...p,
             runtimeDefinitionName: p.runtimeDefinitionName || p.runtimeName,

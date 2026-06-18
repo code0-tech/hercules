@@ -27,6 +27,7 @@ export interface FunctionProps {
     alias?: Translation[],
     linkedDataTypes?: string[],
     displayIcon?: string,
+    design?: string,
 }
 
 export type FunctionClass<T extends RuntimeFunctionClass> = new () => InstanceType<T>;

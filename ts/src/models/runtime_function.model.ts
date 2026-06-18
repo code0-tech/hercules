@@ -15,6 +15,7 @@ export interface RuntimeFunctionProps {
     alias?: Translation[],
     linkedDataTypes?: string[],
     displayIcon?: string,
+    design?: string,
     handler: (...args: (PlainValue | undefined)[]) => Promise<PlainValue> | PlainValue,
 }
 

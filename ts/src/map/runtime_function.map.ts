@@ -15,6 +15,7 @@ export const runtimeFunctionMap = (klass: RuntimeFunctionClass): RuntimeFunction
     const linkedDataTypes: RuntimeFunctionProps["linkedDataTypes"] = Reflect.getMetadata('hercules:linked_data_type_identifiers', klass) || [];
     const displayIcon: RuntimeFunctionProps["displayIcon"] = Reflect.getMetadata('hercules:display_icon', klass) || "";
     const throwsError: RuntimeFunctionProps["throwsError"] = Reflect.getMetadata('hercules:throws_error', klass) || false;
+    const design: RuntimeFunctionProps["design"] = Reflect.getMetadata('hercules:design', klass);
 
     if (!identifier) throw new Error(`Runtime function class ${klass.name} is missing an identifier. Add @Identifier("your_identifier") to the class.`);
     if (!signature) throw new Error(`Runtime function class ${klass.name} is missing a signature. Add @Signature("(param1: TYPE_1): RETURN_TYPE") to the class.`);
@@ -34,6 +35,7 @@ export const runtimeFunctionMap = (klass: RuntimeFunctionClass): RuntimeFunction
         alias,
         linkedDataTypes,
         displayIcon: displayIcon || "tabler:note",
+        design,
         parameters: runtimeParameters.map(param => ({
             ...param,
             name: param.name || [],
