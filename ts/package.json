@@ -20,11 +20,11 @@
     "dist"
   ],
   "scripts": {
-    "build": "vite build",
+    "build": "npm run build:definitions && vite build",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build:definitions": "npx tsx scripts/build-definitions.ts"
+    "build:definitions": "npx tsx scripts/build-definitions.ts -- --version def-0.0.28"
   },
   "keywords": [],
   "author": "",
