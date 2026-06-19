@@ -2,7 +2,6 @@ import {Action, CodeZeroEvent} from "@code0-tech/hercules";
 import {FibonacciRuntimeFunction} from "./functions/fibonacciRuntimeFunction.js";
 import {FibonacciFunction} from "./functions/fibonacciFunction.js";
 import {UserCreatedRuntimeEvent} from "./events/userCreatedRuntimeEvent.js";
-import {UserCreatedEvent} from "./events/userCreatedEvent.js";
 import {EmailDataType} from "./data_types/emailDataType.js";
 
 const action = new Action(
@@ -32,8 +31,6 @@ action.registerDataTypeClass(EmailDataType);
 // Runtime flow type: the internal event definition
 action.registerRuntimeEventClass(UserCreatedRuntimeEvent);
 
-// Flow type: the user-facing event linked to the runtime flow type
-action.registerEventClass(UserCreatedEvent);
 
 action.on(CodeZeroEvent.connected, () => {
     console.log("Connected to aquila");
