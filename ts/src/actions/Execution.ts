@@ -8,6 +8,10 @@ import type {Action} from "../action";
 
 export const packetType = "execution";
 
+function nowMicros(): bigint {
+    return BigInt(Math.floor((performance.timeOrigin + performance.now()) * 1000));
+}
+
 function buildParams(execution: ActionExecutionRequest, func: RuntimeFunctionProps): (PlainValue | undefined)[] {
     return (func.parameters || []).map(param => {
         const field = execution.parameters?.fields?.[param.runtimeName];
@@ -38,13 +42,13 @@ export function handle(action: Action, execution: ActionExecutionRequest): void 
         matchedConfig: conf,
     };
 
-    const startedAt = BigInt(Date.now());
+    const startedAt = nowMicros();
     const funcHandler = func.handler;
     const allParams: (PlainValue | undefined)[] =
         funcHandler.length === params.length + 1 ? [context as PlainValue, ...params] : params;
 
     Promise.resolve(funcHandler(...allParams)).then((value: PlainValue) => {
-        const finishedAt = BigInt(Date.now());
+        const finishedAt = nowMicros();
         action.stream!.requests.send(ActionTransferRequest.create({
             data: {
                 oneofKind: "result",
@@ -62,7 +66,7 @@ export function handle(action: Action, execution: ActionExecutionRequest): void 
         })).catch(err => console.error("Failed to send execution result:", err));
 
     }).catch((error: unknown) => {
-        const finishedAt = BigInt(Date.now());
+        const finishedAt = nowMicros();
         const isRuntimeError = error instanceof RuntimeError;
         action.stream!.requests.send(ActionTransferRequest.create({
             data: {
