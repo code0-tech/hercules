@@ -333,6 +333,7 @@ async function main() {
 
         const lines = [
             `import {z} from "zod";`,
+            `import {registerSchema} from "${srcRelativePath(def.relModule, "internal/zod-schema")}";`,
             ...refs.flatMap(ref => {
                 const refDef = schemaToFile.get(ref);
                 return refDef ? [`import {${ref}} from "${relativeImport(def.relModule, refDef, refDef.fileName)}";`] : [];
@@ -340,6 +341,8 @@ async function main() {
             ``,
             `export const ${schemaName} = ${body};`,
             `export type ${def.className}${typeParams} = z.infer<typeof ${schemaName}>;`,
+            ``,
+            `registerSchema(${schemaName}, ${JSON.stringify(def.identifier)});`,
             ``,
         ];
 
