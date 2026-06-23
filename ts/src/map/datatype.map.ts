@@ -1,4 +1,4 @@
-import {zodToRules, zodToTypeString} from "../internal/zod-schema";
+import {registerSchema, zodToRules, zodToTypeString} from "../internal/zod-schema";
 import type {Translation} from "../types";
 import type {DataTypeClass, DataTypeProps} from "../models/datatype.model";
 
@@ -13,6 +13,8 @@ export const dataTypeMap = (klass: DataTypeClass): DataTypeProps => {
 
     const schema = Reflect.getMetadata('hercules:schema', klass);
     if (!schema) throw new Error(`Data type class ${klass.name} is missing a schema. Add @Schema(z.string()) to the class.`);
+
+    registerSchema(schema, identifier);
 
     return {
         identifier,
