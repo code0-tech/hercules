@@ -1,5 +1,5 @@
 import {toJSONSchema, type ZodTypeAny} from "zod";
-import {zodToTs, printNode, createAuxiliaryTypeStore} from "zod-to-ts";
+import {zodToTs, printNode, createAuxiliaryTypeStore, type TypeOverrideMap} from "zod-to-ts";
 import type {DefinitionDataTypeRule} from "@code0-tech/tucana/shared";
 
 type JsonSchema = {
@@ -8,9 +8,33 @@ type JsonSchema = {
     maximum?: number;
 };
 
+const schemaRegistry = new Map<ZodTypeAny, string>();
+
+export function registerSchema(schema: ZodTypeAny, identifier: string): void {
+    schemaRegistry.set(schema, identifier);
+}
+
+export function getRegisteredIdentifier(schema: ZodTypeAny): string | undefined {
+    return schemaRegistry.get(schema);
+}
+
+function buildOverrides(skip: ZodTypeAny): TypeOverrideMap {
+    const overrides: TypeOverrideMap = new Map();
+    for (const [schema, identifier] of schemaRegistry) {
+        if (schema === skip) continue;
+        overrides.set(schema as never, (typescript) =>
+            typescript.factory.createTypeReferenceNode(typescript.factory.createIdentifier(identifier))
+        );
+    }
+    return overrides;
+}
+
 export function zodToTypeString(schema: ZodTypeAny): string {
-    const {node} = zodToTs(schema, {auxiliaryTypeStore: createAuxiliaryTypeStore()});
-    return printNode(node);
+    const {node} = zodToTs(schema, {
+        auxiliaryTypeStore: createAuxiliaryTypeStore(),
+        overrides: buildOverrides(schema),
+    });
+    return printNode(node, {removeComments: true, omitTrailingSemicolon: true}).replace(/\s+/g, " ").trim();
 }
 
 export function zodToRules(schema: ZodTypeAny): DefinitionDataTypeRule[] {
