@@ -6,14 +6,14 @@
     "type": "git",
     "url": "git+https://github.com/code0-tech/hercules.git"
   },
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
+  "main": "./dist/hercules.cjs.js",
+  "module": "./dist/hercules.es.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": "./dist/hercules.es.js",
+      "require": "./dist/hercules.cjs.js"
     }
   },
   "files": [
