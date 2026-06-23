@@ -24,7 +24,7 @@
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build:definitions": "npx tsx scripts/build-definitions.ts -- --version def-0.0.29"
+    "build:definitions": "npx tsx scripts/build-definitions.ts -- --version def-0.0.30"
   },
   "keywords": [],
   "author": "",
