@@ -12,6 +12,6 @@ export const ThrowsError = (throwsError: boolean = true): ClassDecorator =>
 export const Parameter = (parameter: FunctionParameterProps): ClassDecorator =>
     (target) => {
         const parameters = Reflect.getMetadata('hercules:function_parameters', target) || [];
-        parameters.push(parameter);
+        parameters.unshift(parameter);
         Reflect.defineMetadata('hercules:function_parameters', parameters, target);
     }
