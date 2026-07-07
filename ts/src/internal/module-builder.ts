@@ -1,5 +1,5 @@
 import {constructValue} from "@code0-tech/tucana/helpers";
-import {DefinitionDataType, FlowType, FlowTypeSetting, Module, ModuleConfigurationDefinition, RuntimeFlowType, RuntimeFlowTypeSetting} from "@code0-tech/tucana/shared";
+import {DefinitionDataType, FlowType, FlowTypeSetting, FlowTypeSetting_UniquenessScope, Module, ModuleConfigurationDefinition, RuntimeFlowType, RuntimeFlowTypeSetting} from "@code0-tech/tucana/shared";
 import type {FunctionProps} from "../models/function.model";
 import type {RuntimeFunctionProps} from "../models/runtime_function.model";
 import type {ConfigurationDefinition, Translation} from "../types";
@@ -20,6 +20,18 @@ export interface ModuleBuildData {
     runtimeEvents: RuntimeEventProps[];
     functions: FunctionProps[];
     runtimeFunctions: RuntimeFunctionProps[];
+}
+
+// The protobuf field is an enum (int32); string names like "PROJECT" would fail binary serialization.
+// Returns number since FlowTypeSetting and RuntimeFlowTypeSetting each declare their own (identical) enum.
+function toUniquenessScope(unique: FlowTypeSetting_UniquenessScope | keyof typeof FlowTypeSetting_UniquenessScope | undefined): number {
+    if (unique == null) return FlowTypeSetting_UniquenessScope.NONE;
+    if (typeof unique === "string") {
+        const scope = FlowTypeSetting_UniquenessScope[unique];
+        if (typeof scope !== "number") throw new Error(`Invalid uniqueness scope: ${JSON.stringify(unique)}`);
+        return scope;
+    }
+    return unique;
 }
 
 export function buildModule(data: ModuleBuildData): Module {
@@ -57,7 +69,7 @@ export function buildModule(data: ModuleBuildData): Module {
             identifier: ft.identifier,
             settings: (ft.settings ?? []).map(s => ({
                 identifier: s.identifier,
-                unique: s.unique ?? 1,
+                unique: toUniquenessScope(s.unique),
                 linkedDataTypeIdentifiers: s.linkedDataTypeIdentifiers ?? [],
                 ...(s.defaultValue != null ? {defaultValue: constructValue(s.defaultValue)} : {}),
                 name: s.name ?? [],
@@ -82,7 +94,7 @@ export function buildModule(data: ModuleBuildData): Module {
             identifier: rft.identifier,
             runtimeSettings: (rft.settings ?? []).map(s => ({
                 identifier: s.identifier,
-                unique: s.unique ?? 1,
+                unique: toUniquenessScope(s.unique),
                 ...(s.defaultValue != null ? {defaultValue: constructValue(s.defaultValue)} : {}),
                 name: s.name ?? [],
                 description: s.description ?? [],
