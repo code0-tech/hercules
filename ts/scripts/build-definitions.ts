@@ -140,7 +140,7 @@ function buildSettingDecorators(settings: any[]): string[] {
     return settings.flatMap(s => {
         const props = [
             `identifier: ${JSON.stringify(s.identifier)},`,
-            ...(s.unique && s.unique !== "NONE" ? [`unique: ${JSON.stringify(s.unique)} as any,`] : []),
+            ...(s.unique && s.unique !== "NONE" ? [`unique: ${JSON.stringify(s.unique)},`] : []),
             ...(Array.isArray(s.name) && s.name.length ? [`name: [${renderTranslationsInline(s.name)}],`] : []),
             ...(Array.isArray(s.description) && s.description.length ? [`description: [${renderTranslationsInline(s.description)}],`] : []),
             ...(s.optional ? [`optional: true,`] : []),

@@ -5,7 +5,7 @@ import {RuntimeEventClass} from "./runtime_event.model";
 
 export interface EventSettingProps {
     identifier: string,
-    unique?: FlowTypeSetting_UniquenessScope,
+    unique?: FlowTypeSetting_UniquenessScope | keyof typeof FlowTypeSetting_UniquenessScope,
     linkedDataTypeIdentifiers?: string[],
     defaultValue?: PlainValue,
     name?: Translation[],
