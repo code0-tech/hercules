@@ -9,7 +9,7 @@ export const eventMap = <T extends RuntimeEventClass>(klass: EventClass<T>): Eve
 
     const identifier: string = Reflect.getMetadata('hercules:identifier', klass);
     const signature: string = Reflect.getMetadata('hercules:signature', klass);
-    const settings: EventSettingProps[] = Reflect.getMetadata('hercules:flow_settings', klass) || [];
+    const settings: EventSettingProps[] = Reflect.getOwnMetadata('hercules:flow_settings', klass) || [];
     const name: Translation[] = Reflect.getMetadata('hercules:name', klass);
     const description: Translation[] = Reflect.getMetadata('hercules:description', klass);
     const documentation: Translation[] = Reflect.getMetadata('hercules:documentation', klass);
@@ -26,12 +26,12 @@ export const eventMap = <T extends RuntimeEventClass>(klass: EventClass<T>): Eve
         }
     }
 
-    const mergedSettings: EventSettingProps[] = [...settings];
-    for (const rs of runtimeEvent.settings ?? []) {
-        if (!mergedSettings.find(s => s.identifier === rs.identifier)) {
-            mergedSettings.push({...rs});
-        }
-    }
+    // Settings come from the runtime event (in its order); the event class only overrides
+    // individual properties (e.g. defaultValue, hidden) per identifier.
+    const mergedSettings: EventSettingProps[] = (runtimeEvent.settings ?? []).map(rs => {
+        const override = settings.find(s => s.identifier === rs.identifier);
+        return override ? {...rs, ...override} : {...rs};
+    });
 
     return {
         runtimeIdentifier: runtimeEvent.identifier,
