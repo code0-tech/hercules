@@ -11,7 +11,9 @@ export const ThrowsError = (throwsError: boolean = true): ClassDecorator =>
 
 export const Parameter = (parameter: FunctionParameterProps): ClassDecorator =>
     (target) => {
-        const parameters = Reflect.getMetadata('hercules:function_parameters', target) || [];
+        // getOwnMetadata: getMetadata would return the parent class's array on subclasses,
+        // and unshift would mutate the parent's parameters.
+        const parameters = Reflect.getOwnMetadata('hercules:function_parameters', target) || [];
         parameters.unshift(parameter);
         Reflect.defineMetadata('hercules:function_parameters', parameters, target);
     }
