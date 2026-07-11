@@ -25,6 +25,18 @@ import {EventManager} from "./manager/EventManager";
 import {RuntimeEventManager} from "./manager/RuntimeEventManager";
 import {actions} from "./actions";
 
+// Global registry keyed via Symbol.for so the CLI finds actions even when the
+// user's code loaded a different copy of this module (e.g. the CJS build).
+const ACTION_REGISTRY = Symbol.for("hercules.actions");
+
+export function isExportMode(): boolean {
+    return process.env.HERCULES_EXPORT === "1";
+}
+
+export function registeredActions(): readonly Action[] {
+    return (globalThis as Record<symbol, unknown>)[ACTION_REGISTRY] as Action[] ?? [];
+}
+
 export class Action extends EventEmitter<CodeZeroEventMap> {
     private _transport?: GrpcTransport;
     private _stream?: DuplexStreamingCall<ActionTransferRequest, ActionTransferResponse>;
@@ -48,6 +60,11 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
         private readonly _configurationDefinitions: ConfigurationDefinition[] = [],
     ) {
         super();
+        if (isExportMode()) {
+            const registry = (globalThis as Record<symbol, unknown>)[ACTION_REGISTRY] as Action[] | undefined;
+            if (registry) registry.push(this);
+            else (globalThis as Record<symbol, unknown>)[ACTION_REGISTRY] = [this];
+        }
     }
 
     get identifier() { return this._identifier; }
@@ -114,11 +131,12 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
     }
 
     async connect(authToken: string, aquilaUrl?: string, grpcOptions?: GrpcOptions) {
+        if (isExportMode()) return;
         const url = aquilaUrl ?? this._aquilaUrl;
         if (!url) throw new Error("aquilaUrl must be provided in the constructor or connect()");
 
         try {
-            const {transport, stream} = await createConnection(this._buildModule(), authToken, url, grpcOptions);
+            const {transport, stream} = await createConnection(this.buildModule(), authToken, url, grpcOptions);
             this._transport = transport;
             this._stream = stream;
         } catch (err) {
@@ -142,7 +160,7 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
         }
     }
 
-    private _buildModule() {
+    buildModule() {
         return buildModule({
             identifier: this._identifier, version: this._version,
             author: this._author, icon: this._icon, documentation: this._documentation,
