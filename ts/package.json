@@ -16,8 +16,12 @@
       "require": "./dist/hercules.cjs.js"
     }
   },
+  "bin": {
+    "hercules": "./bin/hercules.js"
+  },
   "files": [
-    "dist"
+    "dist",
+    "bin"
   ],
   "scripts": {
     "build": "npm run build:definitions && vite build",

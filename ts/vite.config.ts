@@ -7,9 +7,12 @@ export default defineConfig({
     build: {
         target: 'node18',
         lib: {
-            entry: resolve(__dirname, 'src/index.ts'),
+            entry: {
+                hercules: resolve(__dirname, 'src/index.ts'),
+                cli: resolve(__dirname, 'src/cli.ts'),
+            },
             name: 'triangulum',
-            fileName: (format) => `hercules.${format}.js`,
+            fileName: (format, entryName) => `${entryName}.${format}.js`,
             formats: ['es', 'cjs']
         },
         rollupOptions: {
