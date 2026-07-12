@@ -18,7 +18,9 @@ export const dataTypeMap = (klass: DataTypeClass): DataTypeProps => {
 
     return {
         identifier,
-        type: zodToTypeString(schema),
+        get type() {
+            return zodToTypeString(schema)
+        },
         rules: zodToRules(schema),
         name,
         displayMessage,
