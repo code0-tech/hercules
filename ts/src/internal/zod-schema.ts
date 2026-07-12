@@ -30,15 +30,34 @@ function buildOverrides(skip: ZodTypeAny): TypeOverrideMap {
 }
 
 export function zodToTypeString(schema: ZodTypeAny): string {
+    const selfIdentifier = schemaRegistry.get(schema);
+    const auxiliaryTypeStore = createAuxiliaryTypeStore();
+    let rootVisited = false;
     const {node} = zodToTs(schema, {
-        auxiliaryTypeStore: createAuxiliaryTypeStore(),
+        auxiliaryTypeStore,
         overrides: buildOverrides(schema),
+        overrideFunction: (candidate, typescript) => {
+            if (candidate !== schema || selfIdentifier === undefined) return undefined;
+            if (!rootVisited) {
+                rootVisited = true;
+                return undefined;
+            }
+            return typescript.factory.createTypeReferenceNode(typescript.factory.createIdentifier(selfIdentifier));
+        },
     });
-    return printNode(node, {removeComments: true, omitTrailingSemicolon: true}).replace(/\s+/g, " ").trim();
+    const type = printNode(node, {removeComments: true, omitTrailingSemicolon: true}).replace(/\s+/g, " ").trim();
+    if (auxiliaryTypeStore.definitions.size > 0) {
+        const subject = selfIdentifier ? `data type "${selfIdentifier}"` : "the schema";
+        throw new Error(
+            `Cannot generate a type string for ${subject}: it contains recursive schemas that cannot be inlined. ` +
+            `Register each recursive schema as its own data type so it can be referenced by identifier.`
+        );
+    }
+    return type;
 }
 
 export function zodToRules(schema: ZodTypeAny): DefinitionDataTypeRule[] {
-    const json = toJSONSchema(schema) as JsonSchema;
+    const json = toJSONSchema(schema, {cycles: "ref"}) as JsonSchema;
     const rules: DefinitionDataTypeRule[] = [];
     if (json.pattern) {
         rules.push({config: {oneofKind: "regex", regex: {pattern: json.pattern}}});
