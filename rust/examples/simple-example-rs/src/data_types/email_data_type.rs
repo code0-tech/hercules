@@ -2,8 +2,9 @@ use hercules::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// A data type derived from a real Rust type instead of a hand-written
-/// schema DSL: `#[derive(JsonSchema)]` gives us both the structural type
-/// (`"string"`) and, via `#[schemars(regex(...))]`
+/// schema DSL: `#[derive(JsonSchema)]` gives us the structural type
+/// (`"string"`), and `#[schemars(regex(...))]` gives us the validation rule
+/// Aquila enforces on top of it.
 #[hercules::data_type(identifier = "email_address", name(en_US = "Email Address"))]
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]

@@ -1,11 +1,9 @@
-//! Attribute macros that replace the TS SDK's `reflect-metadata` decorators
-//! (`@Identifier`, `@Signature`, `@Parameter`, ...) with compile-time code
-//! generation: each macro parses its arguments and any repeated
-//! `#[parameter(...)]`/`#[setting(...)]` helper attributes on the annotated
-//! struct, then emits a `meta()` associated function implementing the
-//! corresponding `hercules` trait. No runtime reflection, no metadata
-//! registry — the definition is just a value the macro builds once, at
-//! compile time.
+//! Attribute macros that turn `identifier = "...", name(en_US = "...")`
+//! arguments — plus any repeated `#[parameter(...)]`/`#[setting(...)]` helper
+//! attributes on the annotated struct — into a `meta()` associated function
+//! implementing the corresponding `hercules` trait. Each macro parses its
+//! arguments and generates that function once, at compile time; there's no
+//! runtime reflection or metadata registry involved.
 
 mod data_type;
 mod event;

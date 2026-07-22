@@ -1,0 +1,59 @@
+//! Opens the bidirectional `ActionTransferService.Transfer` stream to Aquila
+//! and sends the initial `ActionLogon` frame.
+
+use tokio::sync::mpsc;
+use tokio_stream::wrappers::UnboundedReceiverStream;
+use tonic::metadata::MetadataValue;
+use tonic::transport::Endpoint;
+use tonic::{Request, Streaming};
+use tucana::aquila::action_transfer_service_client::ActionTransferServiceClient;
+use tucana::aquila::{
+    action_transfer_request, ActionLogon, ActionTransferRequest, ActionTransferResponse,
+};
+use tucana::shared::Module;
+
+use crate::error::{HerculesError, Result};
+
+pub struct Connection {
+    pub request_tx: mpsc::UnboundedSender<ActionTransferRequest>,
+    pub responses: Streaming<ActionTransferResponse>,
+}
+
+/// Plain gRPC, no TLS — Aquila is expected to sit behind a trusted network
+/// boundary rather than be reachable directly.
+fn endpoint_uri(aquila_url: &str) -> String {
+    if aquila_url.starts_with("http://") || aquila_url.starts_with("https://") {
+        aquila_url.to_string()
+    } else {
+        format!("http://{aquila_url}")
+    }
+}
+
+pub async fn connect(module: Module, auth_token: &str, aquila_url: &str) -> Result<Connection> {
+    let channel = Endpoint::from_shared(endpoint_uri(aquila_url))?
+        .connect()
+        .await?;
+    let mut client = ActionTransferServiceClient::new(channel);
+
+    let (request_tx, request_rx) = mpsc::unbounded_channel::<ActionTransferRequest>();
+    request_tx
+        .send(ActionTransferRequest {
+            data: Some(action_transfer_request::Data::Logon(ActionLogon {
+                module: Some(module),
+            })),
+        })
+        .map_err(|_| HerculesError::StreamClosed)?;
+
+    let mut request = Request::new(UnboundedReceiverStream::new(request_rx));
+    let token: MetadataValue<_> = auth_token
+        .parse()
+        .map_err(|_| HerculesError::Other("auth token is not valid gRPC metadata".to_string()))?;
+    request.metadata_mut().insert("authorization", token);
+
+    let responses = client.transfer(request).await?.into_inner();
+
+    Ok(Connection {
+        request_tx,
+        responses,
+    })
+}

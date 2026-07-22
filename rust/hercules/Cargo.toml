@@ -1,0 +1,24 @@
+[package]
+name = "hercules"
+description = "Rust SDK for the hercules action runner"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+hercules-macros = { path = "../hercules-macros", version = "0.0.0" }
+tucana.workspace = true
+tokio.workspace = true
+tonic.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+tokio-stream.workspace = true
+log.workspace = true
+inventory.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "test-util"] }

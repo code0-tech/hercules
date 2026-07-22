@@ -128,12 +128,12 @@ impl AttrArgs {
     }
 }
 
-/// Extracts and removes every `#[name(...)]` attribute on `item`, in
-/// source order, parsing each occurrence's arguments as [`AttrArgs`]. This
-/// is how `#[parameter(...)]`/`#[setting(...)]` behave like the TS SDK's
-/// repeatable `@Parameter`/`@EventSetting` decorators: rustc never resolves
-/// them as real attributes because the outer `#[hercules::...]` macro (which
-/// runs first) strips them before re-emitting the struct.
+/// Extracts and removes every `#[name(...)]` attribute on `item`, in source
+/// order, parsing each occurrence's arguments as [`AttrArgs`]. This is how
+/// `#[parameter(...)]`/`#[setting(...)]` can appear multiple times on one
+/// struct: rustc never resolves them as real attributes because the outer
+/// `#[hercules::...]` macro (which runs first) strips them before
+/// re-emitting the struct.
 pub fn take_repeated(item: &mut ItemStruct, name: &str) -> syn::Result<Vec<AttrArgs>> {
     let mut found = Vec::new();
     let mut error = None;
