@@ -15,7 +15,7 @@ repository = "https://github.com/code0-tech/hercules"
 [workspace.dependencies]
 # Published from https://github.com/code0-tech/tucana (build/rust) — the same proto
 # definitions the TS SDK consumes as `@code0-tech/tucana` from npm.
-tucana = { version = "0.0.76", default-features = false, features = ["aquila"] }
+tucana = { version = "0.0.80", default-features = false, features = ["aquila"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 tonic = "0.14"
 async-trait = "0.1"
