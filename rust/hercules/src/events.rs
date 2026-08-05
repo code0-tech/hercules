@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio_stream::wrappers::{errors::BroadcastStreamRecvError, BroadcastStream};
 use tokio_stream::{Stream, StreamExt};
-use tucana::aquila::ActionExecutionRequest;
+use tucana::aquila::{ActionExecutionRequest, ActionFlow};
 use tucana::shared::ModuleConfigurations;
 
 use crate::error::HerculesError;
@@ -22,6 +22,11 @@ pub enum HerculesEvent {
     Error(Arc<HerculesError>),
     ModuleUpdated(Arc<ModuleConfigurations>),
     ExecutionRequestReceived(Arc<ActionExecutionRequest>),
+    /// One of this action's own flows was created or updated (see
+    /// [`crate::Connected::flows`]).
+    FlowUpserted(Arc<ActionFlow>),
+    /// One of this action's own flows was deleted; the `i64` is its `flow_id`.
+    FlowDeleted(i64),
 }
 
 /// Wraps a broadcast receiver as a [`Stream`], the idiomatic way to expose a

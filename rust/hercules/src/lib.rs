@@ -57,8 +57,8 @@ pub use meta::{
 };
 pub use registration::Registration;
 pub use types::{
-    ConfigurationDefinition, FunctionContext, PlainValue, ProjectConfiguration, Translation,
-    UniquenessScope,
+    ConfigurationDefinition, FunctionContext, PlainValue, ProjectConfiguration, ScalingOption,
+    Translation, UniquenessScope,
 };
 
 /// Re-exported so `#[hercules::runtime_function]`-annotated types can

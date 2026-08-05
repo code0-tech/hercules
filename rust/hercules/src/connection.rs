@@ -13,6 +13,7 @@ use tucana::aquila::{
 use tucana::shared::Module;
 
 use crate::error::{HerculesError, Result};
+use crate::types::ScalingOption;
 
 pub struct Connection {
     pub request_tx: mpsc::UnboundedSender<ActionTransferRequest>,
@@ -29,7 +30,12 @@ fn endpoint_uri(aquila_url: &str) -> String {
     }
 }
 
-pub async fn connect(module: Module, auth_token: &str, aquila_url: &str) -> Result<Connection> {
+pub async fn connect(
+    module: Module,
+    scaling_option: ScalingOption,
+    auth_token: &str,
+    aquila_url: &str,
+) -> Result<Connection> {
     let channel = Endpoint::from_shared(endpoint_uri(aquila_url))?
         .connect()
         .await?;
@@ -40,6 +46,7 @@ pub async fn connect(module: Module, auth_token: &str, aquila_url: &str) -> Resu
         .send(ActionTransferRequest {
             data: Some(action_transfer_request::Data::Logon(ActionLogon {
                 module: Some(module),
+                scaling_option: scaling_option.into_wire() as i32,
             })),
         })
         .map_err(|_| HerculesError::StreamClosed)?;

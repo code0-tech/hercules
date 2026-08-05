@@ -1,13 +1,16 @@
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_stream::{Stream, StreamExt};
 use tonic::Streaming;
 use tucana::aquila::{
+    action_flow_execution_response, action_flow_update, action_node_value,
     action_transfer_request, action_transfer_response, ActionEvent, ActionExecutionRequest,
-    ActionExecutionResponse, ActionTransferRequest, ActionTransferResponse,
+    ActionExecutionResponse, ActionFlow, ActionFlowExecutionRequest, ActionFlowExecutionResponse,
+    ActionFlowUpdate, ActionNodeValue, ActionTransferRequest, ActionTransferResponse,
 };
 use tucana::shared::{node_execution_result, Error as WireError, NodeExecutionResult};
 
@@ -15,7 +18,7 @@ use crate::arguments::Arguments;
 use crate::error::{HerculesError, Result};
 use crate::events::{event_stream, HerculesEvent};
 use crate::function::RuntimeFunctionHandler;
-use crate::meta::RuntimeFunctionMeta;
+use crate::meta::{ParameterMeta, RuntimeFunctionMeta};
 use crate::sync;
 use crate::types::{FunctionContext, PlainValue, ProjectConfiguration};
 use crate::value::{construct_value, to_allowed_value};
@@ -30,8 +33,26 @@ pub(crate) struct ConnectedInner {
     pub version: String,
     pub runtime_functions: HashMap<String, RuntimeFunctionEntry>,
     pub configs: RwLock<HashMap<i64, ProjectConfiguration>>,
+    /// The action's own flows, as last pushed down by Aquila via
+    /// `ActionFlowUpdate` — keyed by `flow_id`.
+    pub flows: RwLock<HashMap<i64, ActionFlow>>,
+    /// Flow executions this action has requested (via
+    /// [`Connected::execute_flow`]) and is still awaiting a result for,
+    /// keyed by the `execution_identifier` that correlates the eventual
+    /// `ActionFlowExecutionResponse`.
+    pub pending_flow_executions: Mutex<HashMap<String, oneshot::Sender<Result<PlainValue>>>>,
+    pub next_execution_seq: AtomicU64,
     pub request_tx: mpsc::UnboundedSender<ActionTransferRequest>,
     pub events_tx: broadcast::Sender<HerculesEvent>,
+}
+
+impl ConnectedInner {
+    /// A locally-unique id for correlating an outgoing flow execution
+    /// request with its eventual response.
+    fn next_execution_id(&self) -> String {
+        let seq = self.next_execution_seq.fetch_add(1, Ordering::Relaxed);
+        format!("{}-{seq}", now_micros())
+    }
 }
 
 /// A live, connected action. Cheap to clone (an `Arc` underneath) and safe to
@@ -80,6 +101,51 @@ impl Connected {
             })),
         };
         send(&self.inner, request)
+    }
+
+    /// This action's own flows, as last pushed down by Aquila. Kept in sync
+    /// via `ActionFlowUpdate` messages — see [`HerculesEvent::FlowUpserted`]
+    /// / [`HerculesEvent::FlowDeleted`] to react to changes as they happen.
+    pub fn flows(&self) -> Vec<ActionFlow> {
+        sync::read(&self.inner.flows).values().cloned().collect()
+    }
+
+    /// A single one of this action's flows by id, if Aquila has pushed it
+    /// down.
+    pub fn flow(&self, flow_id: i64) -> Option<ActionFlow> {
+        sync::read(&self.inner.flows).get(&flow_id).cloned()
+    }
+
+    /// Asks Aquila to execute one of this action's own flows and awaits its
+    /// result.
+    ///
+    /// Sub flow execution (a flow whose parameters reference the result of
+    /// another in-flight flow) isn't supported yet.
+    pub async fn execute_flow(
+        &self,
+        flow_id: impl Into<String>,
+        payload: PlainValue,
+    ) -> Result<PlainValue> {
+        let execution_identifier = self.inner.next_execution_id();
+        let (tx, rx) = oneshot::channel();
+        sync::lock(&self.inner.pending_flow_executions)
+            .insert(execution_identifier.clone(), tx);
+
+        let request = ActionTransferRequest {
+            data: Some(action_transfer_request::Data::FlowExecution(
+                ActionFlowExecutionRequest {
+                    execution_identifier: execution_identifier.clone(),
+                    flow_id: flow_id.into(),
+                    payload: Some(construct_value(&payload)),
+                },
+            )),
+        };
+        if let Err(err) = send(&self.inner, request) {
+            sync::lock(&self.inner.pending_flow_executions).remove(&execution_identifier);
+            return Err(err);
+        }
+
+        rx.await.map_err(|_| HerculesError::StreamClosed)?
     }
 }
 
@@ -151,6 +217,18 @@ fn handle_response(inner: &Arc<ConnectedInner>, response: ActionTransferResponse
                 )));
             tokio::spawn(handle_execution(inner.clone(), execution));
         }
+        Some(action_transfer_response::Data::FlowUpdate(update)) => {
+            handle_flow_update(inner, update);
+        }
+        Some(action_transfer_response::Data::FlowExecutionResponse(response)) => {
+            handle_flow_execution_response(inner, response);
+        }
+        Some(action_transfer_response::Data::SubFlowExecutionResponse(response)) => {
+            log::warn!(
+                "sub flow execution isn't supported yet; ignoring response for {:?}",
+                response.execution_identifier
+            );
+        }
         None => {
             let _ = inner
                 .events_tx
@@ -177,20 +255,6 @@ async fn handle_execution(inner: Arc<ConnectedInner>, execution: ActionExecution
         return;
     };
 
-    // The wire already sends parameters as a name -> value map; pass that
-    // straight through instead of re-flattening it into declaration order.
-    let args = Arguments::new(
-        execution
-            .parameters
-            .map(|s| {
-                s.fields
-                    .into_iter()
-                    .map(|(k, v)| (k, to_allowed_value(v)))
-                    .collect()
-            })
-            .unwrap_or_default(),
-    );
-
     let matched_config = sync::read(&inner.configs)
         .get(&execution.project_id)
         .cloned()
@@ -205,7 +269,10 @@ async fn handle_execution(inner: Arc<ConnectedInner>, execution: ActionExecution
     };
 
     let started_at = now_micros();
-    let outcome = entry.handler.run(&context, &args).await;
+    let outcome = match resolve_parameters(&entry.meta.parameters, execution.parameters) {
+        Ok(values) => entry.handler.run(&context, &Arguments::new(values)).await,
+        Err(err) => Err(err),
+    };
     let finished_at = now_micros();
 
     let result = match outcome {
@@ -246,6 +313,84 @@ async fn handle_execution(inner: Arc<ConnectedInner>, execution: ActionExecution
             context.execution_id
         );
     }
+}
+
+/// Resolves positional wire parameters into a name -> value map, using
+/// `meta`'s declaration order to recover each parameter's name.
+///
+/// A parameter can also reference the result of a sub flow execution
+/// (`ActionNodeValue::SubFlow`), which isn't supported yet — such a
+/// parameter fails the whole execution with a clear error instead of
+/// silently passing a missing or wrong value to the handler.
+fn resolve_parameters(
+    meta: &[ParameterMeta],
+    parameters: Vec<ActionNodeValue>,
+) -> Result<HashMap<String, PlainValue>> {
+    let mut values = HashMap::with_capacity(parameters.len());
+    for (param_meta, param) in meta.iter().zip(parameters) {
+        match param.value {
+            Some(action_node_value::Value::LiteralValue(value)) => {
+                values.insert(param_meta.runtime_name.clone(), to_allowed_value(value));
+            }
+            Some(action_node_value::Value::SubFlow(_)) => {
+                return Err(HerculesError::runtime(
+                    "SUB_FLOW_EXECUTION_UNSUPPORTED",
+                    Some(format!(
+                        "parameter {:?} references a sub flow result, but sub flow execution isn't supported yet",
+                        param_meta.runtime_name
+                    )),
+                ));
+            }
+            None => {}
+        }
+    }
+    Ok(values)
+}
+
+fn handle_flow_update(inner: &Arc<ConnectedInner>, update: ActionFlowUpdate) {
+    match update.data {
+        Some(action_flow_update::Data::UpdatedFlow(flow)) => {
+            sync::write(&inner.flows).insert(flow.flow_id, flow.clone());
+            let _ = inner
+                .events_tx
+                .send(HerculesEvent::FlowUpserted(Arc::new(flow)));
+        }
+        Some(action_flow_update::Data::DeletedFlow(flow_id)) => {
+            sync::write(&inner.flows).remove(&flow_id);
+            let _ = inner.events_tx.send(HerculesEvent::FlowDeleted(flow_id));
+        }
+        None => {
+            let _ = inner
+                .events_tx
+                .send(HerculesEvent::Error(Arc::new(HerculesError::Other(
+                    "received a flow update with no data".into(),
+                ))));
+        }
+    }
+}
+
+fn handle_flow_execution_response(inner: &Arc<ConnectedInner>, response: ActionFlowExecutionResponse) {
+    let sender = sync::lock(&inner.pending_flow_executions).remove(&response.execution_identifier);
+    let Some(sender) = sender else {
+        log::warn!(
+            "received a flow execution response for unknown execution {:?}",
+            response.execution_identifier
+        );
+        return;
+    };
+
+    let outcome = match response.result {
+        Some(action_flow_execution_response::Result::Success(value)) => {
+            Ok(to_allowed_value(value))
+        }
+        Some(action_flow_execution_response::Result::Failure(err)) => {
+            Err(HerculesError::runtime(err.code, Some(err.message)))
+        }
+        None => Err(HerculesError::Other(
+            "flow execution response is missing a result".into(),
+        )),
+    };
+    let _ = sender.send(outcome);
 }
 
 fn wire_error(code: String, message: String, timestamp: i64, version: &str) -> WireError {
