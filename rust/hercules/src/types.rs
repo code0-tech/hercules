@@ -114,3 +114,24 @@ pub enum UniquenessScope {
     None,
     Project,
 }
+
+/// How Aquila distributes this action's flows/configurations across
+/// multiple running instances of it. Set via [`crate::Action::scaling`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ScalingOption {
+    /// Every instance of this action receives every flow/configuration.
+    #[default]
+    Disabled,
+    /// Flows/configurations are split between the available instances of
+    /// this action, so each one is only handled by a single instance.
+    Split,
+}
+
+impl ScalingOption {
+    pub(crate) fn into_wire(self) -> tucana::aquila::action_logon::ScalingOption {
+        match self {
+            Self::Disabled => tucana::aquila::action_logon::ScalingOption::Disabled,
+            Self::Split => tucana::aquila::action_logon::ScalingOption::Split,
+        }
+    }
+}

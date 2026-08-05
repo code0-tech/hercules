@@ -18,7 +18,7 @@ use crate::meta::{
 };
 use crate::module_builder::{build_module, ModuleBuildData};
 use crate::registration;
-use crate::types::{ConfigurationDefinition, Translation};
+use crate::types::{ConfigurationDefinition, ScalingOption, Translation};
 
 const EVENT_CHANNEL_CAPACITY: usize = 256;
 
@@ -39,6 +39,7 @@ pub struct Action {
     identifier: String,
     version: String,
     aquila_url: Option<String>,
+    scaling_option: ScalingOption,
     author: String,
     icon: String,
     documentation: String,
@@ -65,6 +66,7 @@ impl Action {
             identifier: identifier.into(),
             version: version.into(),
             aquila_url: None,
+            scaling_option: ScalingOption::default(),
             author: String::new(),
             icon: String::new(),
             documentation: String::new(),
@@ -83,6 +85,14 @@ impl Action {
 
     pub fn aquila_url(mut self, url: impl Into<String>) -> Self {
         self.aquila_url = Some(url.into());
+        self
+    }
+
+    /// How Aquila should distribute this action's flows/configurations
+    /// across multiple running instances of it. Defaults to
+    /// [`ScalingOption::Disabled`] (every instance receives everything).
+    pub fn scaling(mut self, option: ScalingOption) -> Self {
+        self.scaling_option = option;
         self
     }
 
@@ -219,13 +229,17 @@ impl Action {
             .or(self.aquila_url)
             .ok_or(crate::error::HerculesError::MissingAquilaUrl)?;
 
-        let connection = connection::connect(module, &auth_token.into(), &url).await?;
+        let connection =
+            connection::connect(module, self.scaling_option, &auth_token.into(), &url).await?;
 
         let inner = Arc::new(ConnectedInner {
             identifier: self.identifier,
             version: self.version,
             runtime_functions: self.runtime_functions,
             configs: Default::default(),
+            flows: Default::default(),
+            pending_flow_executions: Default::default(),
+            next_execution_seq: Default::default(),
             request_tx: connection.request_tx,
             events_tx: self.events_tx,
         });
