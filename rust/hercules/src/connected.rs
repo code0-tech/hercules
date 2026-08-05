@@ -7,10 +7,10 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_stream::{Stream, StreamExt};
 use tonic::Streaming;
 use tucana::aquila::{
-    action_flow_execution_response, action_flow_update, action_node_value,
-    action_transfer_request, action_transfer_response, ActionEvent, ActionExecutionRequest,
-    ActionExecutionResponse, ActionFlow, ActionFlowExecutionRequest, ActionFlowExecutionResponse,
-    ActionFlowUpdate, ActionNodeValue, ActionTransferRequest, ActionTransferResponse,
+    action_flow_execution_response, action_flow_update, action_node_value, action_transfer_request,
+    action_transfer_response, ActionEvent, ActionExecutionRequest, ActionExecutionResponse,
+    ActionFlow, ActionFlowExecutionRequest, ActionFlowExecutionResponse, ActionFlowUpdate,
+    ActionNodeValue, ActionTransferRequest, ActionTransferResponse,
 };
 use tucana::shared::{node_execution_result, Error as WireError, NodeExecutionResult};
 
@@ -128,8 +128,7 @@ impl Connected {
     ) -> Result<PlainValue> {
         let execution_identifier = self.inner.next_execution_id();
         let (tx, rx) = oneshot::channel();
-        sync::lock(&self.inner.pending_flow_executions)
-            .insert(execution_identifier.clone(), tx);
+        sync::lock(&self.inner.pending_flow_executions).insert(execution_identifier.clone(), tx);
 
         let request = ActionTransferRequest {
             data: Some(action_transfer_request::Data::FlowExecution(
@@ -369,7 +368,10 @@ fn handle_flow_update(inner: &Arc<ConnectedInner>, update: ActionFlowUpdate) {
     }
 }
 
-fn handle_flow_execution_response(inner: &Arc<ConnectedInner>, response: ActionFlowExecutionResponse) {
+fn handle_flow_execution_response(
+    inner: &Arc<ConnectedInner>,
+    response: ActionFlowExecutionResponse,
+) {
     let sender = sync::lock(&inner.pending_flow_executions).remove(&response.execution_identifier);
     let Some(sender) = sender else {
         log::warn!(
@@ -380,9 +382,7 @@ fn handle_flow_execution_response(inner: &Arc<ConnectedInner>, response: ActionF
     };
 
     let outcome = match response.result {
-        Some(action_flow_execution_response::Result::Success(value)) => {
-            Ok(to_allowed_value(value))
-        }
+        Some(action_flow_execution_response::Result::Success(value)) => Ok(to_allowed_value(value)),
         Some(action_flow_execution_response::Result::Failure(err)) => {
             Err(HerculesError::runtime(err.code, Some(err.message)))
         }
