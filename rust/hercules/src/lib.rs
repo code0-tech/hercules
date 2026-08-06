@@ -34,6 +34,7 @@ mod data_type;
 mod error;
 mod event;
 mod events;
+mod export;
 mod function;
 mod meta;
 mod module_builder;

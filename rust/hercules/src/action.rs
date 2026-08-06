@@ -11,6 +11,7 @@ use crate::data_type::{self, DataType, DataTypeDef};
 use crate::error::Result;
 use crate::event::{Event, RuntimeEvent};
 use crate::events::{event_stream, HerculesEvent};
+use crate::export;
 use crate::function::{Function, RuntimeFunction};
 use crate::meta::{
     merge_event, merge_event_unchecked, merge_function, merge_function_unchecked, EventDef,
@@ -214,6 +215,15 @@ impl Action {
             functions: self.functions.values().collect(),
             runtime_functions: self.runtime_functions.values().map(|e| &e.meta).collect(),
         })
+    }
+
+    /// Writes this action's module to `dir` as a directory of JSON files —
+    /// `meta.json` plus one file per data type / flow type / runtime flow
+    /// type / function / runtime function — in the same layout and wire
+    /// format Aquila would receive over `connect`. Lets an action's
+    /// registrations be inspected or diffed without a running Aquila.
+    pub fn export(&self, dir: impl AsRef<std::path::Path>) -> std::io::Result<()> {
+        export::write(&self.build_module(), dir.as_ref())
     }
 
     /// Opens the connection to Aquila and starts dispatching incoming

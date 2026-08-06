@@ -96,6 +96,18 @@ fn flow_type_setting(s: &EventSettingMeta) -> FlowTypeSetting {
     }
 }
 
+fn settings_linked_data_type_identifiers(settings: &[EventSettingMeta]) -> Vec<String> {
+    let mut linked = Vec::new();
+    for setting in settings {
+        for identifier in &setting.linked_data_type_identifiers {
+            if !linked.contains(identifier) {
+                linked.push(identifier.clone());
+            }
+        }
+    }
+    linked
+}
+
 fn runtime_flow_type_setting(s: &EventSettingMeta) -> RuntimeFlowTypeSetting {
     RuntimeFlowTypeSetting {
         identifier: s.identifier.clone(),
@@ -187,7 +199,7 @@ pub fn build_module(data: ModuleBuildData) -> Module {
                     .clone()
                     .unwrap_or_else(|| DEFAULT_DISPLAY_ICON.to_string()),
                 definition_source: Some("action".to_string()),
-                linked_data_type_identifiers: vec![],
+                linked_data_type_identifiers: settings_linked_data_type_identifiers(&ft.settings),
                 signature: ft.signature.clone(),
                 runtime_identifier: ft.runtime_identifier.clone(),
             })
@@ -210,7 +222,7 @@ pub fn build_module(data: ModuleBuildData) -> Module {
                     .clone()
                     .unwrap_or_else(|| DEFAULT_DISPLAY_ICON.to_string()),
                 definition_source: Some("action".to_string()),
-                linked_data_type_identifiers: vec![],
+                linked_data_type_identifiers: settings_linked_data_type_identifiers(&rft.settings),
                 signature: rft.signature.clone(),
             })
             .collect(),

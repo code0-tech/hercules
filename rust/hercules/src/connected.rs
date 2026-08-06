@@ -349,10 +349,13 @@ fn resolve_parameters(
 fn handle_flow_update(inner: &Arc<ConnectedInner>, update: ActionFlowUpdate) {
     match update.data {
         Some(action_flow_update::Data::UpdatedFlow(flow)) => {
+            let unchanged = sync::read(&inner.flows).get(&flow.flow_id) == Some(&flow);
             sync::write(&inner.flows).insert(flow.flow_id, flow.clone());
-            let _ = inner
-                .events_tx
-                .send(HerculesEvent::FlowUpserted(Arc::new(flow)));
+            if !unchanged {
+                let _ = inner
+                    .events_tx
+                    .send(HerculesEvent::FlowUpserted(Arc::new(flow)));
+            }
         }
         Some(action_flow_update::Data::DeletedFlow(flow_id)) => {
             sync::write(&inner.flows).remove(&flow_id);
