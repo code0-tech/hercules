@@ -108,6 +108,7 @@ A `Function` extends the `RuntimeFunction` and adds public-facing metadata witho
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
+
 ```ts
 // src/functions/fibonacciFunction.ts
 import { Identifier, Name, Parameter } from '@code0-tech/hercules';
@@ -123,6 +124,7 @@ import { FibonacciRuntimeFunction } from './fibonacciRuntimeFunction.js';
 })
 export class FibonacciFunction extends FibonacciRuntimeFunction {}
 ```
+
 </Tab>
 <Tab value="Rust">
 `#[hercules::function(base = ...)]` plays the same role as `extends` here: it points at the runtime function that
@@ -141,6 +143,7 @@ use super::fibonacci_runtime_function::FibonacciRuntimeFunction;
 )]
 pub struct FibonacciFunction;
 ```
+
 </Tab>
 </Tabs>
 
@@ -148,6 +151,7 @@ pub struct FibonacciFunction;
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
+
 ```ts
 // src/events/userCreatedRuntimeEvent.ts
 import { Identifier, Signature, Name, EventSetting } from '@code0-tech/hercules';
@@ -163,8 +167,10 @@ import { Identifier, Signature, Name, EventSetting } from '@code0-tech/hercules'
 })
 export class UserCreatedRuntimeEvent {}
 ```
+
 </Tab>
 <Tab value="Rust">
+
 ```rust
 // src/events/user_created_runtime_event.rs
 #[hercules::runtime_event(
@@ -180,6 +186,7 @@ export class UserCreatedRuntimeEvent {}
 )]
 pub struct UserCreatedRuntimeEvent;
 ```
+
 </Tab>
 </Tabs>
 
@@ -187,6 +194,7 @@ pub struct UserCreatedRuntimeEvent;
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
+
 ```ts
 // src/events/userCreatedEvent.ts
 import { Identifier, Name, Editable } from '@code0-tech/hercules';
@@ -197,8 +205,10 @@ import { UserCreatedRuntimeEvent } from './userCreatedRuntimeEvent.js';
 @Editable(false)
 export class UserCreatedEvent extends UserCreatedRuntimeEvent {}
 ```
+
 </Tab>
 <Tab value="Rust">
+
 ```rust
 // src/events/user_created_event.rs
 use super::user_created_runtime_event::UserCreatedRuntimeEvent;
@@ -234,6 +244,7 @@ const EmailSchema = z.string().regex(/^[^@]+@[^@]+\.[^@]+$/);
 @Schema(EmailSchema)
 export class EmailDataType {}
 ```
+
 </Tab>
 <Tab value="Rust">
 Data types are derived from a real Rust type's `schemars::JsonSchema` impl instead of a hand-written schema DSL —
@@ -249,6 +260,7 @@ use serde::{Deserialize, Serialize};
 #[serde(transparent)]
 pub struct EmailAddress(#[schemars(regex(pattern = r"^[^@]+@[^@]+\.[^@]+$"))] pub String);
 ```
+
 </Tab>
 </Tabs>
 
@@ -256,6 +268,7 @@ pub struct EmailAddress(#[schemars(regex(pattern = r"^[^@]+@[^@]+\.[^@]+$"))] pu
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
+
 ```ts
 // src/index.ts
 import { Action, CodeZeroEvent } from '@code0-tech/hercules';
@@ -302,6 +315,7 @@ action.connect(process.env.AUTH_TOKEN ?? 'token').catch((err: unknown) => {
   process.exit(1);
 });
 ```
+
 </Tab>
 <Tab value="Rust">
 Every type above already registered itself when its module got linked into the binary, so there's nothing left to
@@ -360,6 +374,7 @@ async fn main() -> hercules::Result<()> {
     Ok(())
 }
 ```
+
 </Tab>
 </Tabs>
 
@@ -369,6 +384,7 @@ To fire the `user_created` event from within your action (e.g. after a webhook c
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
+
 ```ts
 await action.fire(UserCreatedRuntimeEvent, projectId, { userId: 42 });
 ```
@@ -377,6 +393,7 @@ The second argument is the project ID this event belongs to, and the third is th
 signature.
 </Tab>
 <Tab value="Rust">
+
 ```rust
 action.fire("user_created", project_id, serde_json::json!({ "userId": 42 }))?;
 ```
