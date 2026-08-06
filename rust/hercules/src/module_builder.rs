@@ -96,13 +96,24 @@ fn flow_type_setting(s: &EventSettingMeta) -> FlowTypeSetting {
     }
 }
 
-fn settings_linked_data_type_identifiers(settings: &[EventSettingMeta]) -> Vec<String> {
+/// The union of every setting's own linked data types, plus any explicitly
+/// declared on the event itself (e.g. the type of the value the event
+/// produces as flow input, which isn't any one setting's type).
+fn event_linked_data_type_identifiers(
+    settings: &[EventSettingMeta],
+    explicit: &[String],
+) -> Vec<String> {
     let mut linked = Vec::new();
     for setting in settings {
         for identifier in &setting.linked_data_type_identifiers {
             if !linked.contains(identifier) {
                 linked.push(identifier.clone());
             }
+        }
+    }
+    for identifier in explicit {
+        if !linked.contains(identifier) {
+            linked.push(identifier.clone());
         }
     }
     linked
@@ -199,7 +210,10 @@ pub fn build_module(data: ModuleBuildData) -> Module {
                     .clone()
                     .unwrap_or_else(|| DEFAULT_DISPLAY_ICON.to_string()),
                 definition_source: Some("action".to_string()),
-                linked_data_type_identifiers: settings_linked_data_type_identifiers(&ft.settings),
+                linked_data_type_identifiers: event_linked_data_type_identifiers(
+                    &ft.settings,
+                    &ft.linked_data_type_identifiers,
+                ),
                 signature: ft.signature.clone(),
                 runtime_identifier: ft.runtime_identifier.clone(),
             })
@@ -222,7 +236,10 @@ pub fn build_module(data: ModuleBuildData) -> Module {
                     .clone()
                     .unwrap_or_else(|| DEFAULT_DISPLAY_ICON.to_string()),
                 definition_source: Some("action".to_string()),
-                linked_data_type_identifiers: settings_linked_data_type_identifiers(&rft.settings),
+                linked_data_type_identifiers: event_linked_data_type_identifiers(
+                    &rft.settings,
+                    &rft.linked_data_type_identifiers,
+                ),
                 signature: rft.signature.clone(),
             })
             .collect(),

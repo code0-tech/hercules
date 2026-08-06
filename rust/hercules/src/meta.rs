@@ -183,6 +183,11 @@ pub struct RuntimeEventMeta {
     /// [`crate::event::Event`] on its own — mirrors
     /// [`RuntimeFunctionMeta::omit_definition`].
     pub omit_definition: bool,
+    /// Data types linked to this event beyond what its settings already
+    /// contribute (see [`crate::module_builder`]'s settings union) — e.g.
+    /// the type of the value the event produces as flow input, which isn't
+    /// any one setting's type.
+    pub linked_data_type_identifiers: Vec<String>,
 }
 
 /// Overrides declared on a [`crate::event::Event`]; see [`FunctionMeta`].
@@ -214,6 +219,7 @@ pub struct EventDef {
     pub display_message: Vec<Translation>,
     pub alias: Vec<Translation>,
     pub display_icon: Option<String>,
+    pub linked_data_type_identifiers: Vec<String>,
 }
 
 /// Merges an `Event`'s overrides onto its `RuntimeEvent` base. Unlike
@@ -263,6 +269,7 @@ pub(crate) fn merge_event_unchecked(base: RuntimeEventMeta, over: EventMeta) -> 
         display_message: over.display_message.unwrap_or(base.display_message),
         alias: over.alias.unwrap_or(base.alias),
         display_icon: over.display_icon.or(base.display_icon),
+        linked_data_type_identifiers: base.linked_data_type_identifiers,
     }
 }
 

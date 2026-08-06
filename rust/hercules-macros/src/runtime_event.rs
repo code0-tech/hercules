@@ -21,6 +21,7 @@ pub fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> 
     let display_icon = optional_string(args.string("display_icon"))?;
     let editable = args.flag("editable");
     let omit_definition = args.flag("omit_definition");
+    let linked: Vec<String> = args.string_list("linked_data_type_identifiers")?;
     let (name, description, documentation, display_message, alias) = (
         t.name,
         t.description,
@@ -47,6 +48,7 @@ pub fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> 
                     alias: #alias,
                     display_icon: #display_icon,
                     omit_definition: #omit_definition,
+                    linked_data_type_identifiers: vec![#(#linked.to_string()),*],
                 }
             }
         }
