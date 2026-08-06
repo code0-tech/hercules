@@ -66,8 +66,8 @@ fn parameter_definition(p: &ParameterMeta) -> ParameterDefinition {
         name: translations(&p.name),
         description: translations(&p.description),
         documentation: translations(&p.documentation),
-        hidden: Some(p.hidden),
-        optional: Some(p.optional),
+        hidden: wire_flag(p.hidden),
+        optional: wire_flag(p.optional),
         default_value: p.default_value.as_ref().map(construct_value),
     }
 }
@@ -78,10 +78,19 @@ fn runtime_parameter_definition(p: &ParameterMeta) -> RuntimeParameterDefinition
         name: translations(&p.name),
         description: translations(&p.description),
         documentation: translations(&p.documentation),
-        hidden: Some(p.hidden),
-        optional: Some(p.optional),
+        hidden: wire_flag(p.hidden),
+        optional: wire_flag(p.optional),
         default_value: p.default_value.as_ref().map(construct_value),
     }
+}
+
+/// `hidden`/`optional` are `Option<bool>` on the wire, but `false` is their
+/// default in every sense that matters here — carrying it as `Some(false)`
+/// would just be redundant noise (code0-definition's reference exports
+/// never populate it either). Only a real `true` is worth sending; `None`
+/// still round-trips to "false" on read, so nothing is lost by omitting it.
+fn wire_flag(value: bool) -> Option<bool> {
+    value.then_some(true)
 }
 
 fn flow_type_setting(s: &EventSettingMeta) -> FlowTypeSetting {
@@ -91,8 +100,8 @@ fn flow_type_setting(s: &EventSettingMeta) -> FlowTypeSetting {
         default_value: s.default_value.as_ref().map(construct_value),
         name: translations(&s.name),
         description: translations(&s.description),
-        optional: Some(s.optional),
-        hidden: Some(s.hidden),
+        optional: wire_flag(s.optional),
+        hidden: wire_flag(s.hidden),
     }
 }
 
@@ -126,8 +135,8 @@ fn runtime_flow_type_setting(s: &EventSettingMeta) -> RuntimeFlowTypeSetting {
         default_value: s.default_value.as_ref().map(construct_value),
         name: translations(&s.name),
         description: translations(&s.description),
-        optional: Some(s.optional),
-        hidden: Some(s.hidden),
+        optional: wire_flag(s.optional),
+        hidden: wire_flag(s.hidden),
     }
 }
 
@@ -186,7 +195,7 @@ pub fn build_module(data: ModuleBuildData) -> Module {
                 rules: dt.rules.iter().map(data_type_rule).collect(),
                 generic_keys: dt.generic_keys.clone(),
                 r#type: dt.r#type.clone(),
-                linked_data_type_identifiers: vec![],
+                linked_data_type_identifiers: dt.linked_data_type_identifiers.clone(),
                 display_message: translations(&dt.display_message),
                 version: data.version.to_string(),
                 definition_source: "action".to_string(),

@@ -43,6 +43,7 @@ pub struct DataTypeDef {
     pub generic_keys: Vec<String>,
     pub r#type: String,
     pub rules: Vec<DataTypeRule>,
+    pub linked_data_type_identifiers: Vec<String>,
 }
 
 /// Maps a `schemars` schema name (`T::schema_name()`) to the hercules
@@ -67,14 +68,20 @@ pub fn resolve<T: DataType>(meta: DataTypeMeta) -> Result<DataTypeDef> {
         .cloned()
         .unwrap_or_default();
 
+    let r#type = match &meta.type_override {
+        Some(type_override) => type_override.clone(),
+        None => type_string(&schema, &defs, &meta.identifier, true)?,
+    };
+
     Ok(DataTypeDef {
-        r#type: type_string(&schema, &defs, &meta.identifier, true)?,
+        r#type,
         rules: rules(&schema),
         identifier: meta.identifier,
         name: meta.name,
         display_message: meta.display_message,
         alias: meta.alias,
         generic_keys: meta.generic_keys,
+        linked_data_type_identifiers: meta.linked_data_type_identifiers,
     })
 }
 

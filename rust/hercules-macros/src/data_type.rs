@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::ItemStruct;
 
-use crate::parse::{hercules_path, translation_vec, AttrArgs};
+use crate::parse::{hercules_path, optional_string, translation_vec, AttrArgs};
 
 pub fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
     let item_struct: ItemStruct = syn::parse2(item)?;
@@ -14,6 +14,8 @@ pub fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> 
     let display_message = translation_vec(&args.translations("display_message")?, &hercules);
     let alias = translation_vec(&args.translations("alias")?, &hercules);
     let generic_keys: Vec<String> = args.string_list("generic_keys")?;
+    let type_override = optional_string(args.string("type_override"))?;
+    let linked: Vec<String> = args.string_list("linked_data_type_identifiers")?;
 
     let ident = &item_struct.ident;
     Ok(quote! {
@@ -27,6 +29,8 @@ pub fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> 
                     display_message: #display_message,
                     alias: #alias,
                     generic_keys: vec![#(#generic_keys.to_string()),*],
+                    type_override: #type_override,
+                    linked_data_type_identifiers: vec![#(#linked.to_string()),*],
                 }
             }
         }

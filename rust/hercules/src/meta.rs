@@ -282,4 +282,16 @@ pub struct DataTypeMeta {
     pub display_message: Vec<Translation>,
     pub alias: Vec<Translation>,
     pub generic_keys: Vec<String>,
+    /// Overrides the `schemars`-derived structural-type string entirely.
+    /// Needed for shapes `schemars`/JSON Schema can't express at all —
+    /// generic-conditional types (`T extends 'Basic' ? ... : ...`) or a
+    /// reference to another registered type's generic instantiation
+    /// (`REST_AUTH_VALUE<A>`) — where deriving from the Rust type would
+    /// either fail or produce something structurally different from what
+    /// Aquila expects.
+    pub type_override: Option<String>,
+    /// Data types this one references in its structural type but that
+    /// `schemars` derivation can't discover on its own (e.g. `OBJECT` inside
+    /// a hand-written [`type_override`]).
+    pub linked_data_type_identifiers: Vec<String>,
 }
