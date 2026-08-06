@@ -62,6 +62,7 @@ pub struct RuntimeFunctionMeta {
     /// `#[hercules::function(base = ...)]` type.
     pub omit_definition: bool,
     pub parameters: Vec<ParameterMeta>,
+    pub linked_data_type_identifiers: Vec<String>,
 }
 
 /// Overrides declared on a [`crate::function::Function`]; every field falls
@@ -99,6 +100,7 @@ pub struct FunctionDef {
     pub display_icon: Option<String>,
     pub design: Option<String>,
     pub parameters: Vec<ParameterMeta>,
+    pub linked_data_type_identifiers: Vec<String>,
 }
 
 /// Merges a `Function`'s overrides onto its `RuntimeFunction` base: unset
@@ -160,6 +162,7 @@ pub(crate) fn merge_function_unchecked(
         display_icon: over.display_icon.or(base.display_icon),
         design: over.design.or(base.design),
         parameters,
+        linked_data_type_identifiers: base.linked_data_type_identifiers,
     }
 }
 

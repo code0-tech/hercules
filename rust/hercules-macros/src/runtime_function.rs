@@ -22,6 +22,7 @@ pub fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> 
     let design = optional_string(args.string("design"))?;
     let throws_error = args.flag("throws_error");
     let omit_definition = args.flag("omit_definition");
+    let linked: Vec<String> = args.string_list("linked_data_type_identifiers")?;
     let (name, description, documentation, deprecation_message, display_message, alias) = (
         t.name,
         t.description,
@@ -49,6 +50,7 @@ pub fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> 
                     throws_error: #throws_error,
                     omit_definition: #omit_definition,
                     parameters: vec![#(#parameters),*],
+                    linked_data_type_identifiers: vec![#(#linked.to_string()),*],
                 }
             }
         }

@@ -127,6 +127,30 @@ impl Connected {
         payload: PlainValue,
     ) -> Result<PlainValue> {
         let execution_identifier = self.inner.next_execution_id();
+        self.execute_flow_with_id(execution_identifier, flow_id, payload)
+            .await
+    }
+
+    /// Reserves a locally-unique execution id ahead of starting a flow.
+    ///
+    /// Only needed by callers that must correlate an out-of-band signal
+    /// (e.g. a runtime function the flow calls mid-execution, whose
+    /// `FunctionContext::execution_id` matches the flow's own execution id)
+    /// back to this specific run, and so need the id fixed *before* the flow
+    /// starts — pass it to [`Connected::execute_flow_with_id`] instead of
+    /// [`Connected::execute_flow`], which reserves its own.
+    pub fn reserve_execution_id(&self) -> String {
+        self.inner.next_execution_id()
+    }
+
+    /// Same as [`Connected::execute_flow`], but for a caller that already
+    /// reserved `execution_identifier` via [`Connected::reserve_execution_id`].
+    pub async fn execute_flow_with_id(
+        &self,
+        execution_identifier: String,
+        flow_id: impl Into<String>,
+        payload: PlainValue,
+    ) -> Result<PlainValue> {
         let (tx, rx) = oneshot::channel();
         sync::lock(&self.inner.pending_flow_executions).insert(execution_identifier.clone(), tx);
 

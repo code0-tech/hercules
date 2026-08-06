@@ -241,7 +241,7 @@ pub fn build_module(data: ModuleBuildData) -> Module {
                 deprecation_message: translations(&f.deprecation_message),
                 display_message: translations(&f.display_message),
                 alias: translations(&f.alias),
-                linked_data_type_identifiers: vec![],
+                linked_data_type_identifiers: f.linked_data_type_identifiers.clone(),
                 display_icon: f
                     .display_icon
                     .clone()
@@ -269,7 +269,7 @@ pub fn build_module(data: ModuleBuildData) -> Module {
                 deprecation_message: translations(&f.deprecation_message),
                 display_message: translations(&f.display_message),
                 alias: translations(&f.alias),
-                linked_data_type_identifiers: vec![],
+                linked_data_type_identifiers: f.linked_data_type_identifiers.clone(),
                 version: data.version.to_string(),
                 display_icon: f
                     .display_icon
