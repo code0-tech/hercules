@@ -19,6 +19,7 @@ schemars.workspace = true
 tokio-stream.workspace = true
 log.workspace = true
 inventory.workspace = true
+uuid.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "test-util"] }

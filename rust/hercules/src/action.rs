@@ -249,7 +249,6 @@ impl Action {
             configs: Default::default(),
             flows: Default::default(),
             pending_flow_executions: Default::default(),
-            next_execution_seq: Default::default(),
             request_tx: connection.request_tx,
             events_tx: self.events_tx,
         });

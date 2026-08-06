@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -41,7 +40,6 @@ pub(crate) struct ConnectedInner {
     /// keyed by the `execution_identifier` that correlates the eventual
     /// `ActionFlowExecutionResponse`.
     pub pending_flow_executions: Mutex<HashMap<String, oneshot::Sender<Result<PlainValue>>>>,
-    pub next_execution_seq: AtomicU64,
     pub request_tx: mpsc::UnboundedSender<ActionTransferRequest>,
     pub events_tx: broadcast::Sender<HerculesEvent>,
 }
@@ -49,9 +47,14 @@ pub(crate) struct ConnectedInner {
 impl ConnectedInner {
     /// A locally-unique id for correlating an outgoing flow execution
     /// request with its eventual response.
+    ///
+    /// Must be a UUID: taurus parses the NATS subject it publishes
+    /// executions on (`execution.<uuid>`) with `Uuid::parse_str` and, on a
+    /// non-UUID id, silently substitutes a freshly generated one instead of
+    /// rejecting the request — which breaks the correlation this id exists
+    /// for.
     fn next_execution_id(&self) -> String {
-        let seq = self.next_execution_seq.fetch_add(1, Ordering::Relaxed);
-        format!("{}-{seq}", now_micros())
+        uuid::Uuid::new_v4().to_string()
     }
 }
 
