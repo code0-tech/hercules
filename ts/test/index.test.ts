@@ -5,7 +5,7 @@ import { EventSetting } from "../src/decorators/event.dec";
 import { Identifier } from "../src/decorators/meta.dec";
 import { eventMap } from "../src/map/event.map";
 import { runtimeEventMap } from "../src/map/runtime_event.map";
-import { Rest } from "../src/definitions/draco_rest/runtime_flow_types/rest";
+import { Rest } from "../src/definitions/rest-action/runtime_flow_types/rest";
 
 describe("Parameter decorator", () => {
     it("preserves source order across multiple decorators", () => {
@@ -33,20 +33,20 @@ describe("Parameter decorator", () => {
 
 describe("eventMap", () => {
     const restSettingOrder = [
-        "httpSchema",
-        "httpURL",
-        "httpMethod",
-        "httpAuth",
-        "httpAuthValue",
+        "http_schema",
+        "http_url",
+        "http_method",
+        "http_auth",
+        "http_auth_value",
         "input_schema",
     ];
 
     it("keeps the runtime event's setting order regardless of override order", () => {
         @Identifier("ScrambledOverrides")
         @EventSetting({ identifier: "input_schema", hidden: true, defaultValue: {} })
-        @EventSetting({ identifier: "httpAuthValue", hidden: true })
-        @EventSetting({ identifier: "httpSchema", hidden: true, defaultValue: "application/json" })
-        @EventSetting({ identifier: "httpMethod", hidden: true, defaultValue: "POST" })
+        @EventSetting({ identifier: "http_auth_value", hidden: true })
+        @EventSetting({ identifier: "http_schema", hidden: true, defaultValue: "application/json" })
+        @EventSetting({ identifier: "http_method", hidden: true, defaultValue: "POST" })
         class ScrambledOverrides extends Rest {}
 
         const def = eventMap(ScrambledOverrides);
@@ -55,10 +55,10 @@ describe("eventMap", () => {
 
     it("merges override properties into the runtime event's setting", () => {
         @Identifier("MethodOverride")
-        @EventSetting({ identifier: "httpMethod", hidden: true, defaultValue: "POST" })
+        @EventSetting({ identifier: "http_method", hidden: true, defaultValue: "POST" })
         class MethodOverride extends Rest {}
 
-        const httpMethod = eventMap(MethodOverride).settings?.find(s => s.identifier === "httpMethod");
+        const httpMethod = eventMap(MethodOverride).settings?.find(s => s.identifier === "http_method");
         expect(httpMethod?.hidden).toBe(true);
         expect(httpMethod?.defaultValue).toBe("POST");
         expect(httpMethod?.name).toEqual([{ code: "en-US", content: "Method" }]);
@@ -66,14 +66,14 @@ describe("eventMap", () => {
 
     it("does not pollute the runtime event's settings via subclass overrides", () => {
         @Identifier("PollutionCheck")
-        @EventSetting({ identifier: "httpMethod", hidden: true, defaultValue: "POST" })
+        @EventSetting({ identifier: "http_method", hidden: true, defaultValue: "POST" })
         class PollutionCheck extends Rest {}
 
         eventMap(PollutionCheck);
 
         const restSettings = runtimeEventMap(Rest).settings ?? [];
         expect(restSettings.map(s => s.identifier)).toEqual(restSettingOrder);
-        expect(restSettings.find(s => s.identifier === "httpMethod")?.hidden).toBeUndefined();
+        expect(restSettings.find(s => s.identifier === "http_method")?.hidden).toBeUndefined();
     });
 });
 
