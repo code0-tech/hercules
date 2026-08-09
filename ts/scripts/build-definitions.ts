@@ -27,7 +27,7 @@ function toPascalCase(str: string): string {
 }
 
 function fileNameToClassName(file: string): string {
-    return toPascalCase(path.basename(file, ".proto.json"));
+    return toPascalCase(path.basename(file, ".json"));
 }
 
 function toSchemaName(identifier: string): string {
@@ -74,7 +74,10 @@ function buildCombinedSource(defs: DataTypeDef[]): string {
             resolved = "Record<string, unknown>";
         } else {
             for (const key of genericKeys) {
-                resolved = resolved.replace(new RegExp(`\\b${key}\\b`, "g"), "unknown");
+                // genericKeys entries may carry a constraint, e.g. "M extends TEXT" —
+                // only the bare parameter name should be substituted in the type body.
+                const paramName = key.split(/\s+extends\s+/)[0].trim();
+                resolved = resolved.replace(new RegExp(`\\b${paramName}\\b`, "g"), "unknown");
             }
         }
         return `export type ${identifier} = ${resolved};`;
@@ -242,11 +245,13 @@ function walkDefs(dir: string, relModule: string, handler: DefHandler): void {
             walkDefs(fullPath, path.join(relModule, entry.name), handler);
             continue;
         }
-        if (!entry.name.endsWith(".proto.json")) continue;
+        if (!entry.name.endsWith(".json") || entry.name === "module.json") continue;
         const json = JSON.parse(fs.readFileSync(fullPath, "utf-8")) as Record<string, unknown>;
         const typeFolder = relModule.split(path.sep).at(-1) ?? "";
         const className = fileNameToClassName(entry.name);
-        const fileName = path.basename(entry.name, ".proto.json");
+        // Upstream data type/flow filenames are UPPER_SNAKE (e.g. HTTP_METHOD.json);
+        // keep our generated tree lowercase to match the rest of the file naming convention.
+        const fileName = path.basename(entry.name, ".json").toLowerCase();
         handler(json, className, fileName, relModule, typeFolder);
     }
 }
@@ -327,8 +332,12 @@ async function main() {
                     .filter(n => n !== schemaName && allSchemaNames.has(n))
             ),
         ];
+        // Constraints (e.g. "M extends TEXT") aren't emitted here: the schema
+        // body already has the constrained param resolved to `unknown`, so the
+        // generic is cosmetic only — keeping "extends X" would require importing
+        // X's type just to satisfy a bound nothing actually checks against.
         const typeParams = def.genericKeys.length > 0
-            ? `<${def.genericKeys.map(k => `${k} = unknown`).join(", ")}>`
+            ? `<${def.genericKeys.map(k => `${k.split(/\s+extends\s+/)[0].trim()} = unknown`).join(", ")}>`
             : "";
 
         const lines = [
