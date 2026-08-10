@@ -1,7 +1,10 @@
 import {EventEmitter} from "node:events";
+import {randomUUID} from "node:crypto";
 import type {GrpcOptions, GrpcTransport} from "@protobuf-ts/grpc-transport";
-import {ActionTransferRequest, type ActionTransferResponse} from "@code0-tech/tucana/aquila";
-import {constructValue, type PlainValue} from "@code0-tech/tucana/helpers";
+import {ActionTransferRequest, type ActionNodeSubFlowValue, type ActionTransferResponse} from "@code0-tech/tucana/aquila";
+import {constructValue, toAllowedValue, type PlainValue} from "@code0-tech/tucana/helpers";
+import type {Value, Error as ProtoError} from "@code0-tech/tucana/shared";
+import {RuntimeError} from "./types";
 import type {DuplexStreamingCall} from "@protobuf-ts/runtime-rpc";
 import type {FunctionClass} from "./models/function.model";
 import type {RuntimeFunctionClass} from "./models/runtime_function.model";
@@ -18,6 +21,7 @@ import {CodeZeroEvent, type CodeZeroEventMap} from "./events";
 import {createConnection} from "./internal/connection";
 import {buildModule} from "./internal/module-builder";
 import {ConfigManager} from "./manager/config-manager";
+import {FlowManager} from "./manager/FlowManager";
 import {FunctionManager} from "./manager/FunctionManager";
 import {RuntimeFunctionManager} from "./manager/RuntimeFunctionManager";
 import {DataTypeManager} from "./manager/DataTypeManager";
@@ -41,8 +45,16 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
     private _transport?: GrpcTransport;
     private _stream?: DuplexStreamingCall<ActionTransferRequest, ActionTransferResponse>;
     private readonly _actions = new Map(actions.map(a => [a.packetType, a.handle]));
+    // Pending sub flow / flow execution requests awaiting a response, keyed by
+    // execution identifier. A queue is used because a sub flow can be executed
+    // repeatedly under the same execution identifier; responses are matched FIFO.
+    private readonly _pendingExecutions = new Map<string, {
+        resolve: (value: PlainValue) => void;
+        reject: (error: unknown) => void;
+    }[]>();
 
     readonly configs = new ConfigManager();
+    readonly flows = new FlowManager();
     readonly functions = new FunctionManager();
     readonly runtimeFunctions = new RuntimeFunctionManager();
     readonly dataTypes = new DataTypeManager();
@@ -128,6 +140,88 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
         await this._stream.requests.send(request);
         this.emit(eventType as Extract<keyof CodeZeroEventMap, string>, projectId, payload);
         this.emit(CodeZeroEvent.streamMessageSent, request);
+    }
+
+    /**
+     * Execute the sub flow referenced by a {@link ActionNodeSubFlowValue} parameter
+     * with the given parameters and resolve with its result. May be called
+     * repeatedly for the same sub flow (e.g. once per iteration).
+     */
+    async executeSubFlow(subFlow: ActionNodeSubFlowValue, ...params: PlainValue[]): Promise<PlainValue> {
+        if (!this._stream) throw new Error("Not connected. Call connect() first.");
+        const {executionIdentifier} = subFlow;
+        const result = this._awaitExecutionResponse(executionIdentifier);
+        const request = ActionTransferRequest.create({
+            data: {
+                oneofKind: "subFlowExecution",
+                subFlowExecution: {
+                    executionIdentifier,
+                    parameters: params.map(p => constructValue(p ?? null)),
+                },
+            },
+        });
+        await this._stream.requests.send(request);
+        this.emit(CodeZeroEvent.streamMessageSent, request);
+        return result;
+    }
+
+    /**
+     * Execute one of the action's own flows by id and resolve with its result.
+     */
+    async executeFlow(flowId: string | bigint, payload?: PlainValue): Promise<PlainValue> {
+        if (!this._stream) throw new Error("Not connected. Call connect() first.");
+        const executionIdentifier = randomUUID();
+        const result = this._awaitExecutionResponse(executionIdentifier);
+        const request = ActionTransferRequest.create({
+            data: {
+                oneofKind: "flowExecution",
+                flowExecution: {
+                    executionIdentifier,
+                    flowId: String(flowId),
+                    payload: constructValue(payload ?? null),
+                },
+            },
+        });
+        await this._stream.requests.send(request);
+        this.emit(CodeZeroEvent.streamMessageSent, request);
+        return result;
+    }
+
+    private _awaitExecutionResponse(executionIdentifier: string): Promise<PlainValue> {
+        return new Promise<PlainValue>((resolve, reject) => {
+            const queue = this._pendingExecutions.get(executionIdentifier) ?? [];
+            queue.push({resolve, reject});
+            this._pendingExecutions.set(executionIdentifier, queue);
+        });
+    }
+
+    /**
+     * Resolve or reject a pending sub flow / flow execution request. Invoked by
+     * the response handlers when Aquila reports an execution's outcome.
+     */
+    resolveExecutionResponse(
+        executionIdentifier: string,
+        result:
+            | {oneofKind: "success"; success: Value}
+            | {oneofKind: "failure"; failure: ProtoError}
+            | {oneofKind: undefined},
+    ): void {
+        const queue = this._pendingExecutions.get(executionIdentifier);
+        const pending = queue?.shift();
+        if (queue && queue.length === 0) this._pendingExecutions.delete(executionIdentifier);
+        if (!pending) {
+            this.emit(CodeZeroEvent.error, new Error(
+                `Received execution response for unknown execution identifier: ${executionIdentifier}`,
+            ));
+            return;
+        }
+        if (result.oneofKind === "success") {
+            pending.resolve(toAllowedValue(result.success));
+        } else if (result.oneofKind === "failure") {
+            pending.reject(new RuntimeError(result.failure.code, result.failure.message));
+        } else {
+            pending.reject(new Error("Received execution response with no result"));
+        }
     }
 
     async connect(authToken: string, aquilaUrl?: string, grpcOptions?: GrpcOptions) {
