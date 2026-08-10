@@ -1,7 +1,7 @@
 import {constructValue, PlainValue, toAllowedValue} from "@code0-tech/tucana/helpers";
 import {ActionExecutionRequest, ActionExecutionResponse, ActionTransferRequest} from "@code0-tech/tucana/aquila";
 import {NodeExecutionResult, Error as ProtoError} from "@code0-tech/tucana/shared";
-import {FunctionContext, RuntimeError} from "../types";
+import {FunctionContext, RuntimeError, SubFlow} from "../types";
 import {RuntimeFunctionProps} from "../models/runtime_function.model";
 import {CodeZeroEvent} from "../events";
 import type {Action} from "../action";
@@ -12,10 +12,15 @@ function nowMicros(): bigint {
     return BigInt(Math.floor((performance.timeOrigin + performance.now()) * 1000));
 }
 
-function buildParams(execution: ActionExecutionRequest, func: RuntimeFunctionProps): (PlainValue | undefined)[] {
-    return (func.parameters || []).map(param => {
-        const field = execution.parameters?.fields?.[param.runtimeName];
-        return field ? toAllowedValue(field) : undefined;
+function buildParams(action: Action, execution: ActionExecutionRequest, func: RuntimeFunctionProps): (PlainValue | SubFlow | undefined)[] {
+    return (func.parameters || []).map((param, index) => {
+        const field = execution.parameters?.[index];
+        if (field?.value.oneofKind === "literalValue") return toAllowedValue(field.value.literalValue);
+        if (field?.value.oneofKind === "subFlow") {
+            const subFlow = field.value.subFlow;
+            return (...args: PlainValue[]) => action.executeSubFlow(subFlow, ...args);
+        }
+        return undefined;
     });
 }
 
@@ -28,7 +33,7 @@ export function handle(action: Action, execution: ActionExecutionRequest): void 
         return;
     }
 
-    const params = buildParams(execution, func);
+    const params = buildParams(action, execution, func);
 
     const conf = action.configs.get(execution.projectId) ?? {
         projectId: 0n,
@@ -40,6 +45,7 @@ export function handle(action: Action, execution: ActionExecutionRequest): void 
         projectId: execution.projectId,
         executionId: execution.executionIdentifier,
         matchedConfig: conf,
+        executeFlow: (flowId, payload) => action.executeFlow(flowId, payload),
     };
 
     const startedAt = nowMicros();
