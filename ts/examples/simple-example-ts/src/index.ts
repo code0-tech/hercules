@@ -1,11 +1,12 @@
 import {Action, CodeZeroEvent} from "@code0-tech/hercules";
 import {FibonacciRuntimeFunction} from "./functions/fibonacciRuntimeFunction.js";
 import {FibonacciFunction} from "./functions/fibonacciFunction.js";
+import {ForEachRuntimeFunction} from "./functions/forEachRuntimeFunction.js";
 import {UserCreatedRuntimeEvent} from "./events/userCreatedRuntimeEvent.js";
 import {EmailDataType} from "./data_types/emailDataType.js";
 
 const action = new Action(
-    process.env.ACTION_ID ?? "example-action",
+    process.env.ACTION_ID ?? "testing-action",
     process.env.VERSION ?? "0.0.0",
     process.env.AQUILA_URL ?? "127.0.0.1:8081",
     "code0-tech",
@@ -25,6 +26,9 @@ action.registerRuntimeFunction(FibonacciRuntimeFunction);
 // Function: named public variant that extends the runtime function
 action.registerFunction(FibonacciFunction);
 
+// Runtime function that executes a sub flow parameter for each element of a list
+action.registerRuntimeFunction(ForEachRuntimeFunction);
+
 // Data type: derived from Zod schema
 action.registerDataTypeClass(EmailDataType);
 
@@ -36,17 +40,23 @@ action.on(CodeZeroEvent.connected, () => {
     console.log("Connected to aquila");
 });
 
-action.on(CodeZeroEvent.streamMessageReceived, (message: any) => {
-    console.log(message);
-});
-
 action.on(CodeZeroEvent.error, (error: Error) => {
     console.error("Stream error:", error.message);
-    process.exit(0);
+    console.log("Attempting to reconnect in 5s...");
+    setTimeout(() => {
+        action.connect(process.env.AUTH_TOKEN ?? "your_auth_token_here").catch((err: Error) => {
+            action.emit(CodeZeroEvent.error, err);
+        })
+    }, 5000);
 });
 
-
-action.connect(process.env.AUTH_TOKEN ?? "token").catch((err: unknown) => {
-    console.error("Failed to connect:", err);
-    process.exit(1);
+action.connect(process.env.AUTH_TOKEN ?? "your_auth_token_here").catch((err: Error) => {
+    action.emit(CodeZeroEvent.error, err);
 });
+
+action.on(CodeZeroEvent.moduleUpdated, (message: any) => {
+    console.dir(message, {depth: null});
+    console.dir(action.configs.values(), {depth: null})
+})
+
+export {action};
