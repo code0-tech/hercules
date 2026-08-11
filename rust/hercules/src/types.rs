@@ -2,7 +2,10 @@
 //! function payload is expressed as, and the context handed to a running
 //! function.
 
+use std::collections::HashMap;
 use std::fmt;
+
+use crate::connected::Connected;
 
 /// A JSON-like value flowing across the wire (event payloads, function
 /// parameters/results, configuration values). This is exactly the shape the
@@ -40,6 +43,15 @@ pub struct FunctionContext {
     pub project_id: i64,
     pub execution_id: String,
     pub matched_config: ProjectConfiguration,
+    /// The live connection this execution arrived on. Lets a handler call
+    /// back into Aquila (e.g. [`Connected::execute_sub_flow`]) while it's
+    /// still running. Cheap to clone (`Arc`-backed).
+    pub connected: Connected,
+    /// Parameters that resolved to a sub flow reference instead of a
+    /// literal value, keyed by the parameter's `runtime_name` and mapping
+    /// to the `execution_identifier` a handler should pass to
+    /// [`Connected::execute_sub_flow`] to run that sub flow.
+    pub sub_flow_parameters: HashMap<String, String>,
 }
 
 /// The configuration values Aquila has resolved for a single project,
