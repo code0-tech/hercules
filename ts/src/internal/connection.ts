@@ -1,9 +1,14 @@
 import {GrpcOptions, GrpcTransport} from "@protobuf-ts/grpc-transport";
-import {ActionTransferRequest, ActionTransferResponse, ActionTransferServiceClient} from "@code0-tech/tucana/aquila";
+import {
+    ActionLogon_ScalingOption,
+    ActionTransferRequest,
+    ActionTransferResponse,
+    ActionTransferServiceClient
+} from "@code0-tech/tucana/aquila";
 import type {Module} from "@code0-tech/tucana/shared";
 import {ChannelCredentials} from "@grpc/grpc-js";
-import {type RpcOptions} from "@protobuf-ts/runtime-rpc";
 import type {DuplexStreamingCall} from "@protobuf-ts/runtime-rpc";
+import {type RpcOptions} from "@protobuf-ts/runtime-rpc";
 
 export interface Connection {
     transport: GrpcTransport;
@@ -29,7 +34,7 @@ export async function createConnection(
     await stream.requests.send(ActionTransferRequest.create({
         data: {
             oneofKind: "logon",
-            logon: {module},
+            logon: {module, scalingOption: ActionLogon_ScalingOption.SPLIT},
         },
     }));
 

@@ -43,6 +43,7 @@ export function buildModule(data: ModuleBuildData): Module {
         documentation: data.documentation,
         name: data.name,
         description: [],
+        definitionSource: "action",
         configurations: data.configurationDefinitions.map(def => ({
             identifier: def.identifier,
             name: def.name ?? [],
