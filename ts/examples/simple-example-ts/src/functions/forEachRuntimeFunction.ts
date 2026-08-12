@@ -5,7 +5,6 @@ import {
     Identifier,
     List,
     Name,
-    OmitRuntimeFunction,
     Parameter,
     Signature,
 } from "@code0-tech/hercules";
@@ -14,7 +13,6 @@ import {
 @Signature("<T>(list: LIST<T>, consumer: CONSUMER<T>): void")
 @Name({code: "en-US", content: "For Each"})
 @DisplayMessage({code: "en-US", content: "For each element of ${list} do ${consumer}"})
-@OmitRuntimeFunction()
 @Parameter({
     runtimeName: "list",
     name: [{code: "en-US", content: "List"}],

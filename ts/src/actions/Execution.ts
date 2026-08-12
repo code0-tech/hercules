@@ -65,7 +65,7 @@ export function handle(action: Action, execution: ActionExecutionRequest): void 
                         startedAt,
                         finishedAt,
                         parameterResults: [],
-                        result: {oneofKind: "success", success: constructValue(value)},
+                        result: {oneofKind: "success", success: constructValue(value ?? null)},
                     }),
                 }),
             },
