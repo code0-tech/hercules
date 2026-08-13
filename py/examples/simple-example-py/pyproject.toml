@@ -13,6 +13,12 @@ dependencies = [
 [tool.uv.sources]
 code0-hercules = { path = "../..", editable = true }
 
+# Build the editable install with setuptools' "compat" mode, which writes a plain
+# directory `.pth` instead of a PEP 660 import-hook finder. IDEs (PyCharm/IntelliJ)
+# resolve the `.pth` form but cannot follow the import-hook finder.
+[tool.uv]
+config-settings = { editable_mode = "compat" }
+
 [dependency-groups]
 dev = [
     "pytest>=7.4",
