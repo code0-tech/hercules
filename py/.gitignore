@@ -12,6 +12,10 @@ venv/
 .pytest_cache/
 .mypy_cache/
 
+# IDE (machine-specific: interpreter paths, module config)
+.idea/
+*.iml
+
 # Node helper (hercules/_tsgen): keep sources + lockfile, ignore installed deps
 hercules/_tsgen/node_modules/
 
