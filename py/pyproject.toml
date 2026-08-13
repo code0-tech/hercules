@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "code0-hercules"
+version = "0.0.0"
+description = "Python SDK for the hercules action runner"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = [
+    "grpcio>=1.64",
+    "protobuf>=5.0",
+    "tucana>=0.0.80",
+    "pydantic>=2",
+]
+
+[project.optional-dependencies]
+# TypeScript <-> Pydantic schema conversion. ``datamodel-code-generator`` turns
+# a JSON schema into Pydantic code; the reverse (Pydantic -> TypeScript) and the
+# TypeScript -> JSON-schema step both shell out to the bundled Node helper in
+# ``hercules/_tsgen`` (see its package.json), so Node must be available.
+codegen = [
+    "datamodel-code-generator>=0.25",
+]
+
+# Development dependencies, installed by default on ``uv sync``.
+[dependency-groups]
+dev = [
+    "datamodel-code-generator>=0.25",
+    "pytest>=7.4",
+    "pytest-asyncio>=0.23",
+]
+
+# Build the editable install with setuptools' "compat" mode, which writes a plain
+# directory `.pth` instead of a PEP 660 import-hook finder. IDEs (PyCharm/IntelliJ)
+# resolve the `.pth` form but cannot follow the import-hook finder.
+[tool.uv]
+config-settings = { editable_mode = "compat" }
+
+[project.scripts]
+hercules = "hercules.cli:main"
+
+[project.urls]
+Repository = "https://github.com/code0-tech/hercules"
+
+[tool.setuptools.packages.find]
+include = ["hercules*"]
+# ``_tsgen`` is the bundled Node helper: it ships as data files (below), not as an
+# importable Python package. Excluding it also stops setuptools from recursing into
+# ``_tsgen/node_modules`` and registering thousands of stray namespace packages,
+# which otherwise bloats the editable-install finder and breaks IDE resolution.
+exclude = ["hercules._tsgen*"]
+
+[tool.setuptools.package-data]
+hercules = ["_tsgen/*.mjs", "_tsgen/package.json", "_tsgen/package-lock.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

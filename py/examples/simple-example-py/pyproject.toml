@@ -1,0 +1,25 @@
+[project]
+name = "simple-example-py"
+version = "0.0.0"
+description = "A minimal example action built with the Python hercules SDK."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "code0-hercules",
+]
+
+# Depend on the hercules SDK from the local checkout (two levels up), mirroring
+# the TypeScript example's `"@code0-tech/hercules": "file:../.."` dependency.
+[tool.uv.sources]
+code0-hercules = { path = "../..", editable = true }
+
+# Build the editable install with setuptools' "compat" mode, which writes a plain
+# directory `.pth` instead of a PEP 660 import-hook finder. IDEs (PyCharm/IntelliJ)
+# resolve the `.pth` form but cannot follow the import-hook finder.
+[tool.uv]
+config-settings = { editable_mode = "compat" }
+
+[dependency-groups]
+dev = [
+    "pytest>=7.4",
+]

@@ -1,0 +1,11 @@
+{
+  "name": "hercules-tsgen",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Node helper for hercules: Pydantic JSON-schema <-> TypeScript type-string conversion.",
+  "type": "module",
+  "dependencies": {
+    "json-schema-to-typescript": "^15.0.0",
+    "ts-json-schema-generator": "^2.3.0"
+  }
+}
