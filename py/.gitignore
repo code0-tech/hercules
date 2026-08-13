@@ -14,3 +14,7 @@ venv/
 
 # Node helper (hercules/_tsgen): keep sources + lockfile, ignore installed deps
 hercules/_tsgen/node_modules/
+
+# Generated definitions (built from a code0-definition release via
+# scripts/build_definitions.py); regenerated, not committed.
+hercules/definitions/
