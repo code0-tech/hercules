@@ -26,3 +26,37 @@ jobs:
       - name: Run tests
         run: npm run test
 
+  python:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: py
+
+    env:
+      # code0-definition release the built-in definitions are generated from.
+      DEFINITIONS_VERSION: ${{ vars.HERCULES_DEFINITIONS_VERSION || 'def-0.0.34' }}
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - name: Set up Node
+        # Node powers the Pydantic <-> TypeScript schema conversion (hercules/_tsgen).
+        uses: actions/setup-node@v6
+        with:
+          node-version: '25.9.x'
+      - name: Install dependencies
+        run: uv sync
+      - name: Install Node helper dependencies
+        run: npm ci --prefix hercules/_tsgen
+      - name: Generate definitions
+        run: uv run python scripts/build_definitions.py --version "$DEFINITIONS_VERSION"
+      - name: Run tests
+        run: uv run pytest
+      - name: Build package
+        run: uv build
+
