@@ -8,7 +8,7 @@ version = "0.0.0"
 description = "Python SDK for the hercules action runner"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "ISC" }
+license = "MIT"
 dependencies = [
     "grpcio>=1.64",
     "protobuf>=5.0",
