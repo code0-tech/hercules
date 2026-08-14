@@ -103,10 +103,12 @@ class Action(EventEmitter):
         self._channel = None
         self._stream = None
         self._actions = {a.packet_type: a.handle for a in _packet_handlers}
-        # Pending sub flow / flow execution requests awaiting a response, keyed
-        # by execution identifier. A queue matches responses FIFO because a sub
-        # flow can be executed repeatedly under the same execution identifier.
-        self._pending_executions: Dict[str, List[asyncio.Future]] = {}
+        # Pending sub flow / flow execution requests awaiting a response, keyed by
+        # a per-invocation identifier: sub flow executions use the correlation
+        # identifier generated for each invocation (echoed back on the response),
+        # flow executions use their execution identifier. Both are unique per call,
+        # so each key maps to a single pending request.
+        self._pending_executions: Dict[str, asyncio.Future] = {}
 
         self.configs = ConfigManager()
         self.flows = FlowManager()
@@ -199,34 +201,46 @@ class Action(EventEmitter):
             raise RuntimeError("STREAM_NOT_CONNECTED", "Not connected. Call connect() first.")
         await self._stream.write(request)
 
-    async def fire(self, event_class: type, project_id: int, payload: PlainValue) -> None:
+    async def fire(self, target, payload: PlainValue = None):
+        """Fire the flow(s) bound to an event, or a single flow by id.
+
+        ``fire(event_class, payload)`` executes every registered flow whose
+        ``type`` matches the event class' identifier, resolving the results
+        together as a list. ``fire(flow_id, payload)`` executes just that flow and
+        returns its result. Flows are tracked from the ActionFlowUpdate messages
+        Aquila streams (see :attr:`flows`); each is executed via
+        :meth:`execute_flow`.
+        """
         if self._stream is None:
             raise Exception("Not connected. Call connect() first.")
-        event_type = get_metadata("hercules:identifier", event_class)
-        if not event_type:
-            raise Exception(f"{event_class.__name__} is missing an @Identifier decorator.")
-        request = action_pb2.ActionTransferRequest(
-            event=action_pb2.ActionEvent(
-                project_id=int(project_id),
-                event_type=event_type,
-                payload=construct_value(payload if payload is not None else None),
-            )
-        )
-        await self.send(request)
-        self.emit(event_type, project_id, payload)
-        self.emit(CodeZeroEvent.stream_message_sent, request)
+
+        # Single flow by id.
+        if isinstance(target, int) and not isinstance(target, bool):
+            return await self.execute_flow(target, payload)
+
+        # All flows bound to the event's flow type.
+        flow_type = get_metadata("hercules:identifier", target)
+        if not flow_type:
+            raise Exception(f"{target.__name__} is missing an @Identifier decorator.")
+        flows = self.flows.filter(lambda flow, _key: flow.type == flow_type)
+        return await asyncio.gather(*(self.execute_flow(flow.flow_id, payload) for flow in flows))
 
     async def execute_sub_flow(self, sub_flow, *params: PlainValue) -> PlainValue:
         if self._stream is None:
             raise Exception("Not connected. Call connect() first.")
         execution_identifier = sub_flow.execution_identifier
-        result = self._await_execution_response(execution_identifier)
+        # Scope this individual invocation with a fresh correlation identifier so
+        # its response can be matched even when the same sub flow is executed
+        # repeatedly and responses arrive out of order.
+        correlation_identifier = str(uuid.uuid4())
+        result = self._await_execution_response(correlation_identifier)
         request = action_pb2.ActionTransferRequest(
             sub_flow_execution=action_pb2.ActionSubFlowExecutionRequest(
                 execution_identifier=execution_identifier,
                 parameters=[
                     construct_value(p if p is not None else None) for p in params
                 ],
+                correlation_identifier=correlation_identifier,
             )
         )
         await self.send(request)
@@ -249,22 +263,19 @@ class Action(EventEmitter):
         self.emit(CodeZeroEvent.stream_message_sent, request)
         return await result
 
-    def _await_execution_response(self, execution_identifier: str) -> asyncio.Future:
+    def _await_execution_response(self, identifier: str) -> asyncio.Future:
         future: asyncio.Future = asyncio.get_event_loop().create_future()
-        self._pending_executions.setdefault(execution_identifier, []).append(future)
+        self._pending_executions[identifier] = future
         return future
 
-    def resolve_execution_response(self, execution_identifier: str, response) -> None:
-        queue = self._pending_executions.get(execution_identifier)
-        pending = queue.pop(0) if queue else None
-        if queue is not None and len(queue) == 0:
-            del self._pending_executions[execution_identifier]
+    def resolve_execution_response(self, identifier: str, response) -> None:
+        pending = self._pending_executions.pop(identifier, None)
         if pending is None:
             self.emit(
                 CodeZeroEvent.error,
                 Exception(
                     f"Received execution response for unknown execution identifier: "
-                    f"{execution_identifier}"
+                    f"{identifier}"
                 ),
             )
             return

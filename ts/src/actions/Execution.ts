@@ -15,10 +15,19 @@ function nowMicros(): bigint {
 function buildParams(action: Action, execution: ActionExecutionRequest, func: RuntimeFunctionProps): (PlainValue | SubFlow | undefined)[] {
     return (func.parameters || []).map((param, index) => {
         const field = execution.parameters?.[index];
-        if (field?.value.oneofKind === "literalValue") return toAllowedValue(field.value.literalValue);
+        // TODO(#358): resolve inline `${signature}` references on the literal value.
+        if (field?.value.oneofKind === "literalValue") {
+            const literal = field.value.literalValue.value;
+            return literal != null ? toAllowedValue(literal) : null;
+        }
         if (field?.value.oneofKind === "subFlow") {
             const subFlow = field.value.subFlow;
-            return (...args: PlainValue[]) => action.executeSubFlow(subFlow, ...args);
+            const caller = (...args: PlainValue[]) => action.executeSubFlow(subFlow, ...args);
+            // Expose the sub flow's declared I/O so the handler can inspect it.
+            return Object.assign(caller, {
+                inputSchema: subFlow.inputSchema,
+                outputSchema: subFlow.outputSchema,
+            });
         }
         return undefined;
     });

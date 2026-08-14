@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, List, Optional, Union
+from typing import Any, Awaitable, Callable, List, Optional, Protocol, Union
 
 from hercules._tucana.helpers import PlainValue
 from tucana.generated.shared.flow_type_pb2 import FlowTypeSetting
 from tucana.generated.shared.runtime_flow_type_pb2 import RuntimeFlowTypeSetting
+from tucana.generated.shared.struct_pb2 import Struct
 
 # Re-export the uniqueness scope enums (mirror the TS re-exports).
 FlowTypeSetting_UniquenessScope = FlowTypeSetting.UniquenessScope
@@ -14,6 +15,7 @@ RuntimeFlowTypeSetting_UniquenessScope = RuntimeFlowTypeSetting.UniquenessScope
 
 __all__ = [
     "PlainValue",
+    "Struct",
     "FlowTypeSetting_UniquenessScope",
     "RuntimeFlowTypeSetting_UniquenessScope",
     "Translation",
@@ -31,8 +33,19 @@ class Translation:
     content: str
 
 
-# A sub flow is an awaitable callable resolving to a plain value.
-SubFlow = Callable[..., Awaitable[PlainValue]]
+class SubFlow(Protocol):
+    """A sub flow passed as a parameter (e.g. a CONSUMER).
+
+    Call it with the sub flow's parameters to execute it and await its result.
+    The input/output schema declared for the sub flow by the caller are exposed
+    via :attr:`input_schema` / :attr:`output_schema` (either may be ``None`` if
+    the caller omitted it).
+    """
+
+    input_schema: Optional[Struct]
+    output_schema: Optional[Struct]
+
+    def __call__(self, *args: PlainValue) -> Awaitable[PlainValue]: ...
 
 
 @dataclass

@@ -36,6 +36,8 @@ from hercules import (
 )
 class ForEachRuntimeFunction(RuntimeFunctionRunnable):
     async def run(self, context: FunctionContext, items, consumer):
+        print("[for_each] consumer input schema:", consumer.input_schema)
+        print("[for_each] consumer output schema:", consumer.output_schema)
         for element in items:
             result = await consumer(element)
             print("[for_each] sub flow result:", result)

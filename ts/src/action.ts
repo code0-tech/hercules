@@ -45,13 +45,15 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
     private _transport?: GrpcTransport;
     private _stream?: DuplexStreamingCall<ActionTransferRequest, ActionTransferResponse>;
     private readonly _actions = new Map(actions.map(a => [a.packetType, a.handle]));
-    // Pending sub flow / flow execution requests awaiting a response, keyed by
-    // execution identifier. A queue is used because a sub flow can be executed
-    // repeatedly under the same execution identifier; responses are matched FIFO.
+    // Pending sub flow / flow execution requests awaiting a response, keyed by a
+    // per-invocation identifier: sub flow executions use the correlation
+    // identifier generated for each invocation (echoed back on the response),
+    // flow executions use their execution identifier. Both are unique per call,
+    // so each key maps to a single pending request.
     private readonly _pendingExecutions = new Map<string, {
         resolve: (value: PlainValue) => void;
         reject: (error: unknown) => void;
-    }[]>();
+    }>();
 
     readonly configs = new ConfigManager();
     readonly flows = new FlowManager();
@@ -123,23 +125,35 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
         }
     }
 
-    async fire(eventClass: EventClass | RuntimeEventClass, projectId: number | bigint, payload: PlainValue) {
+    /**
+     * Fire the flow(s) bound to an event, or a single flow by id.
+     *
+     * Given an event class, every registered flow whose {@link ActionFlow.type}
+     * matches the event's identifier is executed; the results are resolved
+     * together as an array. Given a flow id, only that flow is executed and its
+     * result is returned.
+     *
+     * Flows are tracked from the ActionFlowUpdate messages Aquila streams (see
+     * {@link Action.flows}). Each flow is executed via {@link Action.executeFlow}.
+     */
+    fire(eventClass: EventClass | RuntimeEventClass, payload?: PlainValue): Promise<PlainValue[]>;
+    fire(flowId: bigint | number, payload?: PlainValue): Promise<PlainValue>;
+    async fire(
+        target: EventClass | RuntimeEventClass | bigint | number,
+        payload?: PlainValue,
+    ): Promise<PlainValue | PlainValue[]> {
         if (!this._stream) throw new Error("Not connected. Call connect() first.");
-        const eventType: string = Reflect.getMetadata('hercules:identifier', eventClass);
-        if (!eventType) throw new Error(`${eventClass.name} is missing an @Identifier decorator.`);
-        const request = ActionTransferRequest.create({
-            data: {
-                oneofKind: "event",
-                event: {
-                    projectId: typeof projectId === "bigint" ? projectId : BigInt(projectId),
-                    eventType,
-                    payload: constructValue(payload ?? null),
-                },
-            },
-        });
-        await this._stream.requests.send(request);
-        this.emit(eventType as Extract<keyof CodeZeroEventMap, string>, projectId, payload);
-        this.emit(CodeZeroEvent.streamMessageSent, request);
+
+        // Single flow by id.
+        if (typeof target === "bigint" || typeof target === "number") {
+            return this.executeFlow(target, payload);
+        }
+
+        // All flows bound to the event's flow type.
+        const flowType = Reflect.getMetadata("hercules:identifier", target) as string | undefined;
+        if (!flowType) throw new Error(`${target.name} is missing an @Identifier decorator.`);
+        const flows = this.flows.filter(flow => flow.type === flowType);
+        return Promise.all(flows.map(flow => this.executeFlow(flow.flowId, payload ?? null)));
     }
 
     /**
@@ -150,13 +164,18 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
     async executeSubFlow(subFlow: ActionNodeSubFlowValue, ...params: PlainValue[]): Promise<PlainValue> {
         if (!this._stream) throw new Error("Not connected. Call connect() first.");
         const {executionIdentifier} = subFlow;
-        const result = this._awaitExecutionResponse(executionIdentifier);
+        // Scope this individual invocation with a fresh correlation identifier so
+        // its response can be matched even when the same sub flow is executed
+        // repeatedly and responses arrive out of order.
+        const correlationIdentifier = randomUUID();
+        const result = this._awaitExecutionResponse(correlationIdentifier);
         const request = ActionTransferRequest.create({
             data: {
                 oneofKind: "subFlowExecution",
                 subFlowExecution: {
                     executionIdentifier,
                     parameters: params.map(p => constructValue(p ?? null)),
+                    correlationIdentifier,
                 },
             },
         });
@@ -168,7 +187,7 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
     /**
      * Execute one of the action's own flows by id and resolve with its result.
      */
-    async executeFlow(flowId: string | bigint, payload?: PlainValue): Promise<PlainValue> {
+    async executeFlow(flowId: string | bigint | number, payload?: PlainValue): Promise<PlainValue> {
         if (!this._stream) throw new Error("Not connected. Call connect() first.");
         const executionIdentifier = randomUUID();
         const result = this._awaitExecutionResponse(executionIdentifier);
@@ -187,31 +206,30 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
         return result;
     }
 
-    private _awaitExecutionResponse(executionIdentifier: string): Promise<PlainValue> {
+    private _awaitExecutionResponse(identifier: string): Promise<PlainValue> {
         return new Promise<PlainValue>((resolve, reject) => {
-            const queue = this._pendingExecutions.get(executionIdentifier) ?? [];
-            queue.push({resolve, reject});
-            this._pendingExecutions.set(executionIdentifier, queue);
+            this._pendingExecutions.set(identifier, {resolve, reject});
         });
     }
 
     /**
      * Resolve or reject a pending sub flow / flow execution request. Invoked by
-     * the response handlers when Aquila reports an execution's outcome.
+     * the response handlers when Aquila reports an execution's outcome. The
+     * identifier is a sub flow's correlation identifier or a flow execution's
+     * execution identifier.
      */
     resolveExecutionResponse(
-        executionIdentifier: string,
+        identifier: string,
         result:
             | {oneofKind: "success"; success: Value}
             | {oneofKind: "failure"; failure: ProtoError}
             | {oneofKind: undefined},
     ): void {
-        const queue = this._pendingExecutions.get(executionIdentifier);
-        const pending = queue?.shift();
-        if (queue && queue.length === 0) this._pendingExecutions.delete(executionIdentifier);
+        const pending = this._pendingExecutions.get(identifier);
+        this._pendingExecutions.delete(identifier);
         if (!pending) {
             this.emit(CodeZeroEvent.error, new Error(
-                `Received execution response for unknown execution identifier: ${executionIdentifier}`,
+                `Received execution response for unknown execution identifier: ${identifier}`,
             ));
             return;
         }

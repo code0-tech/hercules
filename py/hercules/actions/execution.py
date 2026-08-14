@@ -33,6 +33,9 @@ def _build_params(action, execution, func):
                 async def caller(*args):
                     return await action.execute_sub_flow(sub_flow, *args)
 
+                # Expose the sub flow's declared I/O so the handler can inspect it.
+                caller.input_schema = sub_flow.input_schema
+                caller.output_schema = sub_flow.output_schema
                 return caller
 
             params.append(make_caller(sub_flow))

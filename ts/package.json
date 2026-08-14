@@ -39,7 +39,7 @@
   "devDependencies": {
     "@emnapi/core": "^1.11.1",
     "@emnapi/runtime": "^1.11.1",
-    "@code0-tech/tucana": "0.0.80",
+    "@code0-tech/tucana": "0.0.82",
     "@grpc/grpc-js": "^1.14.3",
     "@protobuf-ts/grpc-backend": "^2.11.1",
     "@protobuf-ts/grpc-transport": "^2.11.1",
@@ -57,7 +57,7 @@
     "vitest": "^4.1.2"
   },
   "peerDependencies": {
-    "@code0-tech/tucana": "0.0.80",
+    "@code0-tech/tucana": "0.0.82",
     "@grpc/grpc-js": "^1.14.3",
     "@protobuf-ts/grpc-backend": "^2.11.1",
     "@protobuf-ts/grpc-transport": "^2.11.1",
