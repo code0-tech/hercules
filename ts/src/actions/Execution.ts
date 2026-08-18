@@ -1,8 +1,9 @@
-import {constructValue, PlainValue, toAllowedValue} from "@code0-tech/tucana/helpers";
+import {constructValue, PlainValue} from "@code0-tech/tucana/helpers";
 import {ActionExecutionRequest, ActionExecutionResponse, ActionTransferRequest} from "@code0-tech/tucana/aquila";
 import {NodeExecutionResult, Error as ProtoError} from "@code0-tech/tucana/shared";
-import {FunctionContext, RuntimeError, SubFlow} from "../types";
+import {FunctionContext, RuntimeError} from "../types";
 import {RuntimeFunctionProps} from "../models/runtime_function.model";
+import {ResolvedValue, resolveNodeValue} from "../internal/literal";
 import {CodeZeroEvent} from "../events";
 import type {Action} from "../action";
 
@@ -12,16 +13,10 @@ function nowMicros(): bigint {
     return BigInt(Math.floor((performance.timeOrigin + performance.now()) * 1000));
 }
 
-function buildParams(action: Action, execution: ActionExecutionRequest, func: RuntimeFunctionProps): (PlainValue | SubFlow | undefined)[] {
-    return (func.parameters || []).map((param, index) => {
-        const field = execution.parameters?.[index];
-        if (field?.value.oneofKind === "literalValue") return toAllowedValue(field.value.literalValue);
-        if (field?.value.oneofKind === "subFlow") {
-            const subFlow = field.value.subFlow;
-            return (...args: PlainValue[]) => action.executeSubFlow(subFlow, ...args);
-        }
-        return undefined;
-    });
+function buildParams(action: Action, execution: ActionExecutionRequest, func: RuntimeFunctionProps): (ResolvedValue | undefined)[] {
+    return (func.parameters || []).map((_param, index) =>
+        resolveNodeValue(action, execution.parameters?.[index]),
+    );
 }
 
 export function handle(action: Action, execution: ActionExecutionRequest): void {

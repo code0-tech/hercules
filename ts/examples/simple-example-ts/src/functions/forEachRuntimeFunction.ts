@@ -7,6 +7,7 @@ import {
     Name,
     Parameter,
     Signature,
+    SubFlow,
 } from "@code0-tech/hercules";
 
 @Identifier("for_each_runtime")
@@ -24,7 +25,9 @@ import {
     description: [{code: "en-US", content: "The sub flow (item) => void executed once per element"}],
 })
 export class ForEachRuntimeFunction {
-    async run<T>(_context: FunctionContext, list: List<T>, consumer: Consumer<T>): Promise<void> {
+    async run<T>(_context: FunctionContext, list: List<T>, consumer: Consumer<T> & SubFlow): Promise<void> {
+        console.log(`[for_each] consumer input schema:`, consumer.inputSchema);
+        console.log(`[for_each] consumer output schema:`, consumer.outputSchema);
         for (const element of list) {
             const result = await consumer(element);
             console.log(`[for_each] sub flow result:`, result);

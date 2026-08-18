@@ -6,5 +6,5 @@ export const packetType = "subFlowExecutionResponse";
 
 export function handle(action: Action, response: ActionSubFlowExecutionResponse): void {
     action.emit(CodeZeroEvent.subFlowExecutionResponseReceived, response);
-    action.resolveExecutionResponse(response.executionIdentifier, response.result);
+    action.resolveExecutionResponse(response.correlationIdentifier, response.result);
 }
