@@ -2,6 +2,7 @@ import {Action, CodeZeroEvent} from "@code0-tech/hercules";
 import {FibonacciRuntimeFunction} from "./functions/fibonacciRuntimeFunction.js";
 import {FibonacciFunction} from "./functions/fibonacciFunction.js";
 import {ForEachRuntimeFunction} from "./functions/forEachRuntimeFunction.js";
+import {ForEachConsumersRuntimeFunction} from "./functions/forEachConsumersRuntimeFunction.js";
 import {UserCreatedRuntimeEvent} from "./events/userCreatedRuntimeEvent.js";
 import {EmailDataType} from "./data_types/emailDataType.js";
 
@@ -28,6 +29,9 @@ action.registerFunction(FibonacciFunction);
 
 // Runtime function that executes a sub flow parameter for each element of a list
 action.registerRuntimeFunction(ForEachRuntimeFunction);
+
+// Runtime function that takes a list of consumers (each an inline ${signature} sub flow reference)
+action.registerRuntimeFunction(ForEachConsumersRuntimeFunction);
 
 // Data type: derived from Zod schema
 action.registerDataTypeClass(EmailDataType);
