@@ -5,10 +5,11 @@ import asyncio
 import inspect
 import time
 
-from hercules._tucana.helpers import construct_value, to_allowed_value
+from hercules._tucana.helpers import construct_value
 from tucana.generated.aquila import action_pb2
 from tucana.generated.shared import errors_pb2, execution_result_pb2
 from hercules.events import CodeZeroEvent
+from hercules.internal.literal import resolve_node_value
 from hercules.types import ProjectConfiguration, RuntimeError
 
 packet_type = "execution"
@@ -23,24 +24,7 @@ def _build_params(action, execution, func):
     parameters = func.parameters or []
     for index, _param in enumerate(parameters):
         field = execution.parameters[index] if index < len(execution.parameters) else None
-        which = field.WhichOneof("value") if field is not None else None
-        if which == "literal_value":
-            params.append(to_allowed_value(field.literal_value.value))
-        elif which == "sub_flow":
-            sub_flow = field.sub_flow
-
-            def make_caller(sub_flow):
-                async def caller(*args):
-                    return await action.execute_sub_flow(sub_flow, *args)
-
-                # Expose the sub flow's declared I/O so the handler can inspect it.
-                caller.input_schema = sub_flow.input_schema
-                caller.output_schema = sub_flow.output_schema
-                return caller
-
-            params.append(make_caller(sub_flow))
-        else:
-            params.append(None)
+        params.append(resolve_node_value(action, field))
     return params
 
 
