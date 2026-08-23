@@ -226,6 +226,14 @@ impl Action {
         export::write(&self.build_module(), dir.as_ref())
     }
 
+    /// Writes this action's module as a single JSON file — the same
+    /// `Module` proto, in the same wire format, as [`Action::export`]
+    /// spreads across a directory. Meant to be consumed as one complete
+    /// artifact (e.g. diffed in CI) rather than browsed by hand.
+    pub fn export_compact(&self, path: impl AsRef<std::path::Path>) -> std::io::Result<()> {
+        export::write_compact(&self.build_module(), path.as_ref())
+    }
+
     /// Opens the connection to Aquila and starts dispatching incoming
     /// execution requests. Consumes the builder; the returned [`Connected`]
     /// is a cheap-to-clone handle usable from any task.

@@ -1,8 +1,9 @@
-//! Renders a built [`tucana::shared::Module`] as a directory of JSON files —
-//! `meta.json` plus one file per data type / flow type / runtime flow type /
-//! function / runtime function — using the same field names and camelCase
-//! wire format Aquila accepts, since each wire type's `Serialize` impl
-//! already implements protobuf's canonical JSON mapping.
+//! Renders a built [`tucana::shared::Module`] either as a directory of JSON
+//! files — `meta.json` plus one file per data type / flow type / runtime
+//! flow type / function / runtime function — or, via [`write_compact`], as
+//! that same module in a single JSON file. Both use the same field names and
+//! camelCase wire format Aquila accepts, since each wire type's `Serialize`
+//! impl already implements protobuf's canonical JSON mapping.
 
 use std::fs;
 use std::io;
@@ -10,6 +11,17 @@ use std::path::Path;
 
 use serde::Serialize;
 use tucana::shared::{Module, Translation};
+
+/// Renders the module as a single JSON file — the same `Module` proto,
+/// in the same canonical JSON mapping, that Aquila receives over `connect`.
+/// Unlike [`write`], nothing is split out or omitted: this is meant to be
+/// diffed or consumed as one complete artifact rather than browsed by hand.
+pub(crate) fn write_compact(module: &Module, path: &Path) -> io::Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    write_json(path, module)
+}
 
 pub(crate) fn write(module: &Module, dir: &Path) -> io::Result<()> {
     fs::create_dir_all(dir)?;
@@ -103,7 +115,7 @@ fn write_json<T: Serialize>(path: &Path, value: &T) -> io::Result<()> {
 mod tests {
     use tucana::shared::{DefinitionDataType, Module, RuntimeFlowType, Translation};
 
-    use super::write;
+    use super::{write, write_compact};
 
     fn sample_module() -> Module {
         Module {
@@ -152,5 +164,22 @@ mod tests {
         assert!(!dir.join("flow_types").exists());
 
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn writes_one_file_for_the_whole_module() {
+        let path = std::env::temp_dir().join(format!(
+            "hercules-export-compact-test-{}.json",
+            std::process::id()
+        ));
+        write_compact(&sample_module(), &path).expect("compact export succeeds");
+
+        let value: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(value["identifier"], "example-action");
+        assert_eq!(value["definitionDataTypes"][0]["identifier"], "EMAIL");
+        assert_eq!(value["runtimeFlowTypes"][0]["identifier"], "CRON");
+
+        std::fs::remove_file(&path).ok();
     }
 }
