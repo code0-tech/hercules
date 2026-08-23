@@ -9,10 +9,11 @@ members = [
 [workspace.package]
 version = "0.0.0"
 edition = "2024"
+license = "ISC"
 repository = "https://github.com/code0-tech/hercules"
 
 [workspace.dependencies]
-tucana = { version = "0.0.80", default-features = false, features = ["aquila"] }
+tucana = { version = "0.0.82", default-features = false, features = ["aquila"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 tonic = "0.14"
 async-trait = "0.1"
