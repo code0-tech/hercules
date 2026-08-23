@@ -8,22 +8,16 @@ members = [
 
 [workspace.package]
 version = "0.0.0"
-edition = "2021"
-license = "ISC"
+edition = "2024"
 repository = "https://github.com/code0-tech/hercules"
 
 [workspace.dependencies]
-# Published from https://github.com/code0-tech/tucana (build/rust) — the same proto
-# definitions the TS SDK consumes as `@code0-tech/tucana` from npm.
 tucana = { version = "0.0.80", default-features = false, features = ["aquila"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 tonic = "0.14"
 async-trait = "0.1"
 thiserror = "2"
 serde = { version = "1", features = ["derive"] }
-# preserve_order: DataType field order in the generated wire `type` string
-# must match the struct's declaration order, the same way Zod's object types
-# preserve declaration order — see hercules::data_type.
 serde_json = { version = "1", features = ["preserve_order"] }
 schemars = "1"
 log = "0.4"
