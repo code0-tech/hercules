@@ -6,12 +6,11 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_stream::{Stream, StreamExt};
 use tonic::Streaming;
 use tucana::aquila::{
-    action_flow_execution_response, action_flow_update, action_node_value,
+    action_flow_execution_response, action_node_value, action_flow_update,
     action_sub_flow_execution_response, action_transfer_request, action_transfer_response,
-    ActionEvent, ActionExecutionRequest, ActionExecutionResponse, ActionFlow,
-    ActionFlowExecutionRequest, ActionFlowExecutionResponse, ActionFlowUpdate, ActionNodeValue,
-    ActionSubFlowExecutionRequest, ActionSubFlowExecutionResponse, ActionTransferRequest,
-    ActionTransferResponse,
+    ActionExecutionRequest, ActionExecutionResponse, ActionFlow, ActionFlowExecutionRequest,
+    ActionFlowExecutionResponse, ActionFlowUpdate, ActionNodeValue, ActionSubFlowExecutionRequest,
+    ActionSubFlowExecutionResponse, ActionTransferRequest, ActionTransferResponse,
 };
 use tucana::shared::{node_execution_result, Error as WireError, NodeExecutionResult};
 
@@ -19,6 +18,7 @@ use crate::arguments::Arguments;
 use crate::error::{HerculesError, Result};
 use crate::events::{event_stream, HerculesEvent};
 use crate::function::RuntimeFunctionHandler;
+use crate::literal::{resolve_literal, ResolvedValue};
 use crate::meta::{ParameterMeta, RuntimeFunctionMeta};
 use crate::sync;
 use crate::types::{FunctionContext, PlainValue, ProjectConfiguration};
@@ -44,10 +44,12 @@ pub(crate) struct ConnectedInner {
     pub pending_flow_executions: Mutex<HashMap<String, oneshot::Sender<Result<PlainValue>>>>,
     /// Sub flow executions this action has requested (via
     /// [`Connected::execute_sub_flow`]) and is still awaiting a result for,
-    /// keyed by the `execution_identifier` that correlates the eventual
-    /// `ActionSubFlowExecutionResponse`. Unlike `pending_flow_executions`,
-    /// this id is minted by taurus (not generated locally) and handed to a
-    /// running handler via [`crate::types::FunctionContext::sub_flow_parameters`].
+    /// keyed by a locally-generated `correlation_identifier` — not the sub
+    /// flow's `execution_identifier`, which is minted by taurus and reused
+    /// across every call to the same sub flow (e.g. once per loop
+    /// iteration), so it cannot disambiguate concurrent or out-of-order
+    /// invocations the way the correlation identifier can. See
+    /// [`crate::types::FunctionContext::sub_flow_parameters`].
     pub pending_sub_flow_executions: Mutex<HashMap<String, oneshot::Sender<Result<PlainValue>>>>,
     pub request_tx: mpsc::UnboundedSender<ActionTransferRequest>,
     pub events_tx: broadcast::Sender<HerculesEvent>,
@@ -107,21 +109,36 @@ impl Connected {
         sync::read(&self.inner.configs).get(&project_id).cloned()
     }
 
-    /// Sends an event payload for `project_id` up to Aquila.
-    pub fn fire(
+    /// Executes every one of this action's own flows whose type matches
+    /// `identifier` and awaits all of their results.
+    ///
+    /// `identifier` is the same string a flow's type is registered under —
+    /// what `#[hercules::event(identifier = "...")]` /
+    /// `#[hercules::runtime_event(identifier = "...")]` declare on the
+    /// corresponding [`crate::event::Event`]/[`crate::event::RuntimeEvent`].
+    /// Flows are tracked from the `ActionFlowUpdate` messages Aquila streams
+    /// (see [`Connected::flows`]); each match is run via
+    /// [`Connected::execute_flow`].
+    ///
+    /// To run a single flow by id instead, call [`Connected::execute_flow`]
+    /// directly.
+    pub async fn fire(
         &self,
-        event_type: impl Into<String>,
-        project_id: i64,
+        identifier: impl Into<String>,
         payload: PlainValue,
-    ) -> Result<()> {
-        let request = ActionTransferRequest {
-            data: Some(action_transfer_request::Data::Event(ActionEvent {
-                event_type: event_type.into(),
-                project_id,
-                payload: Some(construct_value(&payload)),
-            })),
-        };
-        send(&self.inner, request)
+    ) -> Result<Vec<PlainValue>> {
+        let identifier = identifier.into();
+        let flow_ids: Vec<i64> = sync::read(&self.inner.flows)
+            .values()
+            .filter(|flow| flow.r#type == identifier)
+            .map(|flow| flow.flow_id)
+            .collect();
+
+        let mut results = Vec::with_capacity(flow_ids.len());
+        for flow_id in flow_ids {
+            results.push(self.execute_flow(flow_id.to_string(), payload.clone()).await?);
+        }
+        Ok(results)
     }
 
     /// This action's own flows, as last pushed down by Aquila. Kept in sync
@@ -205,20 +222,25 @@ impl Connected {
         parameters: Vec<PlainValue>,
     ) -> Result<PlainValue> {
         let execution_identifier = execution_identifier.into();
+        // Scope this individual invocation with a fresh correlation identifier so
+        // its response can be matched even when the same sub flow is executed
+        // repeatedly and responses arrive out of order.
+        let correlation_identifier = self.inner.next_execution_id();
         let (tx, rx) = oneshot::channel();
         sync::lock(&self.inner.pending_sub_flow_executions)
-            .insert(execution_identifier.clone(), tx);
+            .insert(correlation_identifier.clone(), tx);
 
         let request = ActionTransferRequest {
             data: Some(action_transfer_request::Data::SubFlowExecution(
                 ActionSubFlowExecutionRequest {
-                    execution_identifier: execution_identifier.clone(),
+                    execution_identifier,
                     parameters: parameters.iter().map(construct_value).collect(),
+                    correlation_identifier: correlation_identifier.clone(),
                 },
             )),
         };
         if let Err(err) = send(&self.inner, request) {
-            sync::lock(&self.inner.pending_sub_flow_executions).remove(&execution_identifier);
+            sync::lock(&self.inner.pending_sub_flow_executions).remove(&correlation_identifier);
             return Err(err);
         }
 
@@ -457,7 +479,18 @@ fn resolve_parameters(
     for (param_meta, param) in meta.iter().zip(parameters) {
         match param.value {
             Some(action_node_value::Value::LiteralValue(value)) => {
-                literals.insert(param_meta.runtime_name.clone(), to_allowed_value(value));
+                match resolve_literal(value)? {
+                    ResolvedValue::Literal(value) => {
+                        literals.insert(param_meta.runtime_name.clone(), value);
+                    }
+                    // The literal's sole `${signature}` placeholder resolved to a
+                    // sub flow reference — route it the same way a top-level
+                    // `ActionNodeValue::SubFlow` is routed below.
+                    ResolvedValue::SubFlow(sub_flow) => {
+                        sub_flow_parameters
+                            .insert(param_meta.runtime_name.clone(), sub_flow.execution_identifier);
+                    }
+                }
             }
             Some(action_node_value::Value::SubFlow(sub_flow)) => {
                 sub_flow_parameters
@@ -526,12 +559,12 @@ fn handle_sub_flow_execution_response(
     inner: &Arc<ConnectedInner>,
     response: ActionSubFlowExecutionResponse,
 ) {
-    let sender =
-        sync::lock(&inner.pending_sub_flow_executions).remove(&response.execution_identifier);
+    let sender = sync::lock(&inner.pending_sub_flow_executions)
+        .remove(&response.correlation_identifier);
     let Some(sender) = sender else {
         log::warn!(
-            "received a sub flow execution response for unknown execution {:?}",
-            response.execution_identifier
+            "received a sub flow execution response for unknown correlation id {:?}",
+            response.correlation_identifier
         );
         return;
     };
@@ -568,7 +601,16 @@ mod tests {
 
     use tokio::sync::mpsc as tokio_mpsc;
     use tokio_stream::wrappers::ReceiverStream;
-    use tucana::aquila::ActionNodeSubFlowValue;
+    use tucana::aquila::{ActionLiteralValue, ActionNodeSubFlowValue};
+
+    /// Wraps a plain value as a reference-free `ActionLiteralValue`, the
+    /// common case exercised by these tests.
+    fn literal(value: &PlainValue) -> ActionLiteralValue {
+        ActionLiteralValue {
+            value: Some(construct_value(value)),
+            references: vec![],
+        }
+    }
 
     use super::*;
 
@@ -607,7 +649,7 @@ mod tests {
         });
 
         let request = request_rx.recv().await.expect("a request was sent");
-        match request.data {
+        let correlation_identifier = match request.data {
             Some(action_transfer_request::Data::SubFlowExecution(req)) => {
                 assert_eq!(req.execution_identifier, "sub-1");
                 // Positional, not a single `payload` like ActionFlowExecutionRequest.
@@ -617,15 +659,17 @@ mod tests {
                     to_allowed_value(req.parameters[1].clone()),
                     serde_json::json!("two")
                 );
+                req.correlation_identifier
             }
             other => panic!("expected a SubFlowExecution request, got {other:?}"),
-        }
+        };
 
         // Resolve it so the spawned task completes instead of hanging.
         handle_sub_flow_execution_response(
             &inner,
             ActionSubFlowExecutionResponse {
                 execution_identifier: "sub-1".into(),
+                correlation_identifier,
                 result: Some(action_sub_flow_execution_response::Result::Success(
                     construct_value(&serde_json::json!("done")),
                 )),
@@ -648,7 +692,8 @@ mod tests {
         handle_sub_flow_execution_response(
             &inner,
             ActionSubFlowExecutionResponse {
-                execution_identifier: "id-a".into(),
+                execution_identifier: "sub-a".into(),
+                correlation_identifier: "id-a".into(),
                 result: Some(action_sub_flow_execution_response::Result::Success(
                     construct_value(&serde_json::json!(42)),
                 )),
@@ -661,7 +706,8 @@ mod tests {
         handle_sub_flow_execution_response(
             &inner,
             ActionSubFlowExecutionResponse {
-                execution_identifier: "id-b".into(),
+                execution_identifier: "sub-b".into(),
+                correlation_identifier: "id-b".into(),
                 result: Some(action_sub_flow_execution_response::Result::Failure(
                     WireError {
                         code: "BOOM".into(),
@@ -687,7 +733,8 @@ mod tests {
         handle_sub_flow_execution_response(
             &inner,
             ActionSubFlowExecutionResponse {
-                execution_identifier: "unknown-id".into(),
+                execution_identifier: "sub-unknown".into(),
+                correlation_identifier: "unknown-id".into(),
                 result: None,
             },
         );
@@ -711,13 +758,15 @@ mod tests {
         ];
         let parameters = vec![
             ActionNodeValue {
-                value: Some(action_node_value::Value::LiteralValue(construct_value(
+                value: Some(action_node_value::Value::LiteralValue(literal(
                     &serde_json::json!("hi"),
                 ))),
             },
             ActionNodeValue {
                 value: Some(action_node_value::Value::SubFlow(ActionNodeSubFlowValue {
                     execution_identifier: "sub-xyz".into(),
+                    input_schema: None,
+                    output_schema: None,
                 })),
             },
             ActionNodeValue { value: None },
@@ -747,7 +796,7 @@ mod tests {
             ..Default::default()
         }];
         let parameters = vec![ActionNodeValue {
-            value: Some(action_node_value::Value::LiteralValue(construct_value(
+            value: Some(action_node_value::Value::LiteralValue(literal(
                 &serde_json::json!(7),
             ))),
         }];

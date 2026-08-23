@@ -21,7 +21,7 @@
 //! # async fn run() -> hercules::Result<()> {
 //! let action = Action::new("example", "0.1.0").author("me").icon("tabler:bolt");
 //! let action = action.connect("token", Some("127.0.0.1:8081".into())).await?;
-//! action.fire("greeted", 1, serde_json::json!({ "name": "world" }))?;
+//! action.fire("greeted", serde_json::json!({ "name": "world" })).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -36,6 +36,7 @@ mod event;
 mod events;
 mod export;
 mod function;
+mod literal;
 mod meta;
 mod module_builder;
 mod registration;
