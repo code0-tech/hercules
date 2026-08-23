@@ -6,19 +6,19 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_stream::{Stream, StreamExt};
 use tonic::Streaming;
 use tucana::aquila::{
-    action_flow_execution_response, action_node_value, action_flow_update,
-    action_sub_flow_execution_response, action_transfer_request, action_transfer_response,
     ActionExecutionRequest, ActionExecutionResponse, ActionFlow, ActionFlowExecutionRequest,
     ActionFlowExecutionResponse, ActionFlowUpdate, ActionNodeValue, ActionSubFlowExecutionRequest,
     ActionSubFlowExecutionResponse, ActionTransferRequest, ActionTransferResponse,
+    action_flow_execution_response, action_flow_update, action_node_value,
+    action_sub_flow_execution_response, action_transfer_request, action_transfer_response,
 };
-use tucana::shared::{node_execution_result, Error as WireError, NodeExecutionResult};
+use tucana::shared::{Error as WireError, NodeExecutionResult, node_execution_result};
 
 use crate::arguments::Arguments;
 use crate::error::{HerculesError, Result};
-use crate::events::{event_stream, HerculesEvent};
+use crate::events::{HerculesEvent, event_stream};
 use crate::function::RuntimeFunctionHandler;
-use crate::literal::{resolve_literal, ResolvedValue};
+use crate::literal::{ResolvedValue, resolve_literal};
 use crate::meta::{ParameterMeta, RuntimeFunctionMeta};
 use crate::sync;
 use crate::types::{FunctionContext, PlainValue, ProjectConfiguration};
@@ -136,7 +136,10 @@ impl Connected {
 
         let mut results = Vec::with_capacity(flow_ids.len());
         for flow_id in flow_ids {
-            results.push(self.execute_flow(flow_id.to_string(), payload.clone()).await?);
+            results.push(
+                self.execute_flow(flow_id.to_string(), payload.clone())
+                    .await?,
+            );
         }
         Ok(results)
     }
@@ -487,14 +490,18 @@ fn resolve_parameters(
                     // sub flow reference — route it the same way a top-level
                     // `ActionNodeValue::SubFlow` is routed below.
                     ResolvedValue::SubFlow(sub_flow) => {
-                        sub_flow_parameters
-                            .insert(param_meta.runtime_name.clone(), sub_flow.execution_identifier);
+                        sub_flow_parameters.insert(
+                            param_meta.runtime_name.clone(),
+                            sub_flow.execution_identifier,
+                        );
                     }
                 }
             }
             Some(action_node_value::Value::SubFlow(sub_flow)) => {
-                sub_flow_parameters
-                    .insert(param_meta.runtime_name.clone(), sub_flow.execution_identifier);
+                sub_flow_parameters.insert(
+                    param_meta.runtime_name.clone(),
+                    sub_flow.execution_identifier,
+                );
             }
             None => {}
         }
@@ -559,8 +566,8 @@ fn handle_sub_flow_execution_response(
     inner: &Arc<ConnectedInner>,
     response: ActionSubFlowExecutionResponse,
 ) {
-    let sender = sync::lock(&inner.pending_sub_flow_executions)
-        .remove(&response.correlation_identifier);
+    let sender =
+        sync::lock(&inner.pending_sub_flow_executions).remove(&response.correlation_identifier);
     let Some(sender) = sender else {
         log::warn!(
             "received a sub flow execution response for unknown correlation id {:?}",
@@ -654,7 +661,10 @@ mod tests {
                 assert_eq!(req.execution_identifier, "sub-1");
                 // Positional, not a single `payload` like ActionFlowExecutionRequest.
                 assert_eq!(req.parameters.len(), 2);
-                assert_eq!(to_allowed_value(req.parameters[0].clone()), serde_json::json!(1));
+                assert_eq!(
+                    to_allowed_value(req.parameters[0].clone()),
+                    serde_json::json!(1)
+                );
                 assert_eq!(
                     to_allowed_value(req.parameters[1].clone()),
                     serde_json::json!("two")
@@ -802,7 +812,10 @@ mod tests {
         }];
 
         let resolved = resolve_parameters(&meta, parameters).unwrap();
-        assert_eq!(resolved.literals, HashMap::from([("a".to_string(), serde_json::json!(7))]));
+        assert_eq!(
+            resolved.literals,
+            HashMap::from([("a".to_string(), serde_json::json!(7))])
+        );
         assert!(resolved.sub_flow_parameters.is_empty());
     }
 
@@ -811,9 +824,8 @@ mod tests {
         let (inner, mut request_rx) = test_inner();
         let connected = Connected::new(inner.clone());
 
-        let (stream_tx, stream_rx) = tokio_mpsc::channel::<
-            std::result::Result<ActionTransferResponse, tonic::Status>,
-        >(1);
+        let (stream_tx, stream_rx) =
+            tokio_mpsc::channel::<std::result::Result<ActionTransferResponse, tonic::Status>>(1);
         spawn_dispatch_loop_over(inner.clone(), ReceiverStream::new(stream_rx));
 
         let handle = tokio::spawn({
@@ -838,20 +850,15 @@ mod tests {
         let (inner, mut request_rx) = test_inner();
         let connected = Connected::new(inner.clone());
 
-        let (stream_tx, stream_rx) = tokio_mpsc::channel::<
-            std::result::Result<ActionTransferResponse, tonic::Status>,
-        >(1);
+        let (stream_tx, stream_rx) =
+            tokio_mpsc::channel::<std::result::Result<ActionTransferResponse, tonic::Status>>(1);
         spawn_dispatch_loop_over(inner.clone(), ReceiverStream::new(stream_rx));
 
         let handle = tokio::spawn({
             let connected = connected.clone();
             async move {
                 connected
-                    .execute_flow_with_id(
-                        "flow-pending".into(),
-                        "flow-1",
-                        serde_json::json!(null),
-                    )
+                    .execute_flow_with_id("flow-pending".into(), "flow-1", serde_json::json!(null))
                     .await
             }
         });

@@ -4,7 +4,7 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::parse::{translation_vec, AttrArgs};
+use crate::parse::{AttrArgs, translation_vec};
 
 pub fn parameter_tokens(args: &AttrArgs, hercules: &TokenStream) -> syn::Result<TokenStream> {
     let runtime_name = args.required_string("runtime_name")?;

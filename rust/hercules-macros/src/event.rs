@@ -4,7 +4,7 @@ use syn::ItemStruct;
 
 use crate::items::setting_tokens;
 use crate::parse::{
-    hercules_path, optional_string, optional_translation_vec, take_repeated, AttrArgs,
+    AttrArgs, hercules_path, optional_string, optional_translation_vec, take_repeated,
 };
 
 pub fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {

@@ -3,7 +3,7 @@ use quote::quote;
 use syn::{Fields, ItemStruct};
 
 use crate::items::parameter_tokens;
-use crate::parse::{hercules_path, optional_string, take_repeated, translation_fields, AttrArgs};
+use crate::parse::{AttrArgs, hercules_path, optional_string, take_repeated, translation_fields};
 
 pub fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
     let mut item_struct: ItemStruct = syn::parse2(item)?;

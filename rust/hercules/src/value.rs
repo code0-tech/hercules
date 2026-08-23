@@ -2,8 +2,8 @@
 //! `tucana::shared::Value` protobuf type, using the conversions `tucana`
 //! already ships in `shared::helper::value` rather than reimplementing them.
 
-use tucana::shared::helper::value::{from_json_value, to_json_value};
 use tucana::shared::Value;
+use tucana::shared::helper::value::{from_json_value, to_json_value};
 
 use crate::types::PlainValue;
 

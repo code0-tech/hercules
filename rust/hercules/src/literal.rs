@@ -12,8 +12,10 @@
 
 use std::collections::HashMap;
 
-use tucana::aquila::{action_node_value, ActionLiteralValue, ActionNodeSubFlowValue, ActionNodeValue};
-use tucana::shared::{value, Value};
+use tucana::aquila::{
+    ActionLiteralValue, ActionNodeSubFlowValue, ActionNodeValue, action_node_value,
+};
+use tucana::shared::{Value, value};
 
 use crate::error::{HerculesError, Result};
 use crate::types::PlainValue;
@@ -46,7 +48,9 @@ pub(crate) fn resolve_node_value(node: Option<ActionNodeValue>) -> Result<Option
     };
     match node.value {
         Some(action_node_value::Value::LiteralValue(literal)) => resolve_literal(literal).map(Some),
-        Some(action_node_value::Value::SubFlow(sub_flow)) => Ok(Some(ResolvedValue::SubFlow(sub_flow))),
+        Some(action_node_value::Value::SubFlow(sub_flow)) => {
+            Ok(Some(ResolvedValue::SubFlow(sub_flow)))
+        }
         None => Ok(None),
     }
 }
@@ -85,7 +89,9 @@ fn resolve_value(value: Value, references: &References) -> Result<ResolvedValue>
             Ok(ResolvedValue::Literal(PlainValue::Array(result)))
         }
         // Numbers, booleans and null cannot carry placeholders.
-        other => Ok(ResolvedValue::Literal(to_allowed_value(Value { kind: other }))),
+        other => Ok(ResolvedValue::Literal(to_allowed_value(Value {
+            kind: other,
+        }))),
     }
 }
 
@@ -116,7 +122,9 @@ fn resolve_string(raw: &str, references: &References) -> Result<ResolvedValue> {
     if let Some(signature) = sole_reference(raw) {
         return Ok(match references.get(signature) {
             // Adopt the referenced value verbatim so its type (number, object, sub flow, …) is preserved.
-            Some(resolved) => resolved.clone().unwrap_or(ResolvedValue::Literal(PlainValue::Null)),
+            Some(resolved) => resolved
+                .clone()
+                .unwrap_or(ResolvedValue::Literal(PlainValue::Null)),
             None => ResolvedValue::Literal(PlainValue::String(raw.to_string())),
         });
     }
@@ -161,7 +169,7 @@ fn stringify_reference(signature: &str, value: Option<&ResolvedValue>) -> Result
 #[cfg(test)]
 mod tests {
     use tucana::aquila::ActionInlineReferenceValue;
-    use tucana::shared::{number_value, value, NumberValue, Struct};
+    use tucana::shared::{NumberValue, Struct, number_value, value};
 
     use super::*;
 
@@ -194,20 +202,33 @@ mod tests {
     fn struct_(fields: Vec<(&str, Value)>) -> Value {
         Value {
             kind: Some(value::Kind::StructValue(Struct {
-                fields: fields.into_iter().map(|(k, v)| (k.to_string(), v)).collect(),
+                fields: fields
+                    .into_iter()
+                    .map(|(k, v)| (k.to_string(), v))
+                    .collect(),
             })),
         }
     }
 
-    fn literal(value: Option<Value>, references: Vec<ActionInlineReferenceValue>) -> ActionLiteralValue {
+    fn literal(
+        value: Option<Value>,
+        references: Vec<ActionInlineReferenceValue>,
+    ) -> ActionLiteralValue {
         ActionLiteralValue { value, references }
     }
 
-    fn literal_ref(signature: &str, value: Value, references: Vec<ActionInlineReferenceValue>) -> ActionInlineReferenceValue {
+    fn literal_ref(
+        signature: &str,
+        value: Value,
+        references: Vec<ActionInlineReferenceValue>,
+    ) -> ActionInlineReferenceValue {
         ActionInlineReferenceValue {
             signature: signature.to_string(),
             value: Some(ActionNodeValue {
-                value: Some(action_node_value::Value::LiteralValue(literal(Some(value), references))),
+                value: Some(action_node_value::Value::LiteralValue(literal(
+                    Some(value),
+                    references,
+                ))),
             }),
         }
     }
@@ -221,20 +242,37 @@ mod tests {
 
     #[test]
     fn returns_a_plain_literal_untouched_when_there_are_no_references() {
-        assert_eq!(as_plain(resolve_literal(literal(Some(str("hello")), vec![])).unwrap()), serde_json::json!("hello"));
-        assert_eq!(as_plain(resolve_literal(literal(Some(int(42)), vec![])).unwrap()), serde_json::json!(42));
-        assert_eq!(as_plain(resolve_literal(literal(None, vec![])).unwrap()), serde_json::json!(null));
+        assert_eq!(
+            as_plain(resolve_literal(literal(Some(str("hello")), vec![])).unwrap()),
+            serde_json::json!("hello")
+        );
+        assert_eq!(
+            as_plain(resolve_literal(literal(Some(int(42)), vec![])).unwrap()),
+            serde_json::json!(42)
+        );
+        assert_eq!(
+            as_plain(resolve_literal(literal(None, vec![])).unwrap()),
+            serde_json::json!(null)
+        );
     }
 
     #[test]
     fn adopts_the_referenced_value_verbatim_when_the_string_is_a_sole_placeholder() {
-        let result = resolve_literal(literal(Some(str("${count}")), vec![literal_ref("count", int(7), vec![])])).unwrap();
+        let result = resolve_literal(literal(
+            Some(str("${count}")),
+            vec![literal_ref("count", int(7), vec![])],
+        ))
+        .unwrap();
         assert_eq!(as_plain(result), serde_json::json!(7));
     }
 
     #[test]
     fn preserves_non_string_reference_types_on_full_replacement() {
-        let result = resolve_literal(literal(Some(str("${enabled}")), vec![literal_ref("enabled", bool(true), vec![])])).unwrap();
+        let result = resolve_literal(literal(
+            Some(str("${enabled}")),
+            vec![literal_ref("enabled", bool(true), vec![])],
+        ))
+        .unwrap();
         assert_eq!(as_plain(result), serde_json::json!(true));
     }
 
@@ -242,7 +280,10 @@ mod tests {
     fn interpolates_references_into_surrounding_text() {
         let result = resolve_literal(literal(
             Some(str("Hello ${name}, you are ${age}")),
-            vec![literal_ref("name", str("Ada"), vec![]), literal_ref("age", int(36), vec![])],
+            vec![
+                literal_ref("name", str("Ada"), vec![]),
+                literal_ref("age", int(36), vec![]),
+            ],
         ))
         .unwrap();
         assert_eq!(as_plain(result), serde_json::json!("Hello Ada, you are 36"));
@@ -268,7 +309,10 @@ mod tests {
         ]);
         let result = resolve_literal(literal(
             Some(value),
-            vec![literal_ref("name", str("Grace"), vec![]), literal_ref("primary", int(1), vec![])],
+            vec![
+                literal_ref("name", str("Grace"), vec![]),
+                literal_ref("primary", int(1), vec![]),
+            ],
         ))
         .unwrap();
         assert_eq!(
@@ -289,7 +333,11 @@ mod tests {
 
     #[test]
     fn resolves_references_that_themselves_contain_references() {
-        let nested = literal_ref("outer", str("<${inner}>"), vec![literal_ref("inner", str("deep"), vec![])]);
+        let nested = literal_ref(
+            "outer",
+            str("<${inner}>"),
+            vec![literal_ref("inner", str("deep"), vec![])],
+        );
         let result = resolve_literal(literal(Some(str("${outer}")), vec![nested])).unwrap();
         assert_eq!(as_plain(result), serde_json::json!("<deep>"));
     }
@@ -306,8 +354,11 @@ mod tests {
                 })),
             }),
         };
-        let err = resolve_literal(literal(Some(str("result: ${run}")), vec![sub_flow_ref])).unwrap_err();
-        assert!(matches!(err, HerculesError::Runtime { code, .. } if code == "INLINE_REFERENCE_NOT_STRINGIFIABLE"));
+        let err =
+            resolve_literal(literal(Some(str("result: ${run}")), vec![sub_flow_ref])).unwrap_err();
+        assert!(
+            matches!(err, HerculesError::Runtime { code, .. } if code == "INLINE_REFERENCE_NOT_STRINGIFIABLE")
+        );
     }
 
     #[test]

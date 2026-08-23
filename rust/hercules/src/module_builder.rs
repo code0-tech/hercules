@@ -2,11 +2,11 @@
 //! `tucana::shared::Module` sent as the `ActionLogon` payload.
 
 use tucana::shared::{
-    self, definition_data_type_rule, flow_type_setting, runtime_flow_type_setting,
-    DataTypeNumberRangeRuleConfig, DataTypeRegexRuleConfig, DefinitionDataType,
+    self, DataTypeNumberRangeRuleConfig, DataTypeRegexRuleConfig, DefinitionDataType,
     DefinitionDataTypeRule, FlowType, FlowTypeSetting, FunctionDefinition, Module,
     ModuleConfigurationDefinition, ParameterDefinition, RuntimeFlowType, RuntimeFlowTypeSetting,
-    RuntimeFunctionDefinition, RuntimeParameterDefinition,
+    RuntimeFunctionDefinition, RuntimeParameterDefinition, definition_data_type_rule,
+    flow_type_setting, runtime_flow_type_setting,
 };
 
 use crate::data_type::{DataTypeDef, DataTypeRule};

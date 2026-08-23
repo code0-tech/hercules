@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use tokio::sync::broadcast;
-use tokio_stream::wrappers::{errors::BroadcastStreamRecvError, BroadcastStream};
+use tokio_stream::wrappers::{BroadcastStream, errors::BroadcastStreamRecvError};
 use tokio_stream::{Stream, StreamExt};
 use tucana::aquila::{ActionExecutionRequest, ActionFlow};
 use tucana::shared::ModuleConfigurations;

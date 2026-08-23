@@ -5,19 +5,19 @@ use tokio::sync::broadcast;
 use tokio_stream::Stream;
 use tucana::shared::Module;
 
-use crate::connected::{spawn_dispatch_loop, Connected, ConnectedInner, RuntimeFunctionEntry};
+use crate::connected::{Connected, ConnectedInner, RuntimeFunctionEntry, spawn_dispatch_loop};
 use crate::connection;
 use crate::data_type::{self, DataType, DataTypeDef};
 use crate::error::Result;
 use crate::event::{Event, RuntimeEvent};
-use crate::events::{event_stream, HerculesEvent};
+use crate::events::{HerculesEvent, event_stream};
 use crate::export;
 use crate::function::{Function, RuntimeFunction};
 use crate::meta::{
-    merge_event, merge_event_unchecked, merge_function, merge_function_unchecked, EventDef,
-    FunctionDef, RuntimeEventMeta,
+    EventDef, FunctionDef, RuntimeEventMeta, merge_event, merge_event_unchecked, merge_function,
+    merge_function_unchecked,
 };
-use crate::module_builder::{build_module, ModuleBuildData};
+use crate::module_builder::{ModuleBuildData, build_module};
 use crate::registration;
 use crate::types::{ConfigurationDefinition, ScalingOption, Translation};
 

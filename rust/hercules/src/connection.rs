@@ -8,7 +8,7 @@ use tonic::transport::Endpoint;
 use tonic::{Request, Streaming};
 use tucana::aquila::action_transfer_service_client::ActionTransferServiceClient;
 use tucana::aquila::{
-    action_transfer_request, ActionLogon, ActionTransferRequest, ActionTransferResponse,
+    ActionLogon, ActionTransferRequest, ActionTransferResponse, action_transfer_request,
 };
 use tucana::shared::Module;
 

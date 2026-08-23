@@ -115,10 +115,8 @@ fn type_string(
 ) -> Result<String> {
     if let Some(reference) = schema.get("$ref").and_then(Json::as_str) {
         let name = reference.rsplit('/').next().unwrap_or(reference);
-        if !root {
-            if let Some(target) = sync::read(registry()).get(name) {
-                return Ok(target.clone());
-            }
+        if !root && let Some(target) = sync::read(registry()).get(name) {
+            return Ok(target.clone());
         }
         let def = defs
             .get(name)

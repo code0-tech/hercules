@@ -45,7 +45,9 @@ pub enum HerculesError {
     )]
     RecursiveDataType { identifier: String },
 
-    #[error("runtime function {class} has a parameter {parameter:?} that isn't declared on its runtime function")]
+    #[error(
+        "runtime function {class} has a parameter {parameter:?} that isn't declared on its runtime function"
+    )]
     UnknownParameter {
         class: &'static str,
         parameter: String,

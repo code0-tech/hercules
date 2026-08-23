@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::ItemStruct;
 
-use crate::parse::{hercules_path, optional_string, translation_vec, AttrArgs};
+use crate::parse::{AttrArgs, hercules_path, optional_string, translation_vec};
 
 pub fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
     let item_struct: ItemStruct = syn::parse2(item)?;
