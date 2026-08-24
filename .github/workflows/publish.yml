@@ -81,3 +81,37 @@ jobs:
         run: uv build
       - name: Publish package
         run: uv publish --trusted-publishing always
+
+  cargo:
+    runs-on: ubuntu-latest
+
+    environment: packages
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: rust
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - name: Set version
+        # The git tag (minus any leading "v") becomes the version of every
+        # workspace crate, including the pinned hercules-macros dependency.
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          sed -i "s/^version = \"0.0.0\"/version = \"$VERSION\"/" Cargo.toml
+          sed -i "s/hercules-macros = { path = \"..\/hercules-macros\", version = \"0.0.0\" }/hercules-macros = { path = \"..\/hercules-macros\", version = \"$VERSION\" }/" hercules/Cargo.toml
+      - name: Run tests
+        run: cargo test --workspace
+      - name: Publish hercules-macros
+        run: cargo publish -p hercules-macros --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Wait for crates.io index
+        run: sleep 30
+      - name: Publish hercules
+        run: cargo publish -p hercules --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
