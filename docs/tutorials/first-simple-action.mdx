@@ -3,6 +3,8 @@ title: First Simple Action
 description: Build a complete action with a function, event, and data type from scratch
 ---
 
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
 This tutorial walks through building a complete action that:
 
 - Exposes a `fibonacci` function
@@ -11,8 +13,11 @@ This tutorial walks through building a complete action that:
 
 ## 1. Create the RuntimeFunction
 
-A `RuntimeFunction` contains the actual implementation. Decorate it with `@Identifier`, `@Signature`, and `@Name`,
-then implement the `run()` method.
+A `RuntimeFunction` contains the actual implementation.
+
+<Tabs items={['TypeScript', 'Rust']}>
+<Tab value="TypeScript">
+Decorate it with `@Identifier`, `@Signature`, and `@Name`, then implement the `run()` method.
 
 ```ts
 // src/functions/fibonacciRuntimeFunction.ts
@@ -47,10 +52,62 @@ export class FibonacciRuntimeFunction {
 
 `@OmitRuntimeFunction()` prevents Hercules from auto-generating a public function definition from this class — we'll
 define that separately below.
+</Tab>
+<Tab value="Rust">
+Attach `#[hercules::runtime_function(...)]`, giving it an `identifier` and `signature`, then implement
+`RuntimeFunctionHandler`. Attaching the macro registers it automatically — there's no separate registration call to
+make later.
+
+```rust
+// src/functions/fibonacci_runtime_function.rs
+use hercules::{
+    async_trait, Arguments, FunctionContext, PlainValue, Result, RuntimeFunctionHandler,
+};
+
+#[hercules::runtime_function(
+    identifier = "fibonacci_runtime",
+    signature = "(test: NUMBER): NUMBER",
+    name(en_US = "Fibonacci (Runtime)"),
+    display_message(en_US = "Computes the n-th Fibonacci number"),
+    omit_definition
+)]
+#[parameter(runtime_name = "test", name(en_US = "N"))]
+pub struct FibonacciRuntimeFunction;
+
+#[async_trait]
+impl RuntimeFunctionHandler for FibonacciRuntimeFunction {
+    async fn run(&self, context: &FunctionContext, args: &Arguments) -> Result<PlainValue> {
+        let n: u64 = args.get("test")?;
+
+        log::debug!(
+            "computing fibonacci({n}) for project={} execution={}",
+            context.project_id,
+            context.execution_id
+        );
+        Ok(fib(n).into())
+    }
+}
+
+fn fib(n: u64) -> u64 {
+    if n <= 1 {
+        n
+    } else {
+        fib(n - 1) + fib(n - 2)
+    }
+}
+```
+
+`omit_definition` prevents Hercules from auto-publishing this runtime function as its own public function — we'll
+define that separately below.
+</Tab>
+</Tabs>
 
 ## 2. Create the Function
 
 A `Function` extends the `RuntimeFunction` and adds public-facing metadata without changing the implementation.
+
+<Tabs items={['TypeScript', 'Rust']}>
+<Tab value="TypeScript">
 
 ```ts
 // src/functions/fibonacciFunction.ts
@@ -68,7 +125,32 @@ import { FibonacciRuntimeFunction } from './fibonacciRuntimeFunction.js';
 export class FibonacciFunction extends FibonacciRuntimeFunction {}
 ```
 
+</Tab>
+<Tab value="Rust">
+`#[hercules::function(base = ...)]` plays the same role as `extends` here: it points at the runtime function that
+actually executes, and carries only metadata overrides — no `run()` of its own.
+
+```rust
+// src/functions/fibonacci_function.rs
+use super::fibonacci_runtime_function::FibonacciRuntimeFunction;
+
+#[hercules::function(base = FibonacciRuntimeFunction, identifier = "fibonacci")]
+#[parameter(
+    runtime_name = "test",
+    name(en_US = "Input Number"),
+    description(en_US = "The position in the Fibonacci sequence"),
+    default_value = 10
+)]
+pub struct FibonacciFunction;
+```
+
+</Tab>
+</Tabs>
+
 ## 3. Create the RuntimeEvent
+
+<Tabs items={['TypeScript', 'Rust']}>
+<Tab value="TypeScript">
 
 ```ts
 // src/events/userCreatedRuntimeEvent.ts
@@ -86,7 +168,32 @@ import { Identifier, Signature, Name, EventSetting } from '@code0-tech/hercules'
 export class UserCreatedRuntimeEvent {}
 ```
 
+</Tab>
+<Tab value="Rust">
+
+```rust
+// src/events/user_created_runtime_event.rs
+#[hercules::runtime_event(
+    identifier = "user_created",
+    signature = "(userId: NUMBER): void",
+    name(en_US = "User Created")
+)]
+#[setting(
+    identifier = "FILTER_ROLE",
+    name(en_US = "Role Filter"),
+    description(en_US = "Only trigger for users with this role"),
+    optional
+)]
+pub struct UserCreatedRuntimeEvent;
+```
+
+</Tab>
+</Tabs>
+
 ## 4. Create the Event
+
+<Tabs items={['TypeScript', 'Rust']}>
+<Tab value="TypeScript">
 
 ```ts
 // src/events/userCreatedEvent.ts
@@ -99,8 +206,30 @@ import { UserCreatedRuntimeEvent } from './userCreatedRuntimeEvent.js';
 export class UserCreatedEvent extends UserCreatedRuntimeEvent {}
 ```
 
+</Tab>
+<Tab value="Rust">
+
+```rust
+// src/events/user_created_event.rs
+use super::user_created_runtime_event::UserCreatedRuntimeEvent;
+
+#[hercules::event(
+    base = UserCreatedRuntimeEvent,
+    identifier = "user_created_event",
+    name(en_US = "On User Created")
+)]
+pub struct UserCreatedEvent;
+```
+
+`editable` defaults to `false`, so there's nothing to set explicitly here — add the bare `editable` flag to turn it
+on.
+</Tab>
+</Tabs>
+
 ## 5. Create the DataType
 
+<Tabs items={['TypeScript', 'Rust']}>
+<Tab value="TypeScript">
 Data types are backed by a Zod schema. Decorate the class with `@Identifier`, `@Name`, and `@Schema`.
 
 ```ts
@@ -116,7 +245,29 @@ const EmailSchema = z.string().regex(/^[^@]+@[^@]+\.[^@]+$/);
 export class EmailDataType {}
 ```
 
+</Tab>
+<Tab value="Rust">
+Data types are derived from a real Rust type's `schemars::JsonSchema` impl instead of a hand-written schema DSL —
+`schemars`' own validation attributes (`#[schemars(regex(...))]`) double as the wire validation rules.
+
+```rust
+// src/data_types/email_data_type.rs
+use hercules::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+#[hercules::data_type(identifier = "email_address", name(en_US = "Email Address"))]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(transparent)]
+pub struct EmailAddress(#[schemars(regex(pattern = r"^[^@]+@[^@]+\.[^@]+$"))] pub String);
+```
+
+</Tab>
+</Tabs>
+
 ## 6. Wire It All Together
+
+<Tabs items={['TypeScript', 'Rust']}>
+<Tab value="TypeScript">
 
 ```ts
 // src/index.ts
@@ -165,9 +316,74 @@ action.connect(process.env.AUTH_TOKEN ?? 'token').catch((err: unknown) => {
 });
 ```
 
+</Tab>
+<Tab value="Rust">
+Every type above already registered itself when its module got linked into the binary, so there's nothing left to
+wire up beyond building the `Action` and connecting it:
+
+```rust
+// src/main.rs
+mod data_types;
+mod events;
+mod functions;
+
+use hercules::{Action, ConfigurationDefinition, HerculesEvent, Translation};
+use tokio_stream::StreamExt;
+
+fn env(key: &str, default: &str) -> String {
+    std::env::var(key).unwrap_or_else(|_| default.to_string())
+}
+
+fn build_action() -> Action {
+    Action::new(env("ACTION_ID", "example-action"), env("VERSION", "0.0.0"))
+        .aquila_url(env("AQUILA_URL", "127.0.0.1:8081"))
+        .author("my-org")
+        .icon("tabler:bolt")
+        .documentation("A simple example action")
+        .name([Translation::new("en-US", "Example Action")])
+        .configuration(
+            ConfigurationDefinition::new("EXAMPLE_CONFIG", "string")
+                .name([Translation::new("en-US", "Example Config")]),
+        )
+}
+
+#[tokio::main]
+async fn main() -> hercules::Result<()> {
+    let action = build_action();
+    let mut events = action.subscribe();
+
+    // The returned `Connected` handle can be discarded immediately: the
+    // background dispatch task (started inside `connect`) holds its own
+    // `Arc` to the shared connection state.
+    action
+        .connect(env("AUTH_TOKEN", "token"), None)
+        .await
+        .unwrap_or_else(|err| panic!("failed to connect to Aquila: {err}"));
+
+    // React to connection lifecycle events on the main task for as long as
+    // the process runs. Panicking here (unlike inside a spawned task) takes
+    // the whole process down on an unrecoverable stream error.
+    while let Some(event) = events.next().await {
+        match event {
+            HerculesEvent::Connected => log::info!("connected to Aquila"),
+            HerculesEvent::Error(error) => panic!("Aquila stream error: {error}"),
+            _ => {}
+        }
+    }
+
+    Ok(())
+}
+```
+
+</Tab>
+</Tabs>
+
 ## Firing an Event
 
 To fire the `user_created` event from within your action (e.g. after a webhook call):
+
+<Tabs items={['TypeScript', 'Rust']}>
+<Tab value="TypeScript">
 
 ```ts
 await action.fire(UserCreatedRuntimeEvent, projectId, { userId: 42 });
@@ -175,3 +391,14 @@ await action.fire(UserCreatedRuntimeEvent, projectId, { userId: 42 });
 
 The second argument is the project ID this event belongs to, and the third is the payload matching the event's
 signature.
+</Tab>
+<Tab value="Rust">
+
+```rust
+action.fire("user_created", project_id, serde_json::json!({ "userId": 42 }))?;
+```
+
+The second argument is the project ID this event belongs to, and the third is the payload matching the event's
+signature.
+</Tab>
+</Tabs>

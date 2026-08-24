@@ -3,6 +3,7 @@ The action sdk to connect with aquila
 
 This action sdk is currently implemented in:
 - [Typescript](./ts/README.md)
+- [Rust](./rust/README.md)
 
 # GRPC Communcation Flow
 

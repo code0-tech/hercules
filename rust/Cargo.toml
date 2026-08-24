@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+members = [
+    "hercules",
+    "hercules-macros",
+    "examples/simple-example-rs",
+]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+license = "ISC"
+repository = "https://github.com/code0-tech/hercules"
+
+[workspace.dependencies]
+tucana = { version = "0.0.82", default-features = false, features = ["aquila"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+tonic = "0.14"
+async-trait = "0.1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+schemars = "1"
+log = "0.4"
+inventory = "0.3"
+tokio-stream = { version = "0.1", features = ["sync"] }
+uuid = { version = "1", features = ["v4"] }
