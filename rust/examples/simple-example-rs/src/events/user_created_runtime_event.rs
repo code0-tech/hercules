@@ -1,4 +1,4 @@
-#[hercules::runtime_event(
+#[hercules_sdk::runtime_event(
     identifier = "user_created",
     signature = "(): { userId: NUMBER }",
     name(en_US = "User created event"),

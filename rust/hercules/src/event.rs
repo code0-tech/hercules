@@ -1,7 +1,7 @@
 use crate::meta::{EventMeta, RuntimeEventMeta};
 
 /// The internal definition of an event/flow-type an action can fire.
-/// Attach `#[hercules::runtime_event(identifier = "...", signature = "...")]`
+/// Attach `#[hercules_sdk::runtime_event(identifier = "...", signature = "...")]`
 /// to a (typically unit) struct to implement this via `meta()`.
 ///
 /// Unlike [`crate::function::RuntimeFunction`], events carry no behavior —

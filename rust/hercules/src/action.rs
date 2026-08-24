@@ -23,7 +23,7 @@ use crate::types::{ConfigurationDefinition, ScalingOption, Translation};
 
 const EVENT_CHANNEL_CAPACITY: usize = 256;
 
-/// An action under construction: `#[hercules::runtime_function]` and friends
+/// An action under construction: `#[hercules_sdk::runtime_function]` and friends
 /// register themselves automatically (see [`crate::registration`]), so most
 /// actions need nothing beyond `Action::new(...)` plus a handful of chained
 /// setters. [`Action::register_runtime_function`] and friends remain for the
@@ -59,7 +59,7 @@ pub struct Action {
 impl Action {
     /// Only `identifier` and `version` are required; everything else has a
     /// sensible empty default and can be set via the chained setters below.
-    /// Every `#[hercules::...]`-annotated item linked into the binary is
+    /// Every `#[hercules_sdk::...]`-annotated item linked into the binary is
     /// registered automatically as part of this call.
     pub fn new(identifier: impl Into<String>, version: impl Into<String>) -> Self {
         let (events_tx, _) = broadcast::channel(EVENT_CHANNEL_CAPACITY);
@@ -141,7 +141,7 @@ impl Action {
     /// runs it. Unless its `meta()` sets `omit_definition`, it is also
     /// published as a same-named public [`Function`].
     ///
-    /// Only needed for handlers `#[hercules::runtime_function(manual)]`
+    /// Only needed for handlers `#[hercules_sdk::runtime_function(manual)]`
     /// opted out of auto-registration for — typically because they carry
     /// injected state a macro has no way to construct on its own.
     pub fn register_runtime_function<T: RuntimeFunction>(&mut self, instance: T) {

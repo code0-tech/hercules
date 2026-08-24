@@ -116,5 +116,5 @@ jobs:
         run: cargo publish -p hercules-macros --allow-dirty
       - name: Wait for crates.io index
         run: sleep 30
-      - name: Publish hercules
-        run: cargo publish -p hercules --allow-dirty
+      - name: Publish hercules-sdk
+        run: cargo publish -p hercules-sdk --allow-dirty

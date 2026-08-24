@@ -29,13 +29,13 @@ fn run(
 }
 
 /// Declares a function Aquila can invoke. See the crate-level docs on
-/// `hercules::RuntimeFunction` for the full attribute grammar.
+/// `hercules_sdk::RuntimeFunction` for the full attribute grammar.
 #[proc_macro_attribute]
 pub fn runtime_function(attr: TokenStream, item: TokenStream) -> TokenStream {
     run(runtime_function::expand, attr, item)
 }
 
-/// Declares a public [`hercules::Function`] that overrides metadata on top
+/// Declares a public [`hercules_sdk::Function`] that overrides metadata on top
 /// of a `base = SomeRuntimeFunction`.
 #[proc_macro_attribute]
 pub fn function(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -54,7 +54,7 @@ pub fn runtime_event(attr: TokenStream, item: TokenStream) -> TokenStream {
     run(runtime_event::expand, attr, item)
 }
 
-/// Declares a public [`hercules::Event`] that overrides metadata on top of a
+/// Declares a public [`hercules_sdk::Event`] that overrides metadata on top of a
 /// `base = SomeRuntimeEvent`.
 #[proc_macro_attribute]
 pub fn event(attr: TokenStream, item: TokenStream) -> TokenStream {

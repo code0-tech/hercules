@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-hercules = { path = "../../hercules" }
+hercules-sdk = { path = "../../hercules" }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tokio-stream.workspace = true
 serde = { workspace = true }

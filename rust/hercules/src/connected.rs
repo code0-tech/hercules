@@ -113,8 +113,8 @@ impl Connected {
     /// `identifier` and awaits all of their results.
     ///
     /// `identifier` is the same string a flow's type is registered under —
-    /// what `#[hercules::event(identifier = "...")]` /
-    /// `#[hercules::runtime_event(identifier = "...")]` declare on the
+    /// what `#[hercules_sdk::event(identifier = "...")]` /
+    /// `#[hercules_sdk::runtime_event(identifier = "...")]` declare on the
     /// corresponding [`crate::event::Event`]/[`crate::event::RuntimeEvent`].
     /// Flows are tracked from the `ActionFlowUpdate` messages Aquila streams
     /// (see [`Connected::flows`]); each match is run via
