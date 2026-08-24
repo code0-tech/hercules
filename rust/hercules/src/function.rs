@@ -16,7 +16,7 @@ pub trait RuntimeFunctionHandler: Send + Sync + 'static {
 }
 
 /// A function Aquila can invoke. Implemented by attaching
-/// `#[hercules::runtime_function(identifier = "...", signature = "...")]` to
+/// `#[hercules_sdk::runtime_function(identifier = "...", signature = "...")]` to
 /// a struct, which generates `meta()`; the struct separately implements
 /// [`RuntimeFunctionHandler`] with the actual logic.
 pub trait RuntimeFunction: RuntimeFunctionHandler {

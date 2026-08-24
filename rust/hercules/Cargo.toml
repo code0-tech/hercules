@@ -1,5 +1,5 @@
 [package]
-name = "hercules"
+name = "hercules-sdk"
 description = "Rust SDK for the hercules action runner"
 version.workspace = true
 edition.workspace = true

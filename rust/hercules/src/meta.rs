@@ -1,8 +1,8 @@
-//! The metadata shapes produced by `#[hercules::...]` attribute macros, and
+//! The metadata shapes produced by `#[hercules_sdk::...]` attribute macros, and
 //! the merge rules that combine a `Function`/`Event`'s overrides with the
 //! `RuntimeFunction`/`RuntimeEvent` they extend.
 //!
-//! Each `#[hercules::runtime_function]` / `#[hercules::function]` / ... macro
+//! Each `#[hercules_sdk::runtime_function]` / `#[hercules_sdk::function]` / ... macro
 //! generates a `meta()` associated function that builds one of these shapes
 //! once, at compile time — there's no runtime reflection or registry lookup
 //! involved in producing it.
@@ -59,7 +59,7 @@ pub struct RuntimeFunctionMeta {
     pub throws_error: bool,
     /// If set, this runtime function is never published as a public
     /// [`crate::function::Function`] on its own — only via an explicit
-    /// `#[hercules::function(base = ...)]` type.
+    /// `#[hercules_sdk::function(base = ...)]` type.
     pub omit_definition: bool,
     pub parameters: Vec<ParameterMeta>,
     pub linked_data_type_identifiers: Vec<String>,

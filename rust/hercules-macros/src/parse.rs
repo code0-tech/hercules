@@ -1,4 +1,4 @@
-//! Shared parsing for the `#[hercules::...]` attribute macros' argument
+//! Shared parsing for the `#[hercules_sdk::...]` attribute macros' argument
 //! lists (`identifier = "...", name(en_US = "...")`) and for the repeatable
 //! helper attributes (`#[parameter(...)]`, `#[setting(...)]`) they read off
 //! a struct and strip before re-emitting it.
@@ -132,7 +132,7 @@ impl AttrArgs {
 /// order, parsing each occurrence's arguments as [`AttrArgs`]. This is how
 /// `#[parameter(...)]`/`#[setting(...)]` can appear multiple times on one
 /// struct: rustc never resolves them as real attributes because the outer
-/// `#[hercules::...]` macro (which runs first) strips them before
+/// `#[hercules_sdk::...]` macro (which runs first) strips them before
 /// re-emitting the struct.
 pub fn take_repeated(item: &mut ItemStruct, name: &str) -> syn::Result<Vec<AttrArgs>> {
     let mut found = Vec::new();
@@ -210,5 +210,5 @@ pub fn optional_string(value: syn::Result<Option<String>>) -> syn::Result<TokenS
 }
 
 pub fn hercules_path() -> TokenStream {
-    quote!(::hercules)
+    quote!(::hercules_sdk)
 }

@@ -22,7 +22,7 @@ use crate::types::Translation;
 
 /// A custom data type an action contributes to the module's vocabulary.
 /// Implemented by deriving `schemars::JsonSchema` and attaching
-/// `#[hercules::data_type(identifier = "...")]`, which generates `meta()`.
+/// `#[hercules_sdk::data_type(identifier = "...")]`, which generates `meta()`.
 pub trait DataType: JsonSchema + Send + Sync + 'static {
     fn meta() -> DataTypeMeta;
 }

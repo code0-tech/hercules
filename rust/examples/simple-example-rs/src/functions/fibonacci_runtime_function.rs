@@ -1,8 +1,8 @@
-use hercules::{
+use hercules_sdk::{
     async_trait, Arguments, FunctionContext, PlainValue, Result, RuntimeFunctionHandler,
 };
 
-#[hercules::runtime_function(
+#[hercules_sdk::runtime_function(
     identifier = "fibonacci_runtime",
     signature = "(test: NUMBER): NUMBER",
     name(en_US = "Fibonacci (Runtime)"),

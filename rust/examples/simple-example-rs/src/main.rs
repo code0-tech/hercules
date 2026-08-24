@@ -2,7 +2,7 @@ mod data_types;
 mod events;
 mod functions;
 
-use hercules::{Action, ConfigurationDefinition, HerculesEvent, Translation};
+use hercules_sdk::{Action, ConfigurationDefinition, HerculesEvent, Translation};
 use tokio_stream::StreamExt;
 
 fn env(key: &str, default: &str) -> String {
@@ -11,9 +11,9 @@ fn env(key: &str, default: &str) -> String {
 
 /// `FibonacciRuntimeFunction`, `FibonacciFunction`, `EmailAddress` and
 /// `UserCreatedRuntimeEvent` never appear below — attaching
-/// `#[hercules::runtime_function]` / `function` / `data_type` /
+/// `#[hercules_sdk::runtime_function]` / `function` / `data_type` /
 /// `runtime_event` registered each of them automatically as part of
-/// `Action::new` (see `hercules::registration`). There's simply nothing left
+/// `Action::new` (see `hercules_sdk::registration`). There's simply nothing left
 /// to wire up by hand for this example.
 fn build_action() -> Action {
     Action::new(env("ACTION_ID", "example-action"), env("VERSION", "0.0.0"))
@@ -29,7 +29,7 @@ fn build_action() -> Action {
 }
 
 #[tokio::main]
-async fn main() -> hercules::Result<()> {
+async fn main() -> hercules_sdk::Result<()> {
     // RUST_LOG=hercules=debug,simple_example_rs=debug cargo run
     env_logger::init();
 
@@ -61,7 +61,7 @@ async fn main() -> hercules::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use hercules::wire::Module;
+    use hercules_sdk::wire::Module;
 
     use super::build_action;
 

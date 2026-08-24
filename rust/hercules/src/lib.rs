@@ -1,24 +1,24 @@
 //! Rust SDK for building hercules actions that connect to Aquila.
 //!
-//! Attaching `#[hercules::runtime_function]` (or `data_type`, `event`, ...)
+//! Attaching `#[hercules_sdk::runtime_function]` (or `data_type`, `event`, ...)
 //! to a type is enough to register it — see [`registration`] — so most
 //! actions need nothing beyond a handful of chained setters:
 //!
 //! ```no_run
-//! use hercules::{Action, Arguments, FunctionContext, RuntimeFunction, RuntimeFunctionHandler, async_trait};
+//! use hercules_sdk::{Action, Arguments, FunctionContext, RuntimeFunction, RuntimeFunctionHandler, async_trait};
 //!
-//! #[hercules::runtime_function(identifier = "greet", signature = "(name: TEXT): TEXT")]
+//! #[hercules_sdk::runtime_function(identifier = "greet", signature = "(name: TEXT): TEXT")]
 //! struct Greet;
 //!
 //! #[async_trait]
 //! impl RuntimeFunctionHandler for Greet {
-//!     async fn run(&self, _ctx: &FunctionContext, args: &Arguments) -> hercules::Result<hercules::PlainValue> {
+//!     async fn run(&self, _ctx: &FunctionContext, args: &Arguments) -> hercules_sdk::Result<hercules_sdk::PlainValue> {
 //!         let name: String = args.get("name")?;
 //!         Ok(format!("Hello, {name}!").into())
 //!     }
 //! }
 //!
-//! # async fn run() -> hercules::Result<()> {
+//! # async fn run() -> hercules_sdk::Result<()> {
 //! let action = Action::new("example", "0.1.0").author("me").icon("tabler:bolt");
 //! let action = action.connect("token", Some("127.0.0.1:8081".into())).await?;
 //! action.fire("greeted", serde_json::json!({ "name": "world" })).await?;
@@ -63,14 +63,14 @@ pub use types::{
     Translation, UniquenessScope,
 };
 
-/// Re-exported so `#[hercules::runtime_function]`-annotated types can
+/// Re-exported so `#[hercules_sdk::runtime_function]`-annotated types can
 /// implement `RuntimeFunctionHandler` without adding `async-trait` to their
 /// own `Cargo.toml`.
 pub use async_trait::async_trait;
 /// Re-exported so macro-generated code can submit a [`Registration`] without
 /// requiring `inventory` as a direct dependency of the consuming crate.
 pub use inventory;
-/// Re-exported for deriving [`DataType`] schemas: `#[derive(hercules::JsonSchema)]`.
+/// Re-exported for deriving [`DataType`] schemas: `#[derive(hercules_sdk::JsonSchema)]`.
 pub use schemars::JsonSchema;
 /// Re-exported so macro-generated code can build [`PlainValue`]s (`serde_json::json!`)
 /// without requiring `serde_json` as a direct dependency of the consuming crate.

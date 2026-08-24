@@ -1,4 +1,4 @@
-# hercules
+# hercules-sdk
 
 Rust SDK for building Hercules actions that connect to Aquila. An action
 registers the functions it exposes, the events it can fire, and any custom
@@ -14,23 +14,21 @@ later.
 
 ## Installation
 
-Not yet published to crates.io — until then, link it locally by path:
-
 ```toml
 [dependencies]
-hercules = { path = "../hercules" }
+hercules-sdk = "0"
 ```
 
 ## Quick start
 
-Attach `#[hercules::runtime_function]` to a struct and implement
+Attach `#[hercules_sdk::runtime_function]` to a struct and implement
 `RuntimeFunctionHandler` — that's enough to register it, no separate call
 required:
 
 ```rust
-use hercules::{Arguments, FunctionContext, PlainValue, Result, RuntimeFunctionHandler, async_trait};
+use hercules_sdk::{Arguments, FunctionContext, PlainValue, Result, RuntimeFunctionHandler, async_trait};
 
-#[hercules::runtime_function(identifier = "add", signature = "(a: NUMBER, b: NUMBER): NUMBER")]
+#[hercules_sdk::runtime_function(identifier = "add", signature = "(a: NUMBER, b: NUMBER): NUMBER")]
 struct Add;
 
 #[async_trait]
@@ -44,7 +42,7 @@ impl RuntimeFunctionHandler for Add {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let action = hercules::Action::new("my-action", "0.1.0").aquila_url("127.0.0.1:8081");
+    let action = hercules_sdk::Action::new("my-action", "0.1.0").aquila_url("127.0.0.1:8081");
 
     let action = action.connect("token", None).await?;
     std::future::pending::<()>().await; // keep dispatching execution requests
@@ -72,17 +70,17 @@ cargo run
 A `RuntimeFunction` holds the actual implementation. A `Function` is an
 optional, separately-identified public variant of it — same execution
 behavior, its own metadata (identifier, parameter defaults, ...). Use
-`#[hercules::function(base = ...)]` when you want to expose a runtime
+`#[hercules_sdk::function(base = ...)]` when you want to expose a runtime
 function under different public-facing metadata without duplicating logic:
 
 ```rust
-#[hercules::function(base = Add, identifier = "sum")]
+#[hercules_sdk::function(base = Add, identifier = "sum")]
 #[parameter(runtime_name = "a", default_value = 0)]
 struct Sum;
 ```
 
-Events follow the same pattern: `#[hercules::runtime_event]` for the
-internal definition, `#[hercules::event(base = ...)]` for a public,
+Events follow the same pattern: `#[hercules_sdk::runtime_event]` for the
+internal definition, `#[hercules_sdk::event(base = ...)]` for a public,
 user-facing variant.
 
 ## Data types
@@ -92,10 +90,10 @@ instead of a hand-written schema DSL — `schemars`' own validation attributes
 double as the wire validation rules:
 
 ```rust
-use hercules::JsonSchema;
+use hercules_sdk::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[hercules::data_type(identifier = "email_address", name(en_US = "Email Address"))]
+#[hercules_sdk::data_type(identifier = "email_address", name(en_US = "Email Address"))]
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
 pub struct EmailAddress(#[schemars(regex(pattern = r"^[^@]+@[^@]+\.[^@]+$"))] pub String);
