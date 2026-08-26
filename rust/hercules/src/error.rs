@@ -38,6 +38,15 @@ pub enum HerculesError {
     #[error("failed to send on the Aquila request stream")]
     StreamClosed,
 
+    /// The bounded outbound request queue has no remaining capacity. Callers
+    /// can retry later instead of allowing queued requests to consume memory
+    /// without a limit.
+    #[error("Aquila request queue is full (capacity {capacity})")]
+    Overloaded { capacity: usize },
+
+    #[error("Aquila request queue capacity must be greater than zero")]
+    InvalidQueueCapacity,
+
     #[error(
         "cannot generate a type string for data type {identifier:?}: it contains a recursive \
          schema that can't be inlined. Register the nested schema as its own data type so it \

@@ -44,9 +44,9 @@ mod sync;
 mod types;
 mod value;
 
-pub use action::Action;
+pub use action::{Action, DEFAULT_REQUEST_QUEUE_CAPACITY};
 pub use arguments::Arguments;
-pub use connected::Connected;
+pub use connected::{Connected, ConnectedMetrics};
 pub use data_type::{DataType, DataTypeDef, DataTypeRule};
 pub use error::{HerculesError, Result};
 pub use event::{Event, RuntimeEvent};
