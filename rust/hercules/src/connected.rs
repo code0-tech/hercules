@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -29,6 +30,28 @@ pub(crate) struct RuntimeFunctionEntry {
     pub handler: Arc<dyn RuntimeFunctionHandler>,
 }
 
+pub(crate) struct PendingExecution {
+    token: u64,
+    sender: oneshot::Sender<Result<PlainValue>>,
+}
+
+/// Point-in-time health counters for the outbound Aquila request path.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ConnectedMetrics {
+    /// Requests currently buffered, excluding one currently being consumed
+    /// by the transport.
+    pub queue_depth: usize,
+    /// Configured upper bound for `queue_depth`.
+    pub queue_capacity: usize,
+    /// Number of outbound submissions that encountered a full queue. Caller
+    /// requests are rejected; mandatory execution results wait for capacity.
+    pub queue_saturation_count: u64,
+    /// Whole-flow executions currently awaiting a response from Aquila.
+    pub pending_flow_executions: usize,
+    /// Sub-flow executions currently awaiting a response from Aquila.
+    pub pending_sub_flow_executions: usize,
+}
+
 pub(crate) struct ConnectedInner {
     pub identifier: String,
     pub version: String,
@@ -41,7 +64,7 @@ pub(crate) struct ConnectedInner {
     /// [`Connected::execute_flow`]) and is still awaiting a result for,
     /// keyed by the `execution_identifier` that correlates the eventual
     /// `ActionFlowExecutionResponse`.
-    pub pending_flow_executions: Mutex<HashMap<String, oneshot::Sender<Result<PlainValue>>>>,
+    pub(crate) pending_flow_executions: Mutex<HashMap<String, PendingExecution>>,
     /// Sub flow executions this action has requested (via
     /// [`Connected::execute_sub_flow`]) and is still awaiting a result for,
     /// keyed by a locally-generated `correlation_identifier` — not the sub
@@ -50,8 +73,10 @@ pub(crate) struct ConnectedInner {
     /// iteration), so it cannot disambiguate concurrent or out-of-order
     /// invocations the way the correlation identifier can. See
     /// [`crate::types::FunctionContext::sub_flow_parameters`].
-    pub pending_sub_flow_executions: Mutex<HashMap<String, oneshot::Sender<Result<PlainValue>>>>,
-    pub request_tx: mpsc::UnboundedSender<ActionTransferRequest>,
+    pub(crate) pending_sub_flow_executions: Mutex<HashMap<String, PendingExecution>>,
+    pub next_pending_token: AtomicU64,
+    pub request_tx: mpsc::Sender<ActionTransferRequest>,
+    pub queue_saturation_count: AtomicU64,
     pub events_tx: broadcast::Sender<HerculesEvent>,
 }
 
@@ -66,6 +91,31 @@ impl ConnectedInner {
     /// for.
     fn next_execution_id(&self) -> String {
         uuid::Uuid::new_v4().to_string()
+    }
+
+    fn next_pending_token(&self) -> u64 {
+        self.next_pending_token.fetch_add(1, Ordering::Relaxed)
+    }
+}
+
+/// Removes an unresolved pending entry when its caller's future is dropped.
+/// The token prevents an old future from deleting a newer entry that happens
+/// to reuse the same external identifier.
+struct PendingExecutionGuard<'a> {
+    pending: &'a Mutex<HashMap<String, PendingExecution>>,
+    identifier: String,
+    token: u64,
+}
+
+impl Drop for PendingExecutionGuard<'_> {
+    fn drop(&mut self) {
+        let mut pending = sync::lock(self.pending);
+        if pending
+            .get(&self.identifier)
+            .is_some_and(|entry| entry.token == self.token)
+        {
+            pending.remove(&self.identifier);
+        }
     }
 }
 
@@ -101,6 +151,20 @@ impl Connected {
 
     pub fn subscribe(&self) -> impl Stream<Item = HerculesEvent> + Send + 'static {
         event_stream(&self.inner.events_tx)
+    }
+
+    /// Returns a point-in-time snapshot of outbound queue pressure and
+    /// outstanding executions. The saturation counter is cumulative for the
+    /// lifetime of this connection.
+    pub fn metrics(&self) -> ConnectedMetrics {
+        let queue_capacity = self.inner.request_tx.max_capacity();
+        ConnectedMetrics {
+            queue_depth: queue_capacity - self.inner.request_tx.capacity(),
+            queue_capacity,
+            queue_saturation_count: self.inner.queue_saturation_count.load(Ordering::Relaxed),
+            pending_flow_executions: sync::lock(&self.inner.pending_flow_executions).len(),
+            pending_sub_flow_executions: sync::lock(&self.inner.pending_sub_flow_executions).len(),
+        }
     }
 
     /// The configuration Aquila has resolved for `project_id`, if any has
@@ -168,6 +232,21 @@ impl Connected {
         flow_id: impl Into<String>,
         payload: PlainValue,
     ) -> Result<PlainValue> {
+        self.try_execute_flow(flow_id, payload).await
+    }
+
+    /// Attempts to enqueue a flow execution without waiting for outbound
+    /// queue capacity. Returns [`HerculesError::Overloaded`] immediately when
+    /// the configured queue is full.
+    ///
+    /// [`Connected::execute_flow`] has the same bounded admission semantics;
+    /// this explicitly named form is useful at request boundaries where an
+    /// overload response is part of the caller-facing contract.
+    pub async fn try_execute_flow(
+        &self,
+        flow_id: impl Into<String>,
+        payload: PlainValue,
+    ) -> Result<PlainValue> {
         let execution_identifier = self.inner.next_execution_id();
         self.execute_flow_with_id(execution_identifier, flow_id, payload)
             .await
@@ -194,7 +273,16 @@ impl Connected {
         payload: PlainValue,
     ) -> Result<PlainValue> {
         let (tx, rx) = oneshot::channel();
-        sync::lock(&self.inner.pending_flow_executions).insert(execution_identifier.clone(), tx);
+        let token = self.inner.next_pending_token();
+        sync::lock(&self.inner.pending_flow_executions).insert(
+            execution_identifier.clone(),
+            PendingExecution { token, sender: tx },
+        );
+        let _pending_guard = PendingExecutionGuard {
+            pending: &self.inner.pending_flow_executions,
+            identifier: execution_identifier.clone(),
+            token,
+        };
 
         let request = ActionTransferRequest {
             data: Some(action_transfer_request::Data::FlowExecution(
@@ -205,10 +293,7 @@ impl Connected {
                 },
             )),
         };
-        if let Err(err) = send(&self.inner, request) {
-            sync::lock(&self.inner.pending_flow_executions).remove(&execution_identifier);
-            return Err(err);
-        }
+        try_send_caller_request(&self.inner, request)?;
 
         rx.await.map_err(|_| HerculesError::StreamClosed)?
     }
@@ -230,8 +315,16 @@ impl Connected {
         // repeatedly and responses arrive out of order.
         let correlation_identifier = self.inner.next_execution_id();
         let (tx, rx) = oneshot::channel();
-        sync::lock(&self.inner.pending_sub_flow_executions)
-            .insert(correlation_identifier.clone(), tx);
+        let token = self.inner.next_pending_token();
+        sync::lock(&self.inner.pending_sub_flow_executions).insert(
+            correlation_identifier.clone(),
+            PendingExecution { token, sender: tx },
+        );
+        let _pending_guard = PendingExecutionGuard {
+            pending: &self.inner.pending_sub_flow_executions,
+            identifier: correlation_identifier.clone(),
+            token,
+        };
 
         let request = ActionTransferRequest {
             data: Some(action_transfer_request::Data::SubFlowExecution(
@@ -242,20 +335,40 @@ impl Connected {
                 },
             )),
         };
-        if let Err(err) = send(&self.inner, request) {
-            sync::lock(&self.inner.pending_sub_flow_executions).remove(&correlation_identifier);
-            return Err(err);
-        }
+        try_send_caller_request(&self.inner, request)?;
 
         rx.await.map_err(|_| HerculesError::StreamClosed)?
     }
 }
 
-fn send(inner: &ConnectedInner, request: ActionTransferRequest) -> Result<()> {
+/// Caller-initiated work is optional admission: fail fast so an overloaded
+/// request boundary can shed load instead of adding another waiter.
+fn try_send_caller_request(inner: &ConnectedInner, request: ActionTransferRequest) -> Result<()> {
     log::trace!("sending {request:?}");
+    match inner.request_tx.try_send(request) {
+        Ok(()) => Ok(()),
+        Err(mpsc::error::TrySendError::Full(_)) => {
+            inner.queue_saturation_count.fetch_add(1, Ordering::Relaxed);
+            Err(HerculesError::Overloaded {
+                capacity: inner.request_tx.max_capacity(),
+            })
+        }
+        Err(mpsc::error::TrySendError::Closed(_)) => Err(HerculesError::StreamClosed),
+    }
+}
+
+/// Runtime execution results are mandatory protocol traffic. They share the
+/// same bounded queue, but wait for capacity instead of being discarded when
+/// caller-initiated traffic has filled it.
+async fn send_mandatory(inner: &ConnectedInner, request: ActionTransferRequest) -> Result<()> {
+    log::trace!("sending mandatory {request:?}");
+    if inner.request_tx.capacity() == 0 {
+        inner.queue_saturation_count.fetch_add(1, Ordering::Relaxed);
+    }
     inner
         .request_tx
         .send(request)
+        .await
         .map_err(|_| HerculesError::StreamClosed)
 }
 
@@ -299,9 +412,9 @@ where
 /// Resolves every outstanding sender in a pending-execution map with
 /// [`HerculesError::StreamClosed`], used when the response stream has ended
 /// and nothing will ever answer them.
-fn drain_pending(pending: &Mutex<HashMap<String, oneshot::Sender<Result<PlainValue>>>>) {
-    for (_, sender) in sync::lock(pending).drain() {
-        let _ = sender.send(Err(HerculesError::StreamClosed));
+fn drain_pending(pending: &Mutex<HashMap<String, PendingExecution>>) {
+    for (_, entry) in sync::lock(pending).drain() {
+        let _ = entry.sender.send(Err(HerculesError::StreamClosed));
     }
 }
 
@@ -441,10 +554,11 @@ async fn handle_execution(inner: Arc<ConnectedInner>, execution: ActionExecution
             },
         )),
     };
-    if send(&inner, request).is_err() {
+    if let Err(err) = send_mandatory(&inner, request).await {
         log::error!(
-            "failed to send execution result for {:?}: stream closed",
-            execution_identifier
+            "failed to send execution result for {:?}: {}",
+            execution_identifier,
+            err
         );
     }
 }
@@ -541,8 +655,8 @@ fn handle_flow_execution_response(
     inner: &Arc<ConnectedInner>,
     response: ActionFlowExecutionResponse,
 ) {
-    let sender = sync::lock(&inner.pending_flow_executions).remove(&response.execution_identifier);
-    let Some(sender) = sender else {
+    let entry = sync::lock(&inner.pending_flow_executions).remove(&response.execution_identifier);
+    let Some(entry) = entry else {
         log::warn!(
             "received a flow execution response for unknown execution {:?}",
             response.execution_identifier
@@ -559,16 +673,16 @@ fn handle_flow_execution_response(
             "flow execution response is missing a result".into(),
         )),
     };
-    let _ = sender.send(outcome);
+    let _ = entry.sender.send(outcome);
 }
 
 fn handle_sub_flow_execution_response(
     inner: &Arc<ConnectedInner>,
     response: ActionSubFlowExecutionResponse,
 ) {
-    let sender =
+    let entry =
         sync::lock(&inner.pending_sub_flow_executions).remove(&response.correlation_identifier);
-    let Some(sender) = sender else {
+    let Some(entry) = entry else {
         log::warn!(
             "received a sub flow execution response for unknown correlation id {:?}",
             response.correlation_identifier
@@ -587,7 +701,7 @@ fn handle_sub_flow_execution_response(
             "sub flow execution response is missing a result".into(),
         )),
     };
-    let _ = sender.send(outcome);
+    let _ = entry.sender.send(outcome);
 }
 
 fn wire_error(code: String, message: String, timestamp: i64, version: &str) -> WireError {
@@ -621,24 +735,45 @@ mod tests {
 
     use super::*;
 
+    struct FixedResultHandler;
+
+    #[async_trait::async_trait]
+    impl RuntimeFunctionHandler for FixedResultHandler {
+        async fn run(&self, _context: &FunctionContext, _args: &Arguments) -> Result<PlainValue> {
+            Ok(serde_json::json!("completed"))
+        }
+    }
+
     /// A bare `ConnectedInner` with no runtime functions and a request
     /// channel the test can inspect, mirroring the shape [`crate::action`]
     /// builds one with in [`crate::Action::connect`].
-    fn test_inner() -> (
-        Arc<ConnectedInner>,
-        mpsc::UnboundedReceiver<ActionTransferRequest>,
-    ) {
-        let (request_tx, request_rx) = mpsc::unbounded_channel();
+    fn test_inner() -> (Arc<ConnectedInner>, mpsc::Receiver<ActionTransferRequest>) {
+        test_inner_with_capacity(16)
+    }
+
+    fn test_inner_with_capacity(
+        capacity: usize,
+    ) -> (Arc<ConnectedInner>, mpsc::Receiver<ActionTransferRequest>) {
+        test_inner_with_runtime_functions(capacity, HashMap::new())
+    }
+
+    fn test_inner_with_runtime_functions(
+        capacity: usize,
+        runtime_functions: HashMap<String, RuntimeFunctionEntry>,
+    ) -> (Arc<ConnectedInner>, mpsc::Receiver<ActionTransferRequest>) {
+        let (request_tx, request_rx) = mpsc::channel(capacity);
         let (events_tx, _events_rx) = broadcast::channel(16);
         let inner = Arc::new(ConnectedInner {
             identifier: "test-action".into(),
             version: "0.0.0".into(),
-            runtime_functions: HashMap::new(),
+            runtime_functions,
             configs: Default::default(),
             flows: Default::default(),
             pending_flow_executions: Default::default(),
             pending_sub_flow_executions: Default::default(),
+            next_pending_token: Default::default(),
             request_tx,
+            queue_saturation_count: Default::default(),
             events_tx,
         });
         (inner, request_rx)
@@ -695,9 +830,21 @@ mod tests {
         let (inner, _request_rx) = test_inner();
 
         let (success_tx, success_rx) = oneshot::channel();
-        sync::lock(&inner.pending_sub_flow_executions).insert("id-a".into(), success_tx);
+        sync::lock(&inner.pending_sub_flow_executions).insert(
+            "id-a".into(),
+            PendingExecution {
+                token: 1,
+                sender: success_tx,
+            },
+        );
         let (failure_tx, failure_rx) = oneshot::channel();
-        sync::lock(&inner.pending_sub_flow_executions).insert("id-b".into(), failure_tx);
+        sync::lock(&inner.pending_sub_flow_executions).insert(
+            "id-b".into(),
+            PendingExecution {
+                token: 2,
+                sender: failure_tx,
+            },
+        );
 
         handle_sub_flow_execution_response(
             &inner,
@@ -871,5 +1018,124 @@ mod tests {
             .expect("execute_flow_with_id hung instead of resolving on stream close")
             .unwrap();
         assert!(matches!(result, Err(HerculesError::StreamClosed)));
+    }
+
+    #[tokio::test]
+    async fn full_request_queue_rejects_flow_without_growing_pending_entries() {
+        let (inner, _request_rx) = test_inner_with_capacity(1);
+        let connected = Connected::new(inner.clone());
+
+        let first = tokio::spawn({
+            let connected = connected.clone();
+            async move {
+                connected
+                    .execute_flow_with_id("flow-first".into(), "flow-1", PlainValue::Null)
+                    .await
+            }
+        });
+
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while connected.metrics().queue_depth != 1 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("first request was not queued");
+
+        let result = connected
+            .execute_flow_with_id("flow-overload".into(), "flow-2", PlainValue::Null)
+            .await;
+        assert!(matches!(
+            result,
+            Err(HerculesError::Overloaded { capacity: 1 })
+        ));
+
+        let metrics = connected.metrics();
+        assert_eq!(metrics.queue_depth, 1);
+        assert_eq!(metrics.queue_capacity, 1);
+        assert_eq!(metrics.queue_saturation_count, 1);
+        assert_eq!(metrics.pending_flow_executions, 1);
+
+        first.abort();
+        assert!(first.await.unwrap_err().is_cancelled());
+        assert_eq!(connected.metrics().pending_flow_executions, 0);
+    }
+
+    #[tokio::test]
+    async fn mandatory_execution_result_waits_for_capacity_and_is_transmitted() {
+        let runtime_functions = HashMap::from([(
+            "fixed-result".to_string(),
+            RuntimeFunctionEntry {
+                meta: RuntimeFunctionMeta {
+                    identifier: "fixed-result".into(),
+                    ..Default::default()
+                },
+                handler: Arc::new(FixedResultHandler),
+            },
+        )]);
+        let (inner, mut request_rx) = test_inner_with_runtime_functions(1, runtime_functions);
+
+        inner
+            .request_tx
+            .try_send(ActionTransferRequest { data: None })
+            .expect("test queue should start empty");
+
+        let execution = tokio::spawn(handle_execution(
+            inner.clone(),
+            ActionExecutionRequest {
+                execution_identifier: "execution-result".into(),
+                function_identifier: "fixed-result".into(),
+                parameters: vec![],
+                project_id: 42,
+            },
+        ));
+
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while inner.queue_saturation_count.load(Ordering::Relaxed) == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("execution result did not wait on the full queue");
+        assert!(!execution.is_finished());
+
+        let placeholder = request_rx.recv().await.expect("placeholder was queued");
+        assert!(placeholder.data.is_none());
+
+        let transmitted = tokio::time::timeout(Duration::from_secs(2), request_rx.recv())
+            .await
+            .expect("execution result did not acquire released queue capacity")
+            .expect("request channel closed before the result was transmitted");
+        match transmitted.data {
+            Some(action_transfer_request::Data::Result(response)) => {
+                assert_eq!(response.execution_identifier, "execution-result");
+                assert!(response.node_result.is_some());
+            }
+            other => panic!("expected an execution result, got {other:?}"),
+        }
+
+        execution.await.expect("execution task panicked");
+    }
+
+    #[tokio::test]
+    async fn cancelling_execute_flow_removes_its_pending_entry() {
+        let (inner, mut request_rx) = test_inner();
+        let connected = Connected::new(inner);
+
+        let execution = tokio::spawn({
+            let connected = connected.clone();
+            async move {
+                connected
+                    .execute_flow_with_id("flow-cancelled".into(), "flow-1", PlainValue::Null)
+                    .await
+            }
+        });
+
+        request_rx.recv().await.expect("flow request was sent");
+        assert_eq!(connected.metrics().pending_flow_executions, 1);
+
+        execution.abort();
+        assert!(execution.await.unwrap_err().is_cancelled());
+        assert_eq!(connected.metrics().pending_flow_executions, 0);
     }
 }

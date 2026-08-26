@@ -2,7 +2,7 @@
 //! and sends the initial `ActionLogon` frame.
 
 use tokio::sync::mpsc;
-use tokio_stream::wrappers::UnboundedReceiverStream;
+use tokio_stream::wrappers::ReceiverStream;
 use tonic::metadata::MetadataValue;
 use tonic::transport::Endpoint;
 use tonic::{Request, Streaming};
@@ -16,7 +16,7 @@ use crate::error::{HerculesError, Result};
 use crate::types::ScalingOption;
 
 pub struct Connection {
-    pub request_tx: mpsc::UnboundedSender<ActionTransferRequest>,
+    pub request_tx: mpsc::Sender<ActionTransferRequest>,
     pub responses: Streaming<ActionTransferResponse>,
 }
 
@@ -35,13 +35,18 @@ pub async fn connect(
     scaling_option: ScalingOption,
     auth_token: &str,
     aquila_url: &str,
+    request_queue_capacity: usize,
 ) -> Result<Connection> {
+    if request_queue_capacity == 0 {
+        return Err(HerculesError::InvalidQueueCapacity);
+    }
+
     let channel = Endpoint::from_shared(endpoint_uri(aquila_url))?
         .connect()
         .await?;
     let mut client = ActionTransferServiceClient::new(channel);
 
-    let (request_tx, request_rx) = mpsc::unbounded_channel::<ActionTransferRequest>();
+    let (request_tx, request_rx) = mpsc::channel::<ActionTransferRequest>(request_queue_capacity);
     request_tx
         .send(ActionTransferRequest {
             data: Some(action_transfer_request::Data::Logon(ActionLogon {
@@ -49,9 +54,10 @@ pub async fn connect(
                 scaling_option: scaling_option.into_wire() as i32,
             })),
         })
+        .await
         .map_err(|_| HerculesError::StreamClosed)?;
 
-    let mut request = Request::new(UnboundedReceiverStream::new(request_rx));
+    let mut request = Request::new(ReceiverStream::new(request_rx));
     let token: MetadataValue<_> = auth_token
         .parse()
         .map_err(|_| HerculesError::Other("auth token is not valid gRPC metadata".to_string()))?;

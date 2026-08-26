@@ -22,6 +22,8 @@ use crate::registration;
 use crate::types::{ConfigurationDefinition, ScalingOption, Translation};
 
 const EVENT_CHANNEL_CAPACITY: usize = 256;
+/// Default maximum number of outbound requests buffered per connection.
+pub const DEFAULT_REQUEST_QUEUE_CAPACITY: usize = 256;
 
 /// An action under construction: `#[hercules_sdk::runtime_function]` and friends
 /// register themselves automatically (see [`crate::registration`]), so most
@@ -41,6 +43,7 @@ pub struct Action {
     version: String,
     aquila_url: Option<String>,
     scaling_option: ScalingOption,
+    request_queue_capacity: usize,
     author: String,
     icon: String,
     documentation: String,
@@ -68,6 +71,7 @@ impl Action {
             version: version.into(),
             aquila_url: None,
             scaling_option: ScalingOption::default(),
+            request_queue_capacity: DEFAULT_REQUEST_QUEUE_CAPACITY,
             author: String::new(),
             icon: String::new(),
             documentation: String::new(),
@@ -94,6 +98,15 @@ impl Action {
     /// [`ScalingOption::Disabled`] (every instance receives everything).
     pub fn scaling(mut self, option: ScalingOption) -> Self {
         self.scaling_option = option;
+        self
+    }
+
+    /// Maximum number of outbound requests waiting to be written to Aquila.
+    /// Once full, new submissions fail with [`crate::HerculesError::Overloaded`].
+    /// Defaults to [`DEFAULT_REQUEST_QUEUE_CAPACITY`]. A zero capacity is
+    /// rejected by [`Action::connect`].
+    pub fn request_queue_capacity(mut self, capacity: usize) -> Self {
+        self.request_queue_capacity = capacity;
         self
     }
 
@@ -247,8 +260,14 @@ impl Action {
             .or(self.aquila_url)
             .ok_or(crate::error::HerculesError::MissingAquilaUrl)?;
 
-        let connection =
-            connection::connect(module, self.scaling_option, &auth_token.into(), &url).await?;
+        let connection = connection::connect(
+            module,
+            self.scaling_option,
+            &auth_token.into(),
+            &url,
+            self.request_queue_capacity,
+        )
+        .await?;
 
         let inner = Arc::new(ConnectedInner {
             identifier: self.identifier,
@@ -258,7 +277,9 @@ impl Action {
             flows: Default::default(),
             pending_flow_executions: Default::default(),
             pending_sub_flow_executions: Default::default(),
+            next_pending_token: Default::default(),
             request_tx: connection.request_tx,
+            queue_saturation_count: Default::default(),
             events_tx: self.events_tx,
         });
 
