@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_stream::{Stream, StreamExt};
@@ -272,6 +272,40 @@ impl Connected {
         flow_id: impl Into<String>,
         payload: PlainValue,
     ) -> Result<PlainValue> {
+        self.execute_flow_with_id_inner(execution_identifier, flow_id.into(), payload, None)
+            .await
+    }
+
+    /// Same as [`Connected::execute_flow_with_id`], except a full outbound
+    /// request queue is allowed up to `queue_wait_timeout` to gain capacity.
+    /// Returns [`HerculesError::Overloaded`] if that deadline expires before
+    /// the request can be written to the queue.
+    ///
+    /// Waiting remains bounded and cancellation-safe: dropping this future
+    /// cancels the queue wait and removes its pending execution entry.
+    pub async fn execute_flow_with_id_wait_for_capacity(
+        &self,
+        execution_identifier: String,
+        flow_id: impl Into<String>,
+        payload: PlainValue,
+        queue_wait_timeout: Duration,
+    ) -> Result<PlainValue> {
+        self.execute_flow_with_id_inner(
+            execution_identifier,
+            flow_id.into(),
+            payload,
+            Some(queue_wait_timeout),
+        )
+        .await
+    }
+
+    async fn execute_flow_with_id_inner(
+        &self,
+        execution_identifier: String,
+        flow_id: String,
+        payload: PlainValue,
+        queue_wait_timeout: Option<Duration>,
+    ) -> Result<PlainValue> {
         let (tx, rx) = oneshot::channel();
         let token = self.inner.next_pending_token();
         sync::lock(&self.inner.pending_flow_executions).insert(
@@ -288,12 +322,18 @@ impl Connected {
             data: Some(action_transfer_request::Data::FlowExecution(
                 ActionFlowExecutionRequest {
                     execution_identifier: execution_identifier.clone(),
-                    flow_id: flow_id.into(),
+                    flow_id,
                     payload: Some(construct_value(&payload)),
                 },
             )),
         };
-        try_send_caller_request(&self.inner, request)?;
+        match queue_wait_timeout {
+            Some(timeout) if timeout.is_zero() => try_send_caller_request(&self.inner, request)?,
+            Some(timeout) => {
+                send_caller_request_wait_for_capacity(&self.inner, request, timeout).await?
+            }
+            None => try_send_caller_request(&self.inner, request)?,
+        }
 
         rx.await.map_err(|_| HerculesError::StreamClosed)?
     }
@@ -354,6 +394,37 @@ fn try_send_caller_request(inner: &ConnectedInner, request: ActionTransferReques
             })
         }
         Err(mpsc::error::TrySendError::Closed(_)) => Err(HerculesError::StreamClosed),
+    }
+}
+
+/// Waits for a slot in the bounded caller-request queue, but only up to the
+/// caller's deadline. Reserving before sending ensures a timeout never leaves
+/// a request ambiguously enqueued.
+async fn send_caller_request_wait_for_capacity(
+    inner: &ConnectedInner,
+    request: ActionTransferRequest,
+    wait_timeout: Duration,
+) -> Result<()> {
+    log::trace!("waiting up to {wait_timeout:?} to send {request:?}");
+    let started_full = inner.request_tx.capacity() == 0;
+    if started_full {
+        inner.queue_saturation_count.fetch_add(1, Ordering::Relaxed);
+    }
+
+    match tokio::time::timeout(wait_timeout, inner.request_tx.reserve()).await {
+        Ok(Ok(permit)) => {
+            permit.send(request);
+            Ok(())
+        }
+        Ok(Err(_)) => Err(HerculesError::StreamClosed),
+        Err(_) => {
+            if !started_full {
+                inner.queue_saturation_count.fetch_add(1, Ordering::Relaxed);
+            }
+            Err(HerculesError::Overloaded {
+                capacity: inner.request_tx.max_capacity(),
+            })
+        }
     }
 }
 
@@ -1058,6 +1129,123 @@ mod tests {
 
         first.abort();
         assert!(first.await.unwrap_err().is_cancelled());
+        assert_eq!(connected.metrics().pending_flow_executions, 0);
+    }
+
+    #[tokio::test]
+    async fn flow_can_wait_for_request_queue_capacity() {
+        let (inner, mut request_rx) = test_inner_with_capacity(1);
+        let connected = Connected::new(inner.clone());
+        inner
+            .request_tx
+            .try_send(ActionTransferRequest { data: None })
+            .expect("test queue should start empty");
+
+        let execution = tokio::spawn({
+            let connected = connected.clone();
+            async move {
+                connected
+                    .execute_flow_with_id_wait_for_capacity(
+                        "flow-waiting".into(),
+                        "flow-1",
+                        PlainValue::Null,
+                        Duration::from_secs(1),
+                    )
+                    .await
+            }
+        });
+
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while connected.metrics().queue_saturation_count == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("flow did not wait on the full queue");
+        assert!(!execution.is_finished());
+
+        request_rx.recv().await.expect("placeholder was queued");
+        let request = tokio::time::timeout(Duration::from_secs(2), request_rx.recv())
+            .await
+            .expect("flow did not use released queue capacity")
+            .expect("request channel closed before flow was queued");
+        assert!(matches!(
+            request.data,
+            Some(action_transfer_request::Data::FlowExecution(_))
+        ));
+
+        execution.abort();
+        assert!(execution.await.unwrap_err().is_cancelled());
+        assert_eq!(connected.metrics().pending_flow_executions, 0);
+    }
+
+    #[tokio::test]
+    async fn zero_queue_wait_timeout_preserves_fail_fast_submission() {
+        let (inner, mut request_rx) = test_inner_with_capacity(1);
+        let connected = Connected::new(inner);
+        let execution = tokio::spawn({
+            let connected = connected.clone();
+            async move {
+                connected
+                    .execute_flow_with_id_wait_for_capacity(
+                        "flow-zero-timeout".into(),
+                        "flow-1",
+                        PlainValue::Null,
+                        Duration::ZERO,
+                    )
+                    .await
+            }
+        });
+
+        let request = tokio::time::timeout(Duration::from_secs(2), request_rx.recv())
+            .await
+            .expect("zero-timeout flow was rejected despite available capacity")
+            .expect("request channel closed before flow was queued");
+        assert!(matches!(
+            request.data,
+            Some(action_transfer_request::Data::FlowExecution(_))
+        ));
+
+        execution.abort();
+        assert!(execution.await.unwrap_err().is_cancelled());
+        assert_eq!(connected.metrics().pending_flow_executions, 0);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn flow_queue_wait_timeout_rejects_and_removes_pending_entry() {
+        let (inner, _request_rx) = test_inner_with_capacity(1);
+        let connected = Connected::new(inner.clone());
+        inner
+            .request_tx
+            .try_send(ActionTransferRequest { data: None })
+            .expect("test queue should start empty");
+
+        let execution = tokio::spawn({
+            let connected = connected.clone();
+            async move {
+                connected
+                    .execute_flow_with_id_wait_for_capacity(
+                        "flow-timeout".into(),
+                        "flow-1",
+                        PlainValue::Null,
+                        Duration::from_millis(100),
+                    )
+                    .await
+            }
+        });
+
+        while connected.metrics().queue_saturation_count == 0 {
+            tokio::task::yield_now().await;
+        }
+        assert_eq!(connected.metrics().pending_flow_executions, 1);
+
+        tokio::time::advance(Duration::from_millis(100)).await;
+        let result = execution.await.expect("execution task panicked");
+        assert!(matches!(
+            result,
+            Err(HerculesError::Overloaded { capacity: 1 })
+        ));
+        assert_eq!(connected.metrics().queue_depth, 1);
         assert_eq!(connected.metrics().pending_flow_executions, 0);
     }
 
