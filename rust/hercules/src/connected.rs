@@ -43,7 +43,8 @@ pub struct ConnectedMetrics {
     pub queue_depth: usize,
     /// Configured upper bound for `queue_depth`.
     pub queue_capacity: usize,
-    /// Number of submissions rejected because the queue was full.
+    /// Number of outbound submissions that encountered a full queue. Caller
+    /// requests are rejected; mandatory execution results wait for capacity.
     pub queue_saturation_count: u64,
     /// Whole-flow executions currently awaiting a response from Aquila.
     pub pending_flow_executions: usize,
@@ -292,7 +293,7 @@ impl Connected {
                 },
             )),
         };
-        send(&self.inner, request)?;
+        try_send_caller_request(&self.inner, request)?;
 
         rx.await.map_err(|_| HerculesError::StreamClosed)?
     }
@@ -334,13 +335,15 @@ impl Connected {
                 },
             )),
         };
-        send(&self.inner, request)?;
+        try_send_caller_request(&self.inner, request)?;
 
         rx.await.map_err(|_| HerculesError::StreamClosed)?
     }
 }
 
-fn send(inner: &ConnectedInner, request: ActionTransferRequest) -> Result<()> {
+/// Caller-initiated work is optional admission: fail fast so an overloaded
+/// request boundary can shed load instead of adding another waiter.
+fn try_send_caller_request(inner: &ConnectedInner, request: ActionTransferRequest) -> Result<()> {
     log::trace!("sending {request:?}");
     match inner.request_tx.try_send(request) {
         Ok(()) => Ok(()),
@@ -352,6 +355,21 @@ fn send(inner: &ConnectedInner, request: ActionTransferRequest) -> Result<()> {
         }
         Err(mpsc::error::TrySendError::Closed(_)) => Err(HerculesError::StreamClosed),
     }
+}
+
+/// Runtime execution results are mandatory protocol traffic. They share the
+/// same bounded queue, but wait for capacity instead of being discarded when
+/// caller-initiated traffic has filled it.
+async fn send_mandatory(inner: &ConnectedInner, request: ActionTransferRequest) -> Result<()> {
+    log::trace!("sending mandatory {request:?}");
+    if inner.request_tx.capacity() == 0 {
+        inner.queue_saturation_count.fetch_add(1, Ordering::Relaxed);
+    }
+    inner
+        .request_tx
+        .send(request)
+        .await
+        .map_err(|_| HerculesError::StreamClosed)
 }
 
 pub(crate) fn spawn_dispatch_loop(
@@ -536,10 +554,11 @@ async fn handle_execution(inner: Arc<ConnectedInner>, execution: ActionExecution
             },
         )),
     };
-    if send(&inner, request).is_err() {
+    if let Err(err) = send_mandatory(&inner, request).await {
         log::error!(
-            "failed to send execution result for {:?}: stream closed",
-            execution_identifier
+            "failed to send execution result for {:?}: {}",
+            execution_identifier,
+            err
         );
     }
 }
@@ -716,6 +735,15 @@ mod tests {
 
     use super::*;
 
+    struct FixedResultHandler;
+
+    #[async_trait::async_trait]
+    impl RuntimeFunctionHandler for FixedResultHandler {
+        async fn run(&self, _context: &FunctionContext, _args: &Arguments) -> Result<PlainValue> {
+            Ok(serde_json::json!("completed"))
+        }
+    }
+
     /// A bare `ConnectedInner` with no runtime functions and a request
     /// channel the test can inspect, mirroring the shape [`crate::action`]
     /// builds one with in [`crate::Action::connect`].
@@ -726,12 +754,19 @@ mod tests {
     fn test_inner_with_capacity(
         capacity: usize,
     ) -> (Arc<ConnectedInner>, mpsc::Receiver<ActionTransferRequest>) {
+        test_inner_with_runtime_functions(capacity, HashMap::new())
+    }
+
+    fn test_inner_with_runtime_functions(
+        capacity: usize,
+        runtime_functions: HashMap<String, RuntimeFunctionEntry>,
+    ) -> (Arc<ConnectedInner>, mpsc::Receiver<ActionTransferRequest>) {
         let (request_tx, request_rx) = mpsc::channel(capacity);
         let (events_tx, _events_rx) = broadcast::channel(16);
         let inner = Arc::new(ConnectedInner {
             identifier: "test-action".into(),
             version: "0.0.0".into(),
-            runtime_functions: HashMap::new(),
+            runtime_functions,
             configs: Default::default(),
             flows: Default::default(),
             pending_flow_executions: Default::default(),
@@ -1024,6 +1059,62 @@ mod tests {
         first.abort();
         assert!(first.await.unwrap_err().is_cancelled());
         assert_eq!(connected.metrics().pending_flow_executions, 0);
+    }
+
+    #[tokio::test]
+    async fn mandatory_execution_result_waits_for_capacity_and_is_transmitted() {
+        let runtime_functions = HashMap::from([(
+            "fixed-result".to_string(),
+            RuntimeFunctionEntry {
+                meta: RuntimeFunctionMeta {
+                    identifier: "fixed-result".into(),
+                    ..Default::default()
+                },
+                handler: Arc::new(FixedResultHandler),
+            },
+        )]);
+        let (inner, mut request_rx) = test_inner_with_runtime_functions(1, runtime_functions);
+
+        inner
+            .request_tx
+            .try_send(ActionTransferRequest { data: None })
+            .expect("test queue should start empty");
+
+        let execution = tokio::spawn(handle_execution(
+            inner.clone(),
+            ActionExecutionRequest {
+                execution_identifier: "execution-result".into(),
+                function_identifier: "fixed-result".into(),
+                parameters: vec![],
+                project_id: 42,
+            },
+        ));
+
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while inner.queue_saturation_count.load(Ordering::Relaxed) == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("execution result did not wait on the full queue");
+        assert!(!execution.is_finished());
+
+        let placeholder = request_rx.recv().await.expect("placeholder was queued");
+        assert!(placeholder.data.is_none());
+
+        let transmitted = tokio::time::timeout(Duration::from_secs(2), request_rx.recv())
+            .await
+            .expect("execution result did not acquire released queue capacity")
+            .expect("request channel closed before the result was transmitted");
+        match transmitted.data {
+            Some(action_transfer_request::Data::Result(response)) => {
+                assert_eq!(response.execution_identifier, "execution-result");
+                assert!(response.node_result.is_some());
+            }
+            other => panic!("expected an execution result, got {other:?}"),
+        }
+
+        execution.await.expect("execution task panicked");
     }
 
     #[tokio::test]
