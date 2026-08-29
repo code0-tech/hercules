@@ -36,7 +36,7 @@ jobs:
 
     env:
       # code0-definition release the built-in definitions are generated from.
-      DEFINITIONS_VERSION: ${{ vars.HERCULES_DEFINITIONS_VERSION || 'def-0.0.35' }}
+      DEFINITIONS_VERSION: ${{ vars.HERCULES_DEFINITIONS_VERSION || 'def-0.0.36' }}
 
     steps:
       - uses: actions/checkout@v6
