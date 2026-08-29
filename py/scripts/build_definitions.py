@@ -9,7 +9,7 @@ Python port of ``ts/scripts/build-definitions.ts``. Downloads the upstream
 
 Usage::
 
-    python scripts/build_definitions.py --version def-0.0.35
+    python scripts/build_definitions.py --version def-0.0.36
 """
 from __future__ import annotations
 
@@ -265,16 +265,39 @@ def generate_data_type(dt: "DataTypeDef", ref_map, generic_key_set) -> str:
 
 # ── Directory walking ──────────────────────────────────────────────────────────
 
+# Since def-0.0.36 the release ships one JSON file per module instead of a
+# directory tree; every definition is bundled under these list keys. Map each key
+# back to the per-type folder name the generators still key off of, so the rest of
+# the pipeline (and the generated package layout) stays unchanged.
+_LIST_TO_TYPE_FOLDER = {
+    "definitionDataTypes": "data_types",
+    "runtimeFunctionDefinitions": "runtime_functions",
+    "runtimeFlowTypes": "runtime_flow_types",
+    "functionDefinitions": "functions",
+    "flowTypes": "flow_types",
+}
+# Runtime functions were filed under their ``runtimeName`` (``a::b::c`` -> ``a_b_c``);
+# everything else under its ``identifier``. This reproduces the old on-disk filename.
+_RUNTIME_NAME_FOLDERS = {"runtime_functions", "functions"}
+
+
+def _def_basename(item: dict, type_folder: str) -> str:
+    if type_folder in _RUNTIME_NAME_FOLDERS:
+        return (item.get("runtimeName") or "").replace("::", "_")
+    return item.get("identifier") or ""
+
+
 def walk_defs(defs_dir: Path):
-    for path in sorted(defs_dir.rglob("*.json")):
-        if path.name == "module.json":
-            continue
-        rel_module = str(path.parent.relative_to(defs_dir))
-        type_folder = path.parent.name
-        class_name = to_pascal_case(path.stem)
-        file_name = path.stem.lower()
-        data = json.loads(path.read_text())
-        yield data, class_name, file_name, rel_module, type_folder
+    for path in sorted(defs_dir.glob("*.json")):
+        module = json.loads(path.read_text())
+        module_name = path.stem
+        for list_key, type_folder in _LIST_TO_TYPE_FOLDER.items():
+            for item in module.get(list_key) or []:
+                basename = _def_basename(item, type_folder)
+                rel_module = f"{module_name}/{type_folder}"
+                class_name = to_pascal_case(basename)
+                file_name = basename.lower()
+                yield item, class_name, file_name, rel_module, type_folder
 
 
 def ensure_package(path: Path):

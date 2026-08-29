@@ -36,7 +36,7 @@ The built-in data types / functions in `hercules/definitions/` are **generated**
 release:
 
 ```bash
-uv run python scripts/build_definitions.py --version def-0.0.35
+uv run python scripts/build_definitions.py --version def-0.0.36
 ```
 
 ## Build & release
@@ -55,7 +55,7 @@ git tag 0.1.0 && git push origin 0.1.0
 ```
 
 The `code0-definition` release used for the built-in definitions is controlled by
-the `HERCULES_DEFINITIONS_VERSION` repository variable (default `def-0.0.35`).
+the `HERCULES_DEFINITIONS_VERSION` repository variable (default `def-0.0.36`).
 
 Build locally:
 
