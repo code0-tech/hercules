@@ -26,10 +26,6 @@ function toPascalCase(str: string): string {
         .join("");
 }
 
-function fileNameToClassName(file: string): string {
-    return toPascalCase(path.basename(file, ".json"));
-}
-
 function toSchemaName(identifier: string): string {
     // HTTP_METHOD → httpMethodSchema
     return identifier.toLowerCase().replace(/_([a-z])/g, (_, c) => c.toUpperCase()) + "Schema";
@@ -238,21 +234,42 @@ type DefHandler = (
     typeFolder: string,
 ) => void;
 
-function walkDefs(dir: string, relModule: string, handler: DefHandler): void {
+// Since def-0.0.36 the release ships one JSON file per module instead of a
+// directory tree; every definition is bundled under these list keys. Map each key
+// back to the per-type folder name the generators still key off of, so the rest of
+// the pipeline (and the generated package layout) stays unchanged.
+const LIST_TO_TYPE_FOLDER: Record<string, string> = {
+    definitionDataTypes: "data_types",
+    runtimeFunctionDefinitions: "runtime_functions",
+    runtimeFlowTypes: "runtime_flow_types",
+    functionDefinitions: "functions",
+    flowTypes: "flow_types",
+};
+// Runtime functions were filed under their `runtimeName` (`a::b::c` → `a_b_c`);
+// everything else under its `identifier`. This reproduces the old on-disk filename.
+const RUNTIME_NAME_FOLDERS = new Set(["runtime_functions", "functions"]);
+
+function defBasename(item: Record<string, unknown>, typeFolder: string): string {
+    return RUNTIME_NAME_FOLDERS.has(typeFolder)
+        ? String(item.runtimeName ?? "").replace(/::/g, "_")
+        : String(item.identifier ?? "");
+}
+
+function walkDefs(dir: string, handler: DefHandler): void {
     for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
-        const fullPath = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-            walkDefs(fullPath, path.join(relModule, entry.name), handler);
-            continue;
+        if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+        const module = JSON.parse(fs.readFileSync(path.join(dir, entry.name), "utf-8")) as Record<string, unknown>;
+        const moduleName = path.basename(entry.name, ".json");
+        for (const [listKey, typeFolder] of Object.entries(LIST_TO_TYPE_FOLDER)) {
+            const items = (module[listKey] as Record<string, unknown>[] | undefined) ?? [];
+            for (const item of items) {
+                const basename = defBasename(item, typeFolder);
+                const relModule = path.join(moduleName, typeFolder);
+                // Upstream data type/flow identifiers are UPPER_SNAKE (e.g. HTTP_METHOD);
+                // keep our generated tree lowercase to match the rest of the file naming convention.
+                handler(item, toPascalCase(basename), basename.toLowerCase(), relModule, typeFolder);
+            }
         }
-        if (!entry.name.endsWith(".json") || entry.name === "module.json") continue;
-        const json = JSON.parse(fs.readFileSync(fullPath, "utf-8")) as Record<string, unknown>;
-        const typeFolder = relModule.split(path.sep).at(-1) ?? "";
-        const className = fileNameToClassName(entry.name);
-        // Upstream data type/flow filenames are UPPER_SNAKE (e.g. HTTP_METHOD.json);
-        // keep our generated tree lowercase to match the rest of the file naming convention.
-        const fileName = path.basename(entry.name, ".json").toLowerCase();
-        handler(json, className, fileName, relModule, typeFolder);
     }
 }
 
@@ -277,7 +294,7 @@ async function main() {
 
     // ── Collect all data type definitions ─────────────────────────────────────
     const dataTypeDefs: DataTypeDef[] = [];
-    walkDefs(defsDir, "", (json, className, fileName, relModule, typeFolder) => {
+    walkDefs(defsDir, (json, className, fileName, relModule, typeFolder) => {
         if (typeFolder !== "data_types" || !json.identifier || !json.type) return;
         dataTypeDefs.push({
             identifier: json.identifier as string,
@@ -362,7 +379,7 @@ async function main() {
         count++;
     }
 
-    walkDefs(defsDir, "", (json, className, fileName, relModule, typeFolder) => {
+    walkDefs(defsDir, (json, className, fileName, relModule, typeFolder) => {
         let content: string | null = null;
         if (typeFolder === "runtime_flow_types") content = generateRuntimeFlowType(json, className, relModule);
         else if (typeFolder === "runtime_functions") content = generateRuntimeFunction(json, className, relModule);
