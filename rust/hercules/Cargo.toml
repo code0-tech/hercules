@@ -20,6 +20,7 @@ tokio-stream.workspace = true
 log.workspace = true
 inventory.workspace = true
 uuid.workspace = true
+jsonwebtoken.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "test-util"] }

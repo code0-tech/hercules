@@ -25,3 +25,4 @@ log = "0.4"
 inventory = "0.3"
 tokio-stream = { version = "0.1", features = ["sync"] }
 uuid = { version = "1", features = ["v4"] }
+jsonwebtoken = { version = "11.0.0", features = ["rust_crypto"] }
