@@ -12,6 +12,7 @@ use tucana::aquila::{
 };
 use tucana::shared::Module;
 
+use crate::auth::build_logon_token;
 use crate::error::{HerculesError, Result};
 use crate::types::ScalingOption;
 
@@ -41,6 +42,8 @@ pub async fn connect(
         return Err(HerculesError::InvalidQueueCapacity);
     }
 
+    let identifier = module.identifier.clone();
+
     let channel = Endpoint::from_shared(endpoint_uri(aquila_url))?
         .connect()
         .await?;
@@ -57,10 +60,12 @@ pub async fn connect(
         .await
         .map_err(|_| HerculesError::StreamClosed)?;
 
+    let logon_token = build_logon_token(auth_token, &identifier)?;
+
     let mut request = Request::new(ReceiverStream::new(request_rx));
-    let token: MetadataValue<_> = auth_token
+    let token: MetadataValue<_> = logon_token
         .parse()
-        .map_err(|_| HerculesError::Other("auth token is not valid gRPC metadata".to_string()))?;
+        .map_err(|_| HerculesError::Other("logon JWT is not valid gRPC metadata".to_string()))?;
     request.metadata_mut().insert("authorization", token);
 
     let responses = client.transfer(request).await?.into_inner();

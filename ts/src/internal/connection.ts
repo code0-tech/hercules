@@ -9,6 +9,7 @@ import type {Module} from "@code0-tech/tucana/shared";
 import {ChannelCredentials} from "@grpc/grpc-js";
 import type {DuplexStreamingCall} from "@protobuf-ts/runtime-rpc";
 import {type RpcOptions} from "@protobuf-ts/runtime-rpc";
+import {buildLogonToken} from "./jwt";
 
 export interface Connection {
     transport: GrpcTransport;
@@ -27,7 +28,8 @@ export async function createConnection(
         ...grpcOptions,
     });
 
-    const rpcOptions: RpcOptions = {meta: {"authorization": authToken}};
+    const logonToken = buildLogonToken(authToken, module.identifier);
+    const rpcOptions: RpcOptions = {meta: {"authorization": logonToken}};
 
     const stream = new ActionTransferServiceClient(transport).transfer(rpcOptions);
 

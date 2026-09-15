@@ -12,6 +12,8 @@ import grpc
 from tucana.generated.aquila import action_pb2, action_pb2_grpc
 from tucana.generated.shared import module_pb2
 
+from hercules.internal.jwt import build_logon_token
+
 
 async def create_connection(
     module: module_pb2.Module,
@@ -22,8 +24,10 @@ async def create_connection(
     channel = grpc.aio.insecure_channel(aquila_url, options=grpc_options)
     stub = action_pb2_grpc.ActionTransferServiceStub(channel)
 
+    logon_token = build_logon_token(auth_token, module.identifier)
+
     # Bi-directional stream. Authorization is passed as call metadata.
-    stream = stub.Transfer(metadata=(("authorization", auth_token),))
+    stream = stub.Transfer(metadata=(("authorization", logon_token),))
 
     await stream.write(
         action_pb2.ActionTransferRequest(

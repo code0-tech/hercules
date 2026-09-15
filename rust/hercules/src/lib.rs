@@ -28,6 +28,7 @@
 
 mod action;
 mod arguments;
+mod auth;
 mod connected;
 mod connection;
 mod data_type;
