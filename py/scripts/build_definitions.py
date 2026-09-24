@@ -9,7 +9,7 @@ Python port of ``ts/scripts/build-definitions.ts``. Downloads the upstream
 
 Usage::
 
-    python scripts/build_definitions.py --version def-0.0.36
+    python scripts/build_definitions.py --version def-0.0.38
 """
 from __future__ import annotations
 
