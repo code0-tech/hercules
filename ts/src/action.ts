@@ -117,9 +117,23 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
      * `subFlowFunctions.delete(identifier)` to drop one earlier.
      */
     registerSubFlowFunction(definition: SubFlowFunctionDefinition): string {
-        const identifier = `${this._identifier}::${definition.name}::${randomUUID()}`;
+        const identifier = `${this._subFlowFunctionPrefix}${definition.name}::${randomUUID()}`;
         this.subFlowFunctions.set(identifier, definition);
         return identifier;
+    }
+
+    /**
+     * True for an identifier this action minted for a sub flow function, whether or
+     * not it is still registered. An execution request naming one that is gone
+     * addresses a function that expired (or was deleted) rather than an unknown one,
+     * which lets the execution handler report it as such.
+     */
+    isSubFlowFunctionIdentifier(identifier: string): boolean {
+        return identifier.startsWith(this._subFlowFunctionPrefix);
+    }
+
+    private get _subFlowFunctionPrefix(): string {
+        return `${this._identifier}::`;
     }
 
     registerDataTypeClass(klass: DataTypeClass) {

@@ -184,9 +184,22 @@ class Action(EventEmitter):
         invoked (see :class:`~hercules.manager.sub_flow_function.SubFlowFunctionManager`).
         Call ``sub_flow_functions.delete(identifier)`` to drop one earlier.
         """
-        identifier = f"{self._identifier}::{definition.name}::{uuid.uuid4()}"
+        identifier = f"{self._sub_flow_function_prefix}{definition.name}::{uuid.uuid4()}"
         self.sub_flow_functions.set(identifier, definition)
         return identifier
+
+    def is_sub_flow_function_identifier(self, identifier: str) -> bool:
+        """True for an identifier this action minted for a sub flow function.
+
+        Holds whether or not it is still registered. An execution request naming one
+        that is gone addresses a function that expired (or was deleted) rather than an
+        unknown one, which lets the execution handler report it as such.
+        """
+        return identifier.startswith(self._sub_flow_function_prefix)
+
+    @property
+    def _sub_flow_function_prefix(self) -> str:
+        return f"{self._identifier}::"
 
     def register_data_type_class(self, klass: type) -> None:
         definition = data_type_map(klass)

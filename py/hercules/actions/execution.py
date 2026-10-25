@@ -98,6 +98,23 @@ def handle(action, execution) -> None:
 
     target = _resolve_target(action, execution.function_identifier)
     if target is None:
+        if action.is_sub_flow_function_identifier(execution.function_identifier):
+            # A sub flow function this action returned earlier, whose maximum
+            # lifetime has passed (or which was deleted). Fail the node rather than
+            # staying silent, so the flow does not wait for a result that cannot come.
+            asyncio.ensure_future(
+                _send_error(
+                    action,
+                    execution,
+                    RuntimeError(
+                        "SUB_FLOW_FUNCTION_EXPIRED",
+                        f"Sub flow function {execution.function_identifier} is no "
+                        f"longer registered: its maximum lifetime has passed",
+                    ),
+                    _now_micros(),
+                )
+            )
+            return
         print("Received execution request for unknown function:", execution.function_identifier)
         return
 
@@ -146,27 +163,32 @@ async def _run(action, execution, handler, all_params, started_at) -> None:
         )
         await action.send(request)
     except Exception as error:  # noqa: BLE001
-        finished_at = _now_micros()
-        is_runtime_error = isinstance(error, RuntimeError)
-        proto_error = errors_pb2.Error(
-            code=error.code if is_runtime_error else "UNKNOWN_ERROR",
-            category="RUNTIME",
-            message=(error.description or str(error)) if is_runtime_error else str(error),
-            timestamp=finished_at,
-            version=action.version,
+        await _send_error(action, execution, error, started_at)
+
+
+async def _send_error(action, execution, error, started_at) -> None:
+    """Report a failed execution back to Aquila."""
+    finished_at = _now_micros()
+    is_runtime_error = isinstance(error, RuntimeError)
+    proto_error = errors_pb2.Error(
+        code=error.code if is_runtime_error else "UNKNOWN_ERROR",
+        category="RUNTIME",
+        message=(error.description or str(error)) if is_runtime_error else str(error),
+        timestamp=finished_at,
+        version=action.version,
+    )
+    request = action_pb2.ActionTransferRequest(
+        result=action_pb2.ActionExecutionResponse(
+            execution_identifier=execution.execution_identifier,
+            node_result=execution_result_pb2.NodeExecutionResult(
+                started_at=started_at,
+                finished_at=finished_at,
+                parameter_results=[],
+                error=proto_error,
+            ),
         )
-        request = action_pb2.ActionTransferRequest(
-            result=action_pb2.ActionExecutionResponse(
-                execution_identifier=execution.execution_identifier,
-                node_result=execution_result_pb2.NodeExecutionResult(
-                    started_at=started_at,
-                    finished_at=finished_at,
-                    parameter_results=[],
-                    error=proto_error,
-                ),
-            )
-        )
-        try:
-            await action.send(request)
-        except Exception as err:  # noqa: BLE001
-            print("Failed to send execution error:", err)
+    )
+    try:
+        await action.send(request)
+    except Exception as err:  # noqa: BLE001
+        print("Failed to send execution error:", err)

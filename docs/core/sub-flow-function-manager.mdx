@@ -36,9 +36,11 @@ to drop it earlier:
 action.subFlowFunctions.delete(identifier);
 ```
 
-An execution request naming a function that has expired is reported as an unknown
-function and no result is sent, so keep the lifetime in mind for flows that hold a
-returned function for a long time.
+An execution request naming a function that has expired fails the node with a
+`SUB_FLOW_FUNCTION_EXPIRED` error rather than going unanswered, so the flow reports a
+clear failure instead of waiting for a result that cannot come. Identifiers this
+action never minted are still only logged — they address a function the action does
+not know at all.
 
 ## Interfaces
 

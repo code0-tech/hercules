@@ -62,11 +62,54 @@ function toNodeValue(action: Action, value: RuntimeFunctionReturn): NodeValueExe
     });
 }
 
+/** Report a failed execution back to Aquila. */
+function sendError(action: Action, execution: ActionExecutionRequest, error: unknown, startedAt: bigint): void {
+    const finishedAt = nowMicros();
+    const isRuntimeError = error instanceof RuntimeError;
+    action.stream!.requests.send(ActionTransferRequest.create({
+        data: {
+            oneofKind: "result",
+            result: ActionExecutionResponse.create({
+                executionIdentifier: execution.executionIdentifier,
+                nodeResult: NodeExecutionResult.create({
+                    id: {oneofKind: undefined},
+                    startedAt,
+                    finishedAt,
+                    parameterResults: [],
+                    result: {
+                        oneofKind: "error",
+                        error: ProtoError.create({
+                            code: isRuntimeError ? (error as RuntimeError).code : "UNKNOWN_ERROR",
+                            category: "RUNTIME",
+                            message: isRuntimeError
+                                ? ((error as RuntimeError).description || (error as Error).message)
+                                : String(error),
+                            timestamp: finishedAt,
+                            version: action.version,
+                            dependencies: {},
+                        }),
+                    },
+                }),
+            }),
+        },
+    })).catch(err => console.error("Failed to send execution error:", err));
+}
+
 export function handle(action: Action, execution: ActionExecutionRequest): void {
     action.emit(CodeZeroEvent.executionRequestReceived, execution);
 
     const target = resolveTarget(action, execution.functionIdentifier);
     if (!target) {
+        if (action.isSubFlowFunctionIdentifier(execution.functionIdentifier)) {
+            // A sub flow function this action returned earlier, whose maximum
+            // lifetime has passed (or which was deleted). Fail the node rather than
+            // staying silent, so the flow does not wait for a result that cannot come.
+            sendError(action, execution, new RuntimeError(
+                "SUB_FLOW_FUNCTION_EXPIRED",
+                `Sub flow function ${execution.functionIdentifier} is no longer registered: its maximum lifetime has passed`,
+            ), nowMicros());
+            return;
+        }
         console.error("Received execution request for unknown function:", execution.functionIdentifier);
         return;
     }
@@ -109,35 +152,5 @@ export function handle(action: Action, execution: ActionExecutionRequest): void 
             },
         })).catch(err => console.error("Failed to send execution result:", err));
 
-    }).catch((error: unknown) => {
-        const finishedAt = nowMicros();
-        const isRuntimeError = error instanceof RuntimeError;
-        action.stream!.requests.send(ActionTransferRequest.create({
-            data: {
-                oneofKind: "result",
-                result: ActionExecutionResponse.create({
-                    executionIdentifier: execution.executionIdentifier,
-                    nodeResult: NodeExecutionResult.create({
-                        id: {oneofKind: undefined},
-                        startedAt,
-                        finishedAt,
-                        parameterResults: [],
-                        result: {
-                            oneofKind: "error",
-                            error: ProtoError.create({
-                                code: isRuntimeError ? (error as RuntimeError).code : "UNKNOWN_ERROR",
-                                category: "RUNTIME",
-                                message: isRuntimeError
-                                    ? ((error as RuntimeError).description || (error as Error).message)
-                                    : String(error),
-                                timestamp: finishedAt,
-                                version: action.version,
-                                dependencies: {},
-                            }),
-                        },
-                    }),
-                }),
-            },
-        })).catch(err => console.error("Failed to send execution error:", err));
-    });
+    }).catch((error: unknown) => sendError(action, execution, error, startedAt));
 }

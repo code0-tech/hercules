@@ -46,6 +46,16 @@ function sentResult(sent: ActionTransferRequest[]) {
     return result.success.value;
 }
 
+/** The ProtoError of the single error result the action sent. */
+function sentError(sent: ActionTransferRequest[]) {
+    expect(sent).toHaveLength(1);
+    const {data} = sent[0];
+    if (data.oneofKind !== "result") throw new Error(`expected a result, got ${data.oneofKind}`);
+    const {result} = data.result.nodeResult!;
+    if (result.oneofKind !== "error") throw new Error(`expected an error, got ${result.oneofKind}`);
+    return result.error;
+}
+
 const subFlowFunction = (run: SubFlowFunctionDefinition["run"]): SubFlowFunctionDefinition => ({
     name: "greet",
     description: "Greets someone",
@@ -144,22 +154,18 @@ describe("execution results", () => {
         handle(action, request("fn"));
         await new Promise(resolve => setImmediate(resolve));
 
-        expect(sent).toHaveLength(1);
-        const {data} = sent[0];
-        if (data.oneofKind !== "result") throw new Error("expected a result");
-        const {result} = data.result.nodeResult!;
-        if (result.oneofKind !== "error") throw new Error(`expected an error, got ${result.oneofKind}`);
-        expect(result.error.code).toBe("SUB_FLOW_FUNCTION_MISSING_NAME");
+        expect(sentError(sent).code).toBe("SUB_FLOW_FUNCTION_MISSING_NAME");
         expect(action.subFlowFunctions.size).toBe(0);
     });
 });
 
 describe("sub flow function lifetime", () => {
     let action: Action;
+    let sent: ActionTransferRequest[];
 
     beforeEach(() => {
         vi.useFakeTimers();
-        ({action} = stubAction());
+        ({action, sent} = stubAction());
     });
 
     afterEach(() => vi.useRealTimers());
@@ -199,6 +205,23 @@ describe("sub flow function lifetime", () => {
         vi.advanceTimersByTime(SUB_FLOW_FUNCTION_TTL_MS / 2);
 
         expect(action.subFlowFunctions.get(identifier)).toBeUndefined();
+    });
+
+    it("fails the node instead of running an expired function", () => {
+        const identifier = action.registerSubFlowFunction(subFlowFunction(() => null));
+        vi.advanceTimersByTime(SUB_FLOW_FUNCTION_TTL_MS);
+
+        handle(action, request(identifier, [literalParam(str("Ada"))]));
+
+        const error = sentError(sent);
+        expect(error.code).toBe("SUB_FLOW_FUNCTION_EXPIRED");
+        expect(error.message).toContain(identifier);
+    });
+
+    it("sends nothing for a function it never minted", () => {
+        handle(action, request("not_a_function"));
+
+        expect(sent).toEqual([]);
     });
 
     it("expires entries in registration order", () => {

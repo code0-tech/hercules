@@ -290,12 +290,20 @@ class TestSubFlowFunctionLifetime:
 
         asyncio.new_event_loop().run_until_complete(main())
 
-    def test_an_expired_function_is_not_executed(self, action, sent):
+    def test_an_expired_function_fails_the_node_instead_of_running(self, action, sent):
         action.sub_flow_functions = SubFlowFunctionManager(ttl_seconds=0.0)
         identifier = action.register_sub_flow_function(
             _sub_flow_function(lambda name: f"Hi {name}")
         )
 
         _run_handle(action, _request(identifier, [_literal_param(_str("Ada"))]))
+
+        node_result = _node_result(sent)
+        assert node_result.WhichOneof("result") == "error"
+        assert node_result.error.code == "SUB_FLOW_FUNCTION_EXPIRED"
+        assert identifier in node_result.error.message
+
+    def test_an_unknown_function_sends_nothing(self, action, sent):
+        _run_handle(action, _request("not_a_function"))
 
         assert sent == []
