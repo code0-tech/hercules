@@ -16,7 +16,7 @@ import type {EventClass} from "./models/event.model";
 import {eventMap} from "./map/event.map";
 import type {RuntimeEventClass} from "./models/runtime_event.model";
 import {runtimeEventMap} from "./map/runtime_event.map";
-import type {ConfigurationDefinition, Translation} from "./types";
+import type {ConfigurationDefinition, SubFlowFunctionDefinition, Translation} from "./types";
 import {CodeZeroEvent, type CodeZeroEventMap} from "./events";
 import {createConnection} from "./internal/connection";
 import {buildModule} from "./internal/module-builder";
@@ -24,6 +24,7 @@ import {ConfigManager} from "./manager/config-manager";
 import {FlowManager} from "./manager/FlowManager";
 import {FunctionManager} from "./manager/FunctionManager";
 import {RuntimeFunctionManager} from "./manager/RuntimeFunctionManager";
+import {SubFlowFunctionManager} from "./manager/SubFlowFunctionManager";
 import {DataTypeManager} from "./manager/DataTypeManager";
 import {EventManager} from "./manager/EventManager";
 import {RuntimeEventManager} from "./manager/RuntimeEventManager";
@@ -59,6 +60,7 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
     readonly flows = new FlowManager();
     readonly functions = new FunctionManager();
     readonly runtimeFunctions = new RuntimeFunctionManager();
+    readonly subFlowFunctions = new SubFlowFunctionManager();
     readonly dataTypes = new DataTypeManager();
     readonly events = new EventManager();
     readonly runtimeEvents = new RuntimeEventManager();
@@ -101,6 +103,20 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
                 parameters: def.parameters?.map(p => ({...p, runtimeDefinitionName: p.runtimeName})) || [],
             });
         }
+    }
+
+    /**
+     * Register a sub flow function a runtime function returned from its `run` block
+     * and return the identifier Aquila invokes it by. Each returned function gets its
+     * own identifier, so repeatedly returning one (e.g. once per execution) never
+     * overwrites a function a running flow still holds. Registrations are kept for
+     * the lifetime of the action: Aquila gives no signal that a flow is done with
+     * one. Call `subFlowFunctions.delete(identifier)` to drop one early.
+     */
+    registerSubFlowFunction(definition: SubFlowFunctionDefinition): string {
+        const identifier = `${this._identifier}::${definition.name}::${randomUUID()}`;
+        this.subFlowFunctions.set(identifier, definition);
+        return identifier;
     }
 
     registerDataTypeClass(klass: DataTypeClass) {

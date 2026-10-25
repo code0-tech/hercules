@@ -1,4 +1,5 @@
 import {toJSONSchema, type ZodTypeAny} from "zod";
+import type {PlainValue} from "@code0-tech/tucana/helpers";
 import {zodToTs, printNode, createAuxiliaryTypeStore, type TypeOverrideMap} from "zod-to-ts";
 import type {DefinitionDataTypeRule} from "@code0-tech/tucana/shared";
 
@@ -54,6 +55,17 @@ export function zodToTypeString(schema: ZodTypeAny): string {
         );
     }
     return type;
+}
+
+/**
+ * Convert a zod schema into a plain JSON schema object.
+ *
+ * `io` picks which side of a transforming schema is described: the input it accepts
+ * or the output it produces. Cyclic schemas are emitted as `$ref`s rather than
+ * rejected, so a self-referencing schema still converts.
+ */
+export function zodToJsonSchema(schema: ZodTypeAny, io: "input" | "output"): Record<string, PlainValue> {
+    return toJSONSchema(schema, {cycles: "ref", io}) as Record<string, PlainValue>;
 }
 
 export function zodToRules(schema: ZodTypeAny): DefinitionDataTypeRule[] {
