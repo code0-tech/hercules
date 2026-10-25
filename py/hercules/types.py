@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, List, Optional, Protocol, Union
+from typing import Any, Awaitable, Callable, List, Optional, Protocol, Type, Union
+
+from pydantic import BaseModel
 
 from hercules._tucana.helpers import PlainValue
 from tucana.generated.shared.flow_type_pb2 import FlowTypeSetting
@@ -20,6 +22,8 @@ __all__ = [
     "RuntimeFlowTypeSetting_UniquenessScope",
     "Translation",
     "SubFlow",
+    "SubFlowFunctionSchema",
+    "SubFlowFunctionDefinition",
     "FunctionContext",
     "ProjectConfiguration",
     "ConfigurationDefinition",
@@ -46,6 +50,40 @@ class SubFlow(Protocol):
     output_schema: Optional[Struct]
 
     def __call__(self, *args: PlainValue) -> Awaitable[PlainValue]: ...
+
+
+#: Describes a sub flow function's input or output. Normally a Pydantic model, which
+#: is converted to a JSON schema while the result is sent (the counterpart of the
+#: TypeScript SDK's zod schemas). A plain JSON schema dict or a ready-made ``Struct``
+#: (e.g. one taken from a :class:`SubFlow`) is passed through unchanged.
+SubFlowFunctionSchema = Union[Type[BaseModel], Struct, dict]
+
+
+@dataclass
+class SubFlowFunctionDefinition:
+    """A sub flow function returned from a runtime function's ``run`` in place of raw data.
+
+    Hercules registers :attr:`run` internally and reports the function to Aquila as a
+    ``shared.SubFlowFunctionResult``, so the flow can invoke it later like any other
+    sub flow. Name, description and I/O schema have to be declared here, because
+    nothing in the action's module definition describes a function created at runtime.
+
+    May also be returned as a plain dict with the same keys::
+
+        return SubFlowFunctionDefinition(
+            name="greet",
+            description="Greets a name",
+            input_schema=GreetInput,
+            output_schema=GreetOutput,
+            run=lambda name: f"Hello {name}",
+        )
+    """
+
+    name: str
+    description: str
+    input_schema: SubFlowFunctionSchema
+    output_schema: SubFlowFunctionSchema
+    run: Callable[..., Any]
 
 
 @dataclass

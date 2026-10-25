@@ -133,6 +133,16 @@ def pydantic_to_type_string(model: SchemaModel) -> str:
     return json_schema_to_ts(resolved, name)
 
 
+def pydantic_to_json_schema(model: SchemaModel, mode: str) -> Dict[str, Any]:
+    """Convert a Pydantic model into a plain JSON schema dict.
+
+    ``mode`` picks which side of the model is described: ``"validation"`` for the
+    input it accepts, ``"serialization"`` for the output it produces (the Python
+    counterpart of the TypeScript SDK's zod ``io`` option).
+    """
+    return model.model_json_schema(mode=mode)
+
+
 def pydantic_to_rules(model: SchemaModel) -> List[data_type_pb2.DefinitionDataTypeRule]:
     schema = model.model_json_schema()
     rules: List[data_type_pb2.DefinitionDataTypeRule] = []
