@@ -113,6 +113,10 @@ Each manager is a key-value store backed by a `Map`. See [BaseManager](./base-ma
       description: 'Stores registered runtime function definitions keyed by runtimeName.',
       type: 'RuntimeFunctionManager',
     },
+    subFlowFunctions: {
+      description: 'Stores sub flow functions returned by a runtime function at execution time, keyed by the identifier reported to Aquila.',
+      type: 'SubFlowFunctionManager',
+    },
     dataTypes: {
       description: 'Stores registered data type definitions keyed by identifier.',
       type: 'DataTypeManager',
@@ -173,6 +177,17 @@ entry is also created automatically.
 ```ts
 action.registerRuntimeFunction(FibonacciRuntimeFunction);
 ```
+
+### `registerSubFlowFunction`
+
+```ts
+action.registerSubFlowFunction(definition: SubFlowFunctionDefinition): string
+```
+
+Registers a sub flow function returned from a `run()` block and returns the identifier
+Aquila invokes it by. Called automatically while a result is sent, so a runtime
+function only has to return the definition — see
+[Returning a sub flow function](./runtime-function.mdx#returning-a-sub-flow-function).
 
 ### `registerDataTypeClass`
 

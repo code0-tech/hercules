@@ -10,6 +10,7 @@
     "base-manager",
     "function-manager",
     "runtime-function-manager",
+    "sub-flow-function-manager",
     "event-manager",
     "runtime-event-manager",
     "data-type-manager",

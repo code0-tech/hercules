@@ -22,12 +22,22 @@ The interface implemented by all RuntimeFunction classes.
 
 ```ts
 interface RuntimeFunctionRunnable {
-  run(...args: (PlainValue | undefined)[]): Promise<PlainValue> | PlainValue;
+  run(...args: (PlainValue | undefined)[]): Promise<RuntimeFunctionReturn> | RuntimeFunctionReturn;
 }
 ```
 
 The first argument to `run()` is always a [`FunctionContext`](#functioncontext) object. Subsequent arguments
 correspond to the declared parameters in order.
+
+### `RuntimeFunctionReturn`
+
+What a `run()` may produce: raw data, or a sub flow function that Hercules registers
+and reports to Aquila. See
+[Returning a sub flow function](./runtime-function.mdx#returning-a-sub-flow-function).
+
+```ts
+type RuntimeFunctionReturn = PlainValue | SubFlowFunctionDefinition;
+```
 
 ### `RuntimeFunctionProps`
 
@@ -47,7 +57,7 @@ interface RuntimeFunctionProps {
   alias?: Translation[];
   displayIcon?: string;
   design?: string;
-  handler: (...args: (PlainValue | undefined)[]) => Promise<PlainValue> | PlainValue;
+  handler: (...args: (PlainValue | undefined)[]) => Promise<RuntimeFunctionReturn> | RuntimeFunctionReturn;
 }
 ```
 
@@ -107,7 +117,7 @@ interface RuntimeFunctionProps {
     },
     handler: {
       description: 'Populated automatically from the class run() method during registration.',
-      type: '(...args: (PlainValue | undefined)[]) => Promise<PlainValue> | PlainValue',
+      type: '(...args: (PlainValue | undefined)[]) => Promise<RuntimeFunctionReturn> | RuntimeFunctionReturn',
       required: true,
     },
   }}
