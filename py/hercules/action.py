@@ -177,9 +177,12 @@ class Action(EventEmitter):
 
         Returns the identifier Aquila invokes it by. Each returned function gets its
         own identifier, so repeatedly returning one (e.g. once per execution) never
-        overwrites a function a running flow still holds. Registrations are kept for
-        the lifetime of the action: Aquila gives no signal that a flow is done with
-        one. Call ``sub_flow_functions.delete(identifier)`` to drop one early.
+        overwrites a function a running flow still holds.
+
+        Aquila gives no signal that a flow is done with a function, so a registration
+        expires on its own 30 minutes after it was registered and can no longer be
+        invoked (see :class:`~hercules.manager.sub_flow_function.SubFlowFunctionManager`).
+        Call ``sub_flow_functions.delete(identifier)`` to drop one earlier.
         """
         identifier = f"{self._identifier}::{definition.name}::{uuid.uuid4()}"
         self.sub_flow_functions.set(identifier, definition)

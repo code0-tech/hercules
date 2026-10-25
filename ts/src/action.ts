@@ -109,9 +109,12 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
      * Register a sub flow function a runtime function returned from its `run` block
      * and return the identifier Aquila invokes it by. Each returned function gets its
      * own identifier, so repeatedly returning one (e.g. once per execution) never
-     * overwrites a function a running flow still holds. Registrations are kept for
-     * the lifetime of the action: Aquila gives no signal that a flow is done with
-     * one. Call `subFlowFunctions.delete(identifier)` to drop one early.
+     * overwrites a function a running flow still holds.
+     *
+     * Aquila gives no signal that a flow is done with a function, so a registration
+     * expires on its own 30 minutes after it was registered and can no longer be
+     * invoked (see {@link SubFlowFunctionManager}). Call
+     * `subFlowFunctions.delete(identifier)` to drop one earlier.
      */
     registerSubFlowFunction(definition: SubFlowFunctionDefinition): string {
         const identifier = `${this._identifier}::${definition.name}::${randomUUID()}`;

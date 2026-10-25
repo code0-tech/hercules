@@ -114,7 +114,7 @@ Each manager is a key-value store backed by a `Map`. See [BaseManager](./base-ma
       type: 'RuntimeFunctionManager',
     },
     subFlowFunctions: {
-      description: 'Stores sub flow functions returned by a runtime function at execution time, keyed by the identifier reported to Aquila.',
+      description: 'Stores sub flow functions returned by a runtime function at execution time, keyed by the identifier reported to Aquila. Entries expire 30 minutes after they were registered.',
       type: 'SubFlowFunctionManager',
     },
     dataTypes: {
@@ -188,6 +188,8 @@ Registers a sub flow function returned from a `run()` block and returns the iden
 Aquila invokes it by. Called automatically while a result is sent, so a runtime
 function only has to return the definition — see
 [Returning a sub flow function](./runtime-function.mdx#returning-a-sub-flow-function).
+The registration expires after 30 minutes
+([`SubFlowFunctionManager`](./sub-flow-function-manager.mdx#lifetime)).
 
 ### `registerDataTypeClass`
 

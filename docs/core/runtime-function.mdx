@@ -90,8 +90,8 @@ the returned function matches — not the raw data type it eventually produces:
 | `() => void` | `RUNNABLE` |
 
 Each returned function is registered under its own identifier, so returning one per
-execution never overwrites a function a running flow still holds. The registrations
-are kept for the lifetime of the action and are listed in
+execution never overwrites a function a running flow still holds. A registration has a
+maximum lifetime of **30 minutes** and is then dropped from memory — see
 [`action.subFlowFunctions`](./sub-flow-function-manager.mdx).
 
 ## Error Handling

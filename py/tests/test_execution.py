@@ -6,6 +6,10 @@ import pytest
 from hercules import Action, SubFlowFunctionDefinition
 from hercules.schema import BaseModel, RootModel
 from hercules.actions.execution import handle
+from hercules.manager.sub_flow_function import (
+    SUB_FLOW_FUNCTION_TTL_SECONDS,
+    SubFlowFunctionManager,
+)
 from hercules.models.runtime_function import RuntimeFunctionProps
 from tucana.generated.aquila import action_pb2
 from tucana.generated.shared import struct_pb2
@@ -218,3 +222,80 @@ def test_reports_an_unnamed_sub_flow_function_as_an_error(action, sent):
     assert node_result.WhichOneof("result") == "error"
     assert node_result.error.code == "SUB_FLOW_FUNCTION_MISSING_NAME"
     assert action.sub_flow_functions.size == 0
+
+
+class TestSubFlowFunctionLifetime:
+    """The registry drops a sub flow function once its maximum lifetime has passed."""
+
+    @staticmethod
+    def _manager(monkeypatch, clock):
+        manager = SubFlowFunctionManager()
+        monkeypatch.setattr(SubFlowFunctionManager, "_now", staticmethod(lambda: clock[0]))
+        return manager
+
+    def test_default_lifetime_is_30_minutes(self):
+        assert SUB_FLOW_FUNCTION_TTL_SECONDS == 30 * 60
+
+    def test_keeps_a_function_invocable_right_up_to_its_lifetime(self, monkeypatch):
+        clock = [0.0]
+        manager = self._manager(monkeypatch, clock)
+        manager.set("a", "fn")
+
+        clock[0] += SUB_FLOW_FUNCTION_TTL_SECONDS - 0.001
+
+        assert manager.get("a") == "fn"
+
+    def test_drops_a_function_once_its_lifetime_has_passed(self, monkeypatch):
+        clock = [0.0]
+        manager = self._manager(monkeypatch, clock)
+        manager.set("a", "fn")
+
+        clock[0] += SUB_FLOW_FUNCTION_TTL_SECONDS
+
+        assert manager.get("a") is None
+        assert manager.size == 0
+
+    def test_does_not_extend_a_lifetime_when_the_function_is_invoked(self, monkeypatch):
+        clock = [0.0]
+        manager = self._manager(monkeypatch, clock)
+        manager.set("a", "fn")
+
+        clock[0] += SUB_FLOW_FUNCTION_TTL_SECONDS / 2
+        assert manager.get("a") == "fn"
+        clock[0] += SUB_FLOW_FUNCTION_TTL_SECONDS / 2
+
+        assert manager.get("a") is None
+
+    def test_expires_entries_in_registration_order(self, monkeypatch):
+        clock = [0.0]
+        manager = self._manager(monkeypatch, clock)
+        manager.set("first", "fn")
+        clock[0] += SUB_FLOW_FUNCTION_TTL_SECONDS / 2
+        manager.set("second", "fn")
+
+        clock[0] += SUB_FLOW_FUNCTION_TTL_SECONDS / 2
+
+        assert manager.get("first") is None
+        assert manager.get("second") == "fn"
+
+    def test_frees_an_expired_function_without_waiting_for_a_read(self):
+        async def main():
+            manager = SubFlowFunctionManager(ttl_seconds=0.05)
+            manager.set("a", "fn")
+            assert manager.size == 1
+            # The scheduled sweep clears the entry on its own, so nothing is held
+            # just because no one looked the function up again.
+            await asyncio.sleep(0.1)
+            assert len(manager.cache) == 0
+
+        asyncio.new_event_loop().run_until_complete(main())
+
+    def test_an_expired_function_is_not_executed(self, action, sent):
+        action.sub_flow_functions = SubFlowFunctionManager(ttl_seconds=0.0)
+        identifier = action.register_sub_flow_function(
+            _sub_flow_function(lambda name: f"Hi {name}")
+        )
+
+        _run_handle(action, _request(identifier, [_literal_param(_str("Ada"))]))
+
+        assert sent == []

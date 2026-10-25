@@ -57,7 +57,10 @@ from hercules.manager.flow import FlowManager
 from hercules.manager.function import FunctionManager
 from hercules.manager.runtime_event import RuntimeEventManager
 from hercules.manager.runtime_function import RuntimeFunctionManager
-from hercules.manager.sub_flow_function import SubFlowFunctionManager
+from hercules.manager.sub_flow_function import (
+    SUB_FLOW_FUNCTION_TTL_SECONDS,
+    SubFlowFunctionManager,
+)
 from hercules.models.datatype import DataTypeProps, DataTypeRunnable
 from hercules.models.event import EventModel, EventSettingProps
 from hercules.models.function import FunctionParameterProps, FunctionProps
@@ -77,7 +80,8 @@ __all__ = [
     "OmitFunction", "Design", "ThrowsError", "Parameter", "Schema", "TypeString",
     "EventSetting", "OmitEvent", "OmitRuntimeFunction",
     "BaseManager", "ConfigManager", "FlowManager", "FunctionManager",
-    "RuntimeFunctionManager", "SubFlowFunctionManager", "DataTypeManager",
+    "RuntimeFunctionManager", "SubFlowFunctionManager",
+    "SUB_FLOW_FUNCTION_TTL_SECONDS", "DataTypeManager",
     "EventManager", "RuntimeEventManager",
     "FunctionProps", "FunctionParameterProps", "RuntimeFunctionProps",
     "RuntimeFunctionRunnable", "DataTypeProps", "DataTypeRunnable", "EventModel",

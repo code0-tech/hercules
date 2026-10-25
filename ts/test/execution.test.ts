@@ -1,9 +1,10 @@
 import "reflect-metadata";
-import {beforeEach, describe, expect, it} from "vitest";
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
 import {z} from "zod";
 import type {ActionExecutionRequest, ActionTransferRequest} from "@code0-tech/tucana/aquila";
 import type {Value} from "@code0-tech/tucana/shared";
 import {Action} from "../src/action";
+import {SUB_FLOW_FUNCTION_TTL_MS} from "../src/manager/SubFlowFunctionManager";
 import {handle} from "../src/actions/Execution";
 import type {RuntimeFunctionProps} from "../src/models/runtime_function.model";
 import type {SubFlowFunctionDefinition} from "../src/types";
@@ -150,5 +151,64 @@ describe("execution results", () => {
         if (result.oneofKind !== "error") throw new Error(`expected an error, got ${result.oneofKind}`);
         expect(result.error.code).toBe("SUB_FLOW_FUNCTION_MISSING_NAME");
         expect(action.subFlowFunctions.size).toBe(0);
+    });
+});
+
+describe("sub flow function lifetime", () => {
+    let action: Action;
+
+    beforeEach(() => {
+        vi.useFakeTimers();
+        ({action} = stubAction());
+    });
+
+    afterEach(() => vi.useRealTimers());
+
+    it("keeps a function invocable right up to its lifetime", () => {
+        const identifier = action.registerSubFlowFunction(subFlowFunction(() => null));
+
+        vi.advanceTimersByTime(SUB_FLOW_FUNCTION_TTL_MS - 1);
+
+        expect(action.subFlowFunctions.get(identifier)).toBeDefined();
+    });
+
+    it("drops a function once its lifetime has passed", () => {
+        const identifier = action.registerSubFlowFunction(subFlowFunction(() => null));
+
+        vi.advanceTimersByTime(SUB_FLOW_FUNCTION_TTL_MS);
+
+        expect(action.subFlowFunctions.get(identifier)).toBeUndefined();
+    });
+
+    it("frees an expired function without waiting for a read", () => {
+        action.registerSubFlowFunction(subFlowFunction(() => null));
+        expect(action.subFlowFunctions.size).toBe(1);
+
+        // The scheduled sweep clears the entry on its own, so nothing is held just
+        // because no one looked the function up again.
+        vi.advanceTimersByTime(SUB_FLOW_FUNCTION_TTL_MS);
+
+        expect(action.subFlowFunctions.size).toBe(0);
+    });
+
+    it("does not extend a lifetime when the function is invoked", () => {
+        const identifier = action.registerSubFlowFunction(subFlowFunction(() => null));
+
+        vi.advanceTimersByTime(SUB_FLOW_FUNCTION_TTL_MS / 2);
+        expect(action.subFlowFunctions.get(identifier)).toBeDefined();
+        vi.advanceTimersByTime(SUB_FLOW_FUNCTION_TTL_MS / 2);
+
+        expect(action.subFlowFunctions.get(identifier)).toBeUndefined();
+    });
+
+    it("expires entries in registration order", () => {
+        const first = action.registerSubFlowFunction(subFlowFunction(() => null));
+        vi.advanceTimersByTime(SUB_FLOW_FUNCTION_TTL_MS / 2);
+        const second = action.registerSubFlowFunction(subFlowFunction(() => null));
+
+        vi.advanceTimersByTime(SUB_FLOW_FUNCTION_TTL_MS / 2);
+
+        expect(action.subFlowFunctions.get(first)).toBeUndefined();
+        expect(action.subFlowFunctions.get(second)).toBeDefined();
     });
 });

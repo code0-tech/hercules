@@ -19,8 +19,26 @@ action.subFlowFunctions.size;
 action.subFlowFunctions.delete(identifier);
 ```
 
-Registrations are kept for the lifetime of the action, because Aquila gives no signal
-that a flow is done with one. Delete an entry to drop it early.
+## Lifetime
+
+Aquila gives no signal that a flow is done with a sub flow function, so each entry has
+a maximum lifetime of `SUB_FLOW_FUNCTION_TTL_MS` — **30 minutes** — counted from when
+it was registered and never extended by an invocation. Once it passes, the function is
+dropped from memory and can no longer be invoked, so the registry cannot grow without
+bound while the action runs.
+
+Expired entries are cleared by a sweep scheduled for the next expiry, so memory is
+freed without waiting for another lookup, and additionally on every read and write, so
+an expired function is never invoked even if the sweep could not run. Delete an entry
+to drop it earlier:
+
+```ts
+action.subFlowFunctions.delete(identifier);
+```
+
+An execution request naming a function that has expired is reported as an unknown
+function and no result is sent, so keep the lifetime in mind for flows that hold a
+returned function for a long time.
 
 ## Interfaces
 
