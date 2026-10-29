@@ -3,6 +3,7 @@ import {FibonacciRuntimeFunction} from "./functions/fibonacciRuntimeFunction.js"
 import {FibonacciFunction} from "./functions/fibonacciFunction.js";
 import {ForEachRuntimeFunction} from "./functions/forEachRuntimeFunction.js";
 import {ForEachConsumersRuntimeFunction} from "./functions/forEachConsumersRuntimeFunction.js";
+import {GreeterRuntimeFunction} from "./functions/greeterRuntimeFunction.js";
 import {UserCreatedRuntimeEvent} from "./events/userCreatedRuntimeEvent.js";
 import {EmailDataType} from "./data_types/emailDataType.js";
 
@@ -32,6 +33,9 @@ action.registerRuntimeFunction(ForEachRuntimeFunction);
 
 // Runtime function that takes a list of consumers (each an inline ${signature} sub flow reference)
 action.registerRuntimeFunction(ForEachConsumersRuntimeFunction);
+
+// Runtime function that returns a sub flow function instead of raw data
+action.registerRuntimeFunction(GreeterRuntimeFunction);
 
 // Data type: derived from Zod schema
 action.registerDataTypeClass(EmailDataType);

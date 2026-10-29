@@ -22,6 +22,7 @@ from hercules.manager.flow import FlowManager
 from hercules.manager.function import FunctionManager
 from hercules.manager.runtime_event import RuntimeEventManager
 from hercules.manager.runtime_function import RuntimeFunctionManager
+from hercules.manager.sub_flow_function import SubFlowFunctionManager
 from hercules.map.datatype import data_type_map
 from hercules.map.event import event_map
 from hercules.map.function import function_map
@@ -29,7 +30,12 @@ from hercules.map.runtime_event import runtime_event_map
 from hercules.map.runtime_function import runtime_function_map
 from hercules.models.event import EventModel
 from hercules.models.function import FunctionProps
-from hercules.types import ConfigurationDefinition, RuntimeError, Translation
+from hercules.types import (
+    ConfigurationDefinition,
+    RuntimeError,
+    SubFlowFunctionDefinition,
+    Translation,
+)
 
 # Registry of actions constructed while exporting, so the CLI can find them.
 _REGISTERED_ACTIONS: List["Action"] = []
@@ -114,6 +120,7 @@ class Action(EventEmitter):
         self.flows = FlowManager()
         self.functions = FunctionManager()
         self.runtime_functions = RuntimeFunctionManager()
+        self.sub_flow_functions = SubFlowFunctionManager()
         self.data_types = DataTypeManager()
         self.events = EventManager()
         self.runtime_events = RuntimeEventManager()
@@ -164,6 +171,35 @@ class Action(EventEmitter):
                     ],
                 ),
             )
+
+    def register_sub_flow_function(self, definition: SubFlowFunctionDefinition) -> str:
+        """Register a sub flow function returned from a ``run`` block.
+
+        Returns the identifier Aquila invokes it by. Each returned function gets its
+        own identifier, so repeatedly returning one (e.g. once per execution) never
+        overwrites a function a running flow still holds.
+
+        Aquila gives no signal that a flow is done with a function, so a registration
+        expires on its own 30 minutes after it was registered and can no longer be
+        invoked (see :class:`~hercules.manager.sub_flow_function.SubFlowFunctionManager`).
+        Call ``sub_flow_functions.delete(identifier)`` to drop one earlier.
+        """
+        identifier = f"{self._sub_flow_function_prefix}{definition.name}::{uuid.uuid4()}"
+        self.sub_flow_functions.set(identifier, definition)
+        return identifier
+
+    def is_sub_flow_function_identifier(self, identifier: str) -> bool:
+        """True for an identifier this action minted for a sub flow function.
+
+        Holds whether or not it is still registered. An execution request naming one
+        that is gone addresses a function that expired (or was deleted) rather than an
+        unknown one, which lets the execution handler report it as such.
+        """
+        return identifier.startswith(self._sub_flow_function_prefix)
+
+    @property
+    def _sub_flow_function_prefix(self) -> str:
+        return f"{self._identifier}::"
 
     def register_data_type_class(self, klass: type) -> None:
         definition = data_type_map(klass)

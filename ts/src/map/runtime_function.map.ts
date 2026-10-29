@@ -1,4 +1,3 @@
-import type {PlainValue} from "@code0-tech/tucana/helpers";
 import {RuntimeFunctionProps, RuntimeFunctionClass} from "../models/runtime_function.model";
 import {FunctionParameterProps} from "../models/function.model";
 
@@ -20,7 +19,7 @@ export const runtimeFunctionMap = (klass: RuntimeFunctionClass): RuntimeFunction
     if (!signature) throw new Error(`Runtime function class ${klass.name} is missing a signature. Add @Signature("(param1: TYPE_1): RETURN_TYPE") to the class.`);
 
     const instance = new klass();
-    const handler = instance.run.bind(instance) as (...args: (PlainValue | undefined)[]) => Promise<PlainValue> | PlainValue;
+    const handler = instance.run.bind(instance) as RuntimeFunctionProps["handler"];
 
     return {
         runtimeName: identifier,

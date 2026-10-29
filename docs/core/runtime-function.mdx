@@ -42,6 +42,58 @@ export class FibonacciRuntimeFunction {
 }
 ```
 
+## Returning a sub flow function
+
+A `run()` block may return a **sub flow function** instead of raw data. Hercules
+registers its `run` internally and reports the function to Aquila as a sub flow
+function result, so a later node of the flow can invoke it like any other sub flow.
+
+Because nothing in the module definition describes a function that only comes into
+existence at runtime, its name, description and I/O schema have to be declared with it.
+The schemas are written as [Zod](https://zod.dev) schemas — the same way
+[`@Schema`](./decorator-schema.mdx) describes a data type — and are converted to JSON
+schemas while the result is sent:
+
+```ts
+import { z } from 'zod';
+import { SubFlowFunctionDefinition } from '@code0-tech/hercules';
+
+@Identifier('greeter_runtime')
+@Signature('(greeting: STRING): TRANSFORM<STRING, STRING>')
+export class GreeterRuntimeFunction {
+  run(context: FunctionContext, greeting: string): SubFlowFunctionDefinition {
+    return {
+      name: 'greet',
+      description: `Greets a name with "${greeting}"`,
+      inputSchema: z.object({ name: z.string() }),
+      outputSchema: z.string(),
+      run: (name) => `${greeting} ${String(name)}`,
+    };
+  }
+}
+```
+
+The input schema is an object keyed by parameter name, the output schema describes the
+value the function returns. Each is generated from its own side of the zod schema —
+the input schema from the schema's input side, the output schema from its output side
+— so a schema with a transform or a default describes each direction correctly.
+
+The [`@Signature`](./decorator-signature.mdx) return type is the function data type
+the returned function matches — not the raw data type it eventually produces:
+
+| Returned function | Signature return type |
+|---|---|
+| `(value) => result` | `TRANSFORM<T, R>` |
+| `(value) => void` | `CONSUMER<T>` |
+| `(value) => boolean` | `PREDICATE<T>` |
+| `(a, b) => number` | `COMPARATOR<T>` |
+| `() => void` | `RUNNABLE` |
+
+Each returned function is registered under its own identifier, so returning one per
+execution never overwrites a function a running flow still holds. A registration has a
+maximum lifetime of **30 minutes** and is then dropped from memory — see
+[`action.subFlowFunctions`](./sub-flow-function-manager.mdx).
+
 ## Error Handling
 
 Throw a `RuntimeError` to signal a recoverable error back to the platform:

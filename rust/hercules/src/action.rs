@@ -281,6 +281,8 @@ impl Action {
             request_tx: connection.request_tx,
             queue_saturation_count: Default::default(),
             events_tx: self.events_tx,
+            sub_flow_functions: Default::default(),
+            sub_flow_function_ttl: crate::SUB_FLOW_FUNCTION_TTL,
         });
 
         let _ = inner.events_tx.send(HerculesEvent::Connected);

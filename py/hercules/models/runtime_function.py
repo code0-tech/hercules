@@ -2,11 +2,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Union
 
 from hercules._tucana.helpers import PlainValue
 from hercules.models.function import FunctionParameterProps
-from hercules.types import Translation
+from hercules.types import SubFlowFunctionDefinition, Translation
+
+#: What a runtime function's ``run`` may produce: raw data, or a
+#: :class:`~hercules.types.SubFlowFunctionDefinition` that Hercules registers and
+#: reports to Aquila as a ``shared.SubFlowFunctionResult``.
+RuntimeFunctionReturn = Union[PlainValue, SubFlowFunctionDefinition]
 
 
 class RuntimeFunctionRunnable:
@@ -20,7 +25,7 @@ class RuntimeFunctionRunnable:
 class RuntimeFunctionProps:
     runtime_name: str
     signature: str
-    handler: Callable[..., PlainValue]
+    handler: Callable[..., RuntimeFunctionReturn]
     parameters: Optional[List[FunctionParameterProps]] = None
     throws_error: Optional[bool] = None
     name: Optional[List[Translation]] = None

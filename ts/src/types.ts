@@ -1,6 +1,7 @@
 import {FlowTypeSetting_UniquenessScope, RuntimeFlowTypeSetting_UniquenessScope} from "@code0-tech/tucana/shared";
 import type {Struct} from "@code0-tech/tucana/shared";
 import type {ActionNodeSubFlowValue} from "@code0-tech/tucana/aquila";
+import type {ZodTypeAny} from "zod";
 import {PlainValue} from "@code0-tech/tucana/helpers";
 import 'reflect-metadata';
 
@@ -22,6 +23,39 @@ export interface SubFlow<R extends PlainValue = PlainValue> {
     (...args: PlainValue[]): Promise<R>;
     readonly inputSchema?: Struct;
     readonly outputSchema?: Struct;
+}
+
+/**
+ * Describes a sub flow function's input or output. Normally a zod schema, which is
+ * converted to a JSON schema while the result is sent. A plain JSON schema object or
+ * a ready-made {@link Struct} (e.g. one taken from a {@link SubFlow}) is passed
+ * through unchanged.
+ */
+export type SubFlowFunctionSchema = ZodTypeAny | Struct | Record<string, PlainValue>;
+
+/**
+ * A sub flow function returned from a runtime function's `run` block in place of raw
+ * data. Hercules registers `run` internally and reports the function to Aquila as a
+ * `shared.SubFlowFunctionResult`, so the flow can invoke it later like any other sub
+ * flow. Its name, description and I/O schema have to be declared here, because
+ * nothing in the action's module definition describes a function created at runtime.
+ *
+ * ```ts
+ * return {
+ *     name: "greet",
+ *     description: "Greets a name",
+ *     inputSchema: z.object({name: z.string()}),
+ *     outputSchema: z.string(),
+ *     run: (name) => `Hello ${String(name)}`,
+ * };
+ * ```
+ */
+export interface SubFlowFunctionDefinition<R extends PlainValue = PlainValue> {
+    name: string;
+    description: string;
+    inputSchema: SubFlowFunctionSchema;
+    outputSchema: SubFlowFunctionSchema;
+    run(...args: (PlainValue | undefined)[]): Promise<R> | R;
 }
 
 export interface FunctionContext {

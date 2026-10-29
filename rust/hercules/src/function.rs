@@ -3,7 +3,33 @@ use async_trait::async_trait;
 use crate::arguments::Arguments;
 use crate::error::Result;
 use crate::meta::{FunctionMeta, RuntimeFunctionMeta};
+use crate::sub_flow_function::SubFlowFunctionDefinition;
 use crate::types::{FunctionContext, PlainValue};
+
+/// What a runtime function's handler may produce: raw data
+/// ([`Value`](RuntimeFunctionReturn::Value)), or a
+/// [`SubFlowFunctionDefinition`] that Hercules registers and reports to Aquila
+/// as a `shared.SubFlowFunctionResult` for the flow to invoke later.
+///
+/// A handler returning raw data converts into `Value` with `.into()`
+/// (`Ok(json!(...).into())`); one returning a function returns the definition
+/// (`Ok(definition.into())`).
+pub enum RuntimeFunctionReturn {
+    Value(PlainValue),
+    SubFlowFunction(SubFlowFunctionDefinition),
+}
+
+impl From<PlainValue> for RuntimeFunctionReturn {
+    fn from(value: PlainValue) -> Self {
+        Self::Value(value)
+    }
+}
+
+impl From<SubFlowFunctionDefinition> for RuntimeFunctionReturn {
+    fn from(definition: SubFlowFunctionDefinition) -> Self {
+        Self::SubFlowFunction(definition)
+    }
+}
 
 /// The actual behavior of a runtime function. Split out from
 /// [`RuntimeFunction`] so it can be boxed as `Arc<dyn RuntimeFunctionHandler>`
@@ -12,7 +38,16 @@ use crate::types::{FunctionContext, PlainValue};
 /// associated function with no `self`.
 #[async_trait]
 pub trait RuntimeFunctionHandler: Send + Sync + 'static {
-    async fn run(&self, context: &FunctionContext, args: &Arguments) -> Result<PlainValue>;
+    /// Runs the function. Return raw data as a
+    /// [`Value`](RuntimeFunctionReturn::Value), or a
+    /// [`SubFlowFunctionDefinition`] to hand the flow a function it can invoke
+    /// later — see [`RuntimeFunctionReturn`].
+    #[allow(clippy::double_must_use)] // `async_trait` adds `#[must_use]` to its boxed future.
+    async fn run(
+        &self,
+        context: &FunctionContext,
+        args: &Arguments,
+    ) -> Result<RuntimeFunctionReturn>;
 }
 
 /// A function Aquila can invoke. Implemented by attaching

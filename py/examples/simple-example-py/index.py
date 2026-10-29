@@ -9,6 +9,7 @@ from functions.fibonacci_function import FibonacciFunction
 from functions.fibonacci_runtime_function import FibonacciRuntimeFunction
 from functions.for_each_runtime_function import ForEachRuntimeFunction
 from functions.for_each_consumers_runtime_function import ForEachConsumersRuntimeFunction
+from functions.greeter_runtime_function import GreeterRuntimeFunction
 
 action = Action(
     os.environ.get("ACTION_ID", "testing-action"),
@@ -38,6 +39,9 @@ action.register_runtime_function(ForEachRuntimeFunction)
 
 # Runtime function that takes a list of consumers (each an inline ${signature} sub flow reference).
 action.register_runtime_function(ForEachConsumersRuntimeFunction)
+
+# Runtime function that returns a sub flow function instead of raw data.
+action.register_runtime_function(GreeterRuntimeFunction)
 
 # Data type: derived from a schema.
 action.register_data_type_class(EmailDataType)

@@ -12,9 +12,9 @@
 //!
 //! #[async_trait]
 //! impl RuntimeFunctionHandler for Greet {
-//!     async fn run(&self, _ctx: &FunctionContext, args: &Arguments) -> hercules_sdk::Result<hercules_sdk::PlainValue> {
+//!     async fn run(&self, _ctx: &FunctionContext, args: &Arguments) -> hercules_sdk::Result<hercules_sdk::RuntimeFunctionReturn> {
 //!         let name: String = args.get("name")?;
-//!         Ok(format!("Hello, {name}!").into())
+//!         Ok(hercules_sdk::PlainValue::from(format!("Hello, {name}!")).into())
 //!     }
 //! }
 //!
@@ -41,6 +41,7 @@ mod literal;
 mod meta;
 mod module_builder;
 mod registration;
+mod sub_flow_function;
 mod sync;
 mod types;
 mod value;
@@ -52,13 +53,16 @@ pub use data_type::{DataType, DataTypeDef, DataTypeRule};
 pub use error::{HerculesError, Result};
 pub use event::{Event, RuntimeEvent};
 pub use events::HerculesEvent;
-pub use function::{Function, RuntimeFunction, RuntimeFunctionHandler};
+pub use function::{Function, RuntimeFunction, RuntimeFunctionHandler, RuntimeFunctionReturn};
 pub use meta::DataTypeMeta;
 pub use meta::{
     EventDef, EventMeta, EventSettingMeta, FunctionDef, FunctionMeta, ParameterMeta,
     RuntimeEventMeta, RuntimeFunctionMeta,
 };
 pub use registration::Registration;
+pub use sub_flow_function::{
+    SUB_FLOW_FUNCTION_TTL, SubFlowFunctionDefinition, SubFlowFunctionHandler, SubFlowFunctionSchema,
+};
 pub use types::{
     ConfigurationDefinition, FunctionContext, PlainValue, ProjectConfiguration, ScalingOption,
     Translation, UniquenessScope,

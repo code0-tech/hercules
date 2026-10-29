@@ -18,6 +18,8 @@ from hercules.types import (
     RuntimeError,
     RuntimeFlowTypeSetting_UniquenessScope,
     SubFlow,
+    SubFlowFunctionDefinition,
+    SubFlowFunctionSchema,
     Translation,
 )
 from hercules.events import CodeZeroEvent
@@ -55,6 +57,10 @@ from hercules.manager.flow import FlowManager
 from hercules.manager.function import FunctionManager
 from hercules.manager.runtime_event import RuntimeEventManager
 from hercules.manager.runtime_function import RuntimeFunctionManager
+from hercules.manager.sub_flow_function import (
+    SUB_FLOW_FUNCTION_TTL_SECONDS,
+    SubFlowFunctionManager,
+)
 from hercules.models.datatype import DataTypeProps, DataTypeRunnable
 from hercules.models.event import EventModel, EventSettingProps
 from hercules.models.function import FunctionParameterProps, FunctionProps
@@ -63,7 +69,8 @@ from hercules.models.runtime_function import RuntimeFunctionProps, RuntimeFuncti
 from hercules.action import Action, is_export_mode, registered_actions
 
 __all__ = [
-    "Translation", "PlainValue", "SubFlow", "FunctionContext",
+    "Translation", "PlainValue", "SubFlow", "SubFlowFunctionDefinition",
+    "SubFlowFunctionSchema", "FunctionContext",
     "ProjectConfiguration", "ConfigurationDefinition", "RuntimeError",
     "FlowTypeSetting_UniquenessScope", "RuntimeFlowTypeSetting_UniquenessScope",
     "CodeZeroEvent", "SchemaType",
@@ -73,7 +80,9 @@ __all__ = [
     "OmitFunction", "Design", "ThrowsError", "Parameter", "Schema", "TypeString",
     "EventSetting", "OmitEvent", "OmitRuntimeFunction",
     "BaseManager", "ConfigManager", "FlowManager", "FunctionManager",
-    "RuntimeFunctionManager", "DataTypeManager", "EventManager", "RuntimeEventManager",
+    "RuntimeFunctionManager", "SubFlowFunctionManager",
+    "SUB_FLOW_FUNCTION_TTL_SECONDS", "DataTypeManager",
+    "EventManager", "RuntimeEventManager",
     "FunctionProps", "FunctionParameterProps", "RuntimeFunctionProps",
     "RuntimeFunctionRunnable", "DataTypeProps", "DataTypeRunnable", "EventModel",
     "EventSettingProps", "RuntimeEventProps", "RuntimeEventRunnable",

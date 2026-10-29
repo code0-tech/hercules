@@ -1,0 +1,99 @@
+---
+title: SubFlowFunctionManager
+description: Stores sub flow functions returned at execution time
+---
+
+import { TypeTable } from 'fumadocs-ui/components/type-table';
+
+`SubFlowFunctionManager` stores the sub flow functions a runtime function returned from
+its `run()` block (see
+[Returning a sub flow function](./runtime-function.mdx#returning-a-sub-flow-function)).
+It extends [`BaseManager`](./base-manager.mdx) with key type `string` (the identifier
+reported to Aquila) and value type `SubFlowFunctionDefinition`.
+
+Unlike the other managers it is not filled by registering classes up front: entries
+appear while the action runs, each time a `run()` returns a function.
+
+```ts
+action.subFlowFunctions.size;
+action.subFlowFunctions.delete(identifier);
+```
+
+## Lifetime
+
+Aquila gives no signal that a flow is done with a sub flow function, so each entry has
+a maximum lifetime of `SUB_FLOW_FUNCTION_TTL_MS` — **30 minutes** — counted from when
+it was registered and never extended by an invocation. Once it passes, the function is
+dropped from memory and can no longer be invoked, so the registry cannot grow without
+bound while the action runs.
+
+Expired entries are cleared by a sweep scheduled for the next expiry, so memory is
+freed without waiting for another lookup, and additionally on every read and write, so
+an expired function is never invoked even if the sweep could not run. Delete an entry
+to drop it earlier:
+
+```ts
+action.subFlowFunctions.delete(identifier);
+```
+
+An execution request naming a function that has expired fails the node with a
+`SUB_FLOW_FUNCTION_EXPIRED` error rather than going unanswered, so the flow reports a
+clear failure instead of waiting for a result that cannot come. Identifiers this
+action never minted are still only logged — they address a function the action does
+not know at all.
+
+## Interfaces
+
+### `SubFlowFunctionDefinition`
+
+Returned from a `run()` block in place of raw data.
+
+```ts
+interface SubFlowFunctionDefinition<R extends PlainValue = PlainValue> {
+  name: string;
+  description: string;
+  inputSchema: SubFlowFunctionSchema;
+  outputSchema: SubFlowFunctionSchema;
+  run(...args: (PlainValue | undefined)[]): Promise<R> | R;
+}
+```
+
+<TypeTable
+  type={{
+    name: {
+      description: 'Name of the function as the platform shows it.',
+      type: 'string',
+      required: true,
+    },
+    description: {
+      description: 'Short description of what the function does.',
+      type: 'string',
+      required: true,
+    },
+    inputSchema: {
+      description: 'Zod schema describing what the function accepts. Converted to a JSON schema when the result is sent.',
+      type: 'SubFlowFunctionSchema',
+      required: true,
+    },
+    outputSchema: {
+      description: 'Zod schema describing what the function returns. Converted to a JSON schema when the result is sent.',
+      type: 'SubFlowFunctionSchema',
+      required: true,
+    },
+    run: {
+      description: 'The implementation. Called with the parameters Aquila sends when the flow invokes the function, preceded by a FunctionContext when the signature declares one.',
+      type: '(...args: (PlainValue | undefined)[]) => Promise<PlainValue> | PlainValue',
+      required: true,
+    },
+  }}
+/>
+
+### `SubFlowFunctionSchema`
+
+Normally a Zod schema, converted to a JSON schema when the result is sent. A plain
+JSON schema object or a ready-made protobuf `Struct` — e.g. the `inputSchema` of a
+[`SubFlow`](./runtime-function.mdx) parameter — is passed through unchanged.
+
+```ts
+type SubFlowFunctionSchema = ZodTypeAny | Struct | Record<string, PlainValue>;
+```
