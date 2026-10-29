@@ -13,14 +13,21 @@ use tucana::aquila::{
     action_flow_execution_response, action_flow_update, action_node_value,
     action_sub_flow_execution_response, action_transfer_request, action_transfer_response,
 };
-use tucana::shared::{Error as WireError, NodeExecutionResult, node_execution_result};
+use tokio::time::Instant;
+use tucana::shared::{
+    Error as WireError, NodeExecutionResult, NodeValueExecutionResult, node_execution_result,
+    node_value_execution_result,
+};
 
 use crate::arguments::Arguments;
 use crate::error::{HerculesError, Result};
 use crate::events::{HerculesEvent, event_stream};
-use crate::function::RuntimeFunctionHandler;
+use crate::function::{RuntimeFunctionHandler, RuntimeFunctionReturn};
 use crate::literal::{ResolvedValue, resolve_literal};
 use crate::meta::{ParameterMeta, RuntimeFunctionMeta};
+use crate::sub_flow_function::{
+    SubFlowFunctionDefinition, SubFlowFunctionState, build_sub_flow_function_result,
+};
 use crate::sync;
 use crate::types::{FunctionContext, PlainValue, ProjectConfiguration};
 use crate::value::{construct_value, to_allowed_value};
@@ -78,6 +85,14 @@ pub(crate) struct ConnectedInner {
     pub request_tx: mpsc::Sender<ActionTransferRequest>,
     pub queue_saturation_count: AtomicU64,
     pub events_tx: broadcast::Sender<HerculesEvent>,
+    /// Sub flow functions this action's runtime functions returned at
+    /// execution time, keyed by the identifier reported to Aquila. Filled
+    /// while the action runs, not up front — see
+    /// [`ConnectedInner::register_sub_flow_function`].
+    pub(crate) sub_flow_functions: Mutex<SubFlowFunctionState>,
+    /// How long a registered sub flow function stays invocable. Configurable
+    /// only so tests can shorten it; production uses [`SUB_FLOW_FUNCTION_TTL`].
+    pub(crate) sub_flow_function_ttl: Duration,
 }
 
 impl ConnectedInner {
@@ -95,6 +110,97 @@ impl ConnectedInner {
 
     fn next_pending_token(&self) -> u64 {
         self.next_pending_token.fetch_add(1, Ordering::Relaxed)
+    }
+
+    /// Registers a sub flow function returned from a runtime function's handler
+    /// and returns the identifier Aquila invokes it by. Each returned function
+    /// gets its own identifier, so repeatedly returning one (e.g. once per
+    /// execution) never overwrites a function a running flow still holds.
+    ///
+    /// Aquila gives no signal that a flow is done with a function, so a
+    /// registration expires on its own after [`SUB_FLOW_FUNCTION_TTL`] and can
+    /// no longer be invoked.
+    pub(crate) fn register_sub_flow_function(
+        self: &Arc<Self>,
+        definition: SubFlowFunctionDefinition,
+    ) -> String {
+        let identifier = format!(
+            "{}::{}::{}",
+            self.identifier,
+            definition.name,
+            uuid::Uuid::new_v4()
+        );
+        let now = Instant::now();
+        {
+            let mut state = sync::lock(&self.sub_flow_functions);
+            state.insert(identifier.clone(), definition, now + self.sub_flow_function_ttl);
+            state.prune(now);
+        }
+        self.schedule_sub_flow_sweep();
+        identifier
+    }
+
+    /// Looks up a registered sub flow function, pruning any that have expired
+    /// first so an expired one is never returned even if its sweep could not
+    /// run.
+    fn get_sub_flow_function(&self, identifier: &str) -> Option<SubFlowFunctionDefinition> {
+        let mut state = sync::lock(&self.sub_flow_functions);
+        state.prune(Instant::now());
+        state.get(identifier).cloned()
+    }
+
+    /// True for an identifier this action minted for a sub flow function,
+    /// whether or not it is still registered. An execution request naming one
+    /// that is gone addresses a function that expired rather than an unknown
+    /// one, which lets the execution handler report it as such.
+    fn is_sub_flow_function_identifier(&self, identifier: &str) -> bool {
+        identifier.starts_with(&format!("{}::", self.identifier))
+    }
+
+    /// Ensures a single background task is dropping expired sub flow functions
+    /// at each expiry, so memory is freed without waiting for a read. Holds
+    /// only a [`Weak`] reference, so it stops on its own once the connection is
+    /// gone. A no-op when no Tokio runtime is available (pruning on the next
+    /// read or write still applies).
+    fn schedule_sub_flow_sweep(self: &Arc<Self>) {
+        {
+            let mut state = sync::lock(&self.sub_flow_functions);
+            if state.sweeper_running() || state.next_expiry().is_none() {
+                return;
+            }
+            state.set_sweeper_running(true);
+        }
+        let weak = Arc::downgrade(self);
+        if tokio::runtime::Handle::try_current().is_err() {
+            // No runtime to spawn on; undo the flag so a later registration
+            // under a runtime can start the sweep.
+            if let Some(inner) = weak.upgrade() {
+                sync::lock(&inner.sub_flow_functions).set_sweeper_running(false);
+            }
+            return;
+        }
+        tokio::spawn(async move {
+            loop {
+                let Some(inner) = weak.upgrade() else { return };
+                let next = {
+                    let state = sync::lock(&inner.sub_flow_functions);
+                    state.next_expiry()
+                };
+                let Some(next) = next else {
+                    sync::lock(&inner.sub_flow_functions).set_sweeper_running(false);
+                    return;
+                };
+                drop(inner);
+                tokio::time::sleep_until(next).await;
+                let Some(inner) = weak.upgrade() else { return };
+                let mut state = sync::lock(&inner.sub_flow_functions);
+                state.prune(Instant::now());
+                if state.next_expiry().is_none() {
+                    state.set_sweeper_running(false);
+                    return;
+                }
+            }
+        });
     }
 }
 
@@ -557,8 +663,49 @@ fn now_micros() -> i64 {
         .unwrap_or_default()
 }
 
+/// A function an execution request may address: a registered runtime
+/// function, or a sub flow function one returned earlier.
+enum ExecutionTarget {
+    /// A registered runtime function, together with its declared parameters —
+    /// needed to recover each positional wire parameter's name.
+    RuntimeFunction(Arc<dyn RuntimeFunctionHandler>, Vec<ParameterMeta>),
+    /// A sub flow function returned by a runtime function. It has no parameter
+    /// declaration, so every parameter of the request is passed through.
+    SubFlowFunction(SubFlowFunctionDefinition),
+}
+
 async fn handle_execution(inner: Arc<ConnectedInner>, execution: ActionExecutionRequest) {
-    let Some(entry) = inner.runtime_functions.get(&execution.function_identifier) else {
+    let started_at = now_micros();
+
+    let target = if let Some(entry) = inner.runtime_functions.get(&execution.function_identifier) {
+        ExecutionTarget::RuntimeFunction(entry.handler.clone(), entry.meta.parameters.clone())
+    } else if let Some(definition) = inner.get_sub_flow_function(&execution.function_identifier) {
+        ExecutionTarget::SubFlowFunction(definition)
+    } else if inner.is_sub_flow_function_identifier(&execution.function_identifier) {
+        // A sub flow function this action returned earlier, whose maximum
+        // lifetime has passed (or which was deleted). Fail the node rather than
+        // staying silent, so the flow does not wait for a result that cannot
+        // come.
+        let finished_at = now_micros();
+        let result = node_execution_result::Result::Error(wire_error(
+            "SUB_FLOW_FUNCTION_EXPIRED".into(),
+            format!(
+                "Sub flow function {} is no longer registered: its maximum lifetime has passed",
+                execution.function_identifier
+            ),
+            finished_at,
+            &inner.version,
+        ));
+        send_execution_result(
+            &inner,
+            &execution.execution_identifier,
+            started_at,
+            finished_at,
+            result,
+        )
+        .await;
+        return;
+    } else {
         log::error!(
             "execution request for unknown function {:?}",
             execution.function_identifier
@@ -573,48 +720,120 @@ async fn handle_execution(inner: Arc<ConnectedInner>, execution: ActionExecution
             project_id: execution.project_id,
             config_values: HashMap::new(),
         });
-    let execution_identifier = execution.execution_identifier.clone();
-    let started_at = now_micros();
-    let outcome = match resolve_parameters(&entry.meta.parameters, execution.parameters) {
-        Ok(ResolvedParameters {
-            literals,
-            sub_flow_parameters,
-        }) => {
+
+    let outcome = run_target(&inner, target, &execution, matched_config).await;
+    let finished_at = now_micros();
+
+    let result = match outcome.and_then(|value| to_node_value(&inner, value)) {
+        Ok(node_value) => node_execution_result::Result::Success(node_value),
+        Err(err) => error_result(err, finished_at, &inner.version),
+    };
+
+    send_execution_result(
+        &inner,
+        &execution.execution_identifier,
+        started_at,
+        finished_at,
+        result,
+    )
+    .await;
+}
+
+/// Runs the resolved target against the request's parameters. A runtime
+/// function receives its parameters as name-keyed [`Arguments`]; a sub flow
+/// function receives them positionally.
+async fn run_target(
+    inner: &Arc<ConnectedInner>,
+    target: ExecutionTarget,
+    execution: &ActionExecutionRequest,
+    matched_config: ProjectConfiguration,
+) -> Result<RuntimeFunctionReturn> {
+    match target {
+        ExecutionTarget::RuntimeFunction(handler, parameters) => {
+            let ResolvedParameters {
+                literals,
+                sub_flow_parameters,
+            } = resolve_parameters(&parameters, execution.parameters.clone())?;
             let context = FunctionContext {
                 project_id: execution.project_id,
-                execution_id: execution_identifier.clone(),
+                execution_id: execution.execution_identifier.clone(),
                 matched_config,
                 connected: Connected::new(inner.clone()),
                 sub_flow_parameters,
             };
-            entry.handler.run(&context, &Arguments::new(literals)).await
+            handler.run(&context, &Arguments::new(literals)).await
         }
-        Err(err) => Err(err),
-    };
-    let finished_at = now_micros();
+        ExecutionTarget::SubFlowFunction(definition) => {
+            let parameters = resolve_positional(execution.parameters.clone())?;
+            let context = FunctionContext {
+                project_id: execution.project_id,
+                execution_id: execution.execution_identifier.clone(),
+                matched_config,
+                connected: Connected::new(inner.clone()),
+                sub_flow_parameters: HashMap::new(),
+            };
+            definition
+                .handler
+                .run(&context, parameters)
+                .await
+                .map(RuntimeFunctionReturn::Value)
+        }
+    }
+}
 
-    let result = match outcome {
-        Ok(value) => node_execution_result::Result::Success(construct_value(&value)),
-        Err(HerculesError::Runtime { code, description }) => {
-            node_execution_result::Result::Error(wire_error(
-                code,
-                description.unwrap_or_default(),
-                finished_at,
-                &inner.version,
-            ))
+/// Wraps a handler's return value in a `NodeValueExecutionResult`: raw data
+/// goes out as a raw value; a returned sub flow function is registered on the
+/// connection and reported as a `SubFlowFunctionResult` so the flow can invoke
+/// it later.
+fn to_node_value(
+    inner: &Arc<ConnectedInner>,
+    value: RuntimeFunctionReturn,
+) -> Result<NodeValueExecutionResult> {
+    let value = match value {
+        RuntimeFunctionReturn::Value(value) => {
+            node_value_execution_result::Value::RawValue(construct_value(&value))
         }
-        Err(other) => node_execution_result::Result::Error(wire_error(
+        RuntimeFunctionReturn::SubFlowFunction(definition) => {
+            node_value_execution_result::Value::SubFlowFunctionResult(
+                build_sub_flow_function_result(inner, definition)?,
+            )
+        }
+    };
+    Ok(NodeValueExecutionResult { value: Some(value) })
+}
+
+/// Renders a handler failure as the error variant of a node result.
+fn error_result(
+    err: HerculesError,
+    finished_at: i64,
+    version: &str,
+) -> node_execution_result::Result {
+    match err {
+        HerculesError::Runtime { code, description } => node_execution_result::Result::Error(
+            wire_error(code, description.unwrap_or_default(), finished_at, version),
+        ),
+        other => node_execution_result::Result::Error(wire_error(
             "UNKNOWN_ERROR".into(),
             other.to_string(),
             finished_at,
-            &inner.version,
+            version,
         )),
-    };
+    }
+}
 
+/// Sends a single node execution result back to Aquila, logging a send
+/// failure rather than propagating it (nothing upstream can act on it).
+async fn send_execution_result(
+    inner: &Arc<ConnectedInner>,
+    execution_identifier: &str,
+    started_at: i64,
+    finished_at: i64,
+    result: node_execution_result::Result,
+) {
     let request = ActionTransferRequest {
         data: Some(action_transfer_request::Data::Result(
             ActionExecutionResponse {
-                execution_identifier: execution.execution_identifier,
+                execution_identifier: execution_identifier.to_string(),
                 node_result: Some(NodeExecutionResult {
                     started_at,
                     finished_at,
@@ -625,13 +844,30 @@ async fn handle_execution(inner: Arc<ConnectedInner>, execution: ActionExecution
             },
         )),
     };
-    if let Err(err) = send_mandatory(&inner, request).await {
+    if let Err(err) = send_mandatory(inner, request).await {
         log::error!(
             "failed to send execution result for {:?}: {}",
             execution_identifier,
             err
         );
     }
+}
+
+/// Resolves each positional wire parameter of a sub flow function invocation
+/// to a plain value, in order. A sub flow function has no parameter
+/// declaration, so every parameter of the request is passed through; one that
+/// resolved to a sub flow reference, or was unset, becomes `null`.
+fn resolve_positional(parameters: Vec<ActionNodeValue>) -> Result<Vec<PlainValue>> {
+    parameters
+        .into_iter()
+        .map(|param| match param.value {
+            Some(action_node_value::Value::LiteralValue(value)) => match resolve_literal(value)? {
+                ResolvedValue::Literal(value) => Ok(value),
+                ResolvedValue::SubFlow(_) => Ok(PlainValue::Null),
+            },
+            Some(action_node_value::Value::SubFlow(_)) | None => Ok(PlainValue::Null),
+        })
+        .collect()
 }
 
 /// The result of splitting a function execution's positional wire
@@ -810,8 +1046,12 @@ mod tests {
 
     #[async_trait::async_trait]
     impl RuntimeFunctionHandler for FixedResultHandler {
-        async fn run(&self, _context: &FunctionContext, _args: &Arguments) -> Result<PlainValue> {
-            Ok(serde_json::json!("completed"))
+        async fn run(
+            &self,
+            _context: &FunctionContext,
+            _args: &Arguments,
+        ) -> Result<RuntimeFunctionReturn> {
+            Ok(serde_json::json!("completed").into())
         }
     }
 
@@ -846,6 +1086,8 @@ mod tests {
             request_tx,
             queue_saturation_count: Default::default(),
             events_tx,
+            sub_flow_functions: Default::default(),
+            sub_flow_function_ttl: crate::sub_flow_function::SUB_FLOW_FUNCTION_TTL,
         });
         (inner, request_rx)
     }
@@ -1325,5 +1567,363 @@ mod tests {
         execution.abort();
         assert!(execution.await.unwrap_err().is_cancelled());
         assert_eq!(connected.metrics().pending_flow_executions, 0);
+    }
+}
+
+/// Sub flow functions: a runtime function returning a function in place of raw
+/// data, and the lifetime of the functions it leaves registered (port of
+/// `ts/test/execution.test.ts`).
+#[cfg(test)]
+mod sub_flow_function_tests {
+    use std::time::Duration;
+
+    use schemars::JsonSchema;
+    use tucana::aquila::{
+        ActionExecutionRequest, ActionLiteralValue, ActionNodeValue, action_node_value,
+    };
+    use tucana::shared::{Error as WireError, Value, node_execution_result, node_value_execution_result};
+
+    use super::*;
+    use crate::sub_flow_function::SUB_FLOW_FUNCTION_TTL;
+
+    /// The input of the sample `greet` sub flow function. `name` is only read by
+    /// the generated schema, not by Rust code.
+    #[derive(JsonSchema)]
+    #[allow(dead_code)]
+    struct GreetInput {
+        name: String,
+    }
+
+    /// The sample sub flow function the tests return and invoke, parameterized
+    /// by its behavior.
+    fn greet_definition<F>(run: F) -> SubFlowFunctionDefinition
+    where
+        F: Fn(&FunctionContext, Vec<PlainValue>) -> Result<PlainValue> + Send + Sync + 'static,
+    {
+        SubFlowFunctionDefinition::new("greet", run)
+            .description("Greets someone")
+            .input_schema::<GreetInput>()
+            .output_schema::<String>()
+    }
+
+    /// A runtime function whose handler returns whatever `factory` builds.
+    struct Returns(Box<dyn Fn() -> SubFlowFunctionDefinition + Send + Sync>);
+
+    #[async_trait::async_trait]
+    impl RuntimeFunctionHandler for Returns {
+        async fn run(
+            &self,
+            _context: &FunctionContext,
+            _args: &Arguments,
+        ) -> Result<RuntimeFunctionReturn> {
+            Ok((self.0)().into())
+        }
+    }
+
+    fn returns(factory: impl Fn() -> SubFlowFunctionDefinition + Send + Sync + 'static) -> Returns {
+        Returns(Box::new(factory))
+    }
+
+    /// A runtime function returning raw data.
+    struct ReturnsValue(PlainValue);
+
+    #[async_trait::async_trait]
+    impl RuntimeFunctionHandler for ReturnsValue {
+        async fn run(
+            &self,
+            _context: &FunctionContext,
+            _args: &Arguments,
+        ) -> Result<RuntimeFunctionReturn> {
+            Ok(self.0.clone().into())
+        }
+    }
+
+    fn entry(handler: impl RuntimeFunctionHandler) -> RuntimeFunctionEntry {
+        RuntimeFunctionEntry {
+            meta: RuntimeFunctionMeta {
+                identifier: "fn".into(),
+                ..Default::default()
+            },
+            handler: Arc::new(handler),
+        }
+    }
+
+    fn test_inner_with(
+        runtime_functions: HashMap<String, RuntimeFunctionEntry>,
+    ) -> (Arc<ConnectedInner>, mpsc::Receiver<ActionTransferRequest>) {
+        let (request_tx, request_rx) = mpsc::channel(16);
+        let (events_tx, _events_rx) = broadcast::channel(16);
+        let inner = Arc::new(ConnectedInner {
+            identifier: "test-action".into(),
+            version: "0.0.0".into(),
+            runtime_functions,
+            configs: Default::default(),
+            flows: Default::default(),
+            pending_flow_executions: Default::default(),
+            pending_sub_flow_executions: Default::default(),
+            next_pending_token: Default::default(),
+            request_tx,
+            queue_saturation_count: Default::default(),
+            events_tx,
+            sub_flow_functions: Default::default(),
+            sub_flow_function_ttl: SUB_FLOW_FUNCTION_TTL,
+        });
+        (inner, request_rx)
+    }
+
+    fn test_inner() -> (Arc<ConnectedInner>, mpsc::Receiver<ActionTransferRequest>) {
+        test_inner_with(HashMap::new())
+    }
+
+    fn with_function(
+        handler: impl RuntimeFunctionHandler,
+    ) -> (Arc<ConnectedInner>, mpsc::Receiver<ActionTransferRequest>) {
+        test_inner_with(HashMap::from([("fn".to_string(), entry(handler))]))
+    }
+
+    fn str_value(s: &str) -> Value {
+        construct_value(&serde_json::json!(s))
+    }
+
+    fn literal_param(value: PlainValue) -> ActionNodeValue {
+        ActionNodeValue {
+            value: Some(action_node_value::Value::LiteralValue(ActionLiteralValue {
+                value: Some(construct_value(&value)),
+                references: vec![],
+            })),
+        }
+    }
+
+    fn request(function_identifier: &str, parameters: Vec<ActionNodeValue>) -> ActionExecutionRequest {
+        ActionExecutionRequest {
+            execution_identifier: "exec-1".into(),
+            function_identifier: function_identifier.into(),
+            parameters,
+            project_id: 1,
+        }
+    }
+
+    /// The single node result the action sent, as its success value.
+    async fn sent_success(
+        rx: &mut mpsc::Receiver<ActionTransferRequest>,
+    ) -> node_value_execution_result::Value {
+        let request = rx.recv().await.expect("a result was sent");
+        let Some(action_transfer_request::Data::Result(response)) = request.data else {
+            panic!("expected a result");
+        };
+        match response.node_result.unwrap().result.unwrap() {
+            node_execution_result::Result::Success(value) => value.value.unwrap(),
+            other => panic!("expected a success, got {other:?}"),
+        }
+    }
+
+    /// The single node result the action sent, as its error.
+    async fn sent_error(rx: &mut mpsc::Receiver<ActionTransferRequest>) -> WireError {
+        let request = rx.recv().await.expect("a result was sent");
+        let Some(action_transfer_request::Data::Result(response)) = request.data else {
+            panic!("expected a result");
+        };
+        match response.node_result.unwrap().result.unwrap() {
+            node_execution_result::Result::Error(error) => error,
+            other => panic!("expected an error, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn reports_raw_data_as_a_raw_value() {
+        let (inner, mut rx) = with_function(ReturnsValue(serde_json::json!("hello")));
+
+        handle_execution(inner, request("fn", vec![])).await;
+
+        assert_eq!(
+            sent_success(&mut rx).await,
+            node_value_execution_result::Value::RawValue(str_value("hello"))
+        );
+    }
+
+    #[tokio::test]
+    async fn registers_a_returned_sub_flow_function_and_reports_it() {
+        let (inner, mut rx) = with_function(returns(|| {
+            greet_definition(|_ctx, params| {
+                let name = params.first().and_then(PlainValue::as_str).unwrap_or_default();
+                Ok(format!("Hi {name}").into())
+            })
+        }));
+
+        handle_execution(inner.clone(), request("fn", vec![])).await;
+
+        let node_value_execution_result::Value::SubFlowFunctionResult(result) =
+            sent_success(&mut rx).await
+        else {
+            panic!("expected a sub flow function result");
+        };
+
+        assert_eq!(result.name, "greet");
+        assert_eq!(result.description, "Greets someone");
+        let function = result.function.expect("a function reference");
+        assert_eq!(function.definition_source.as_deref(), Some("action"));
+        // The input schema describes an object with a `name` property.
+        let input = result.input_schema.expect("an input schema");
+        assert_eq!(input.fields.get("type"), Some(&str_value("object")));
+        assert!(input.fields.contains_key("properties"));
+        // The output schema describes a string.
+        let output = result.output_schema.expect("an output schema");
+        assert_eq!(output.fields.get("type"), Some(&str_value("string")));
+        // The identifier Aquila invokes the function by is registered.
+        assert!(inner.get_sub_flow_function(&function.function_identifier).is_some());
+    }
+
+    #[tokio::test]
+    async fn gives_each_returned_sub_flow_function_its_own_identifier() {
+        let (inner, mut rx) = with_function(returns(|| greet_definition(|_ctx, _params| Ok(PlainValue::Null))));
+
+        handle_execution(inner.clone(), request("fn", vec![])).await;
+        handle_execution(inner.clone(), request("fn", vec![])).await;
+
+        // Two distinct results, two distinct registrations.
+        drop(sent_success(&mut rx).await);
+        drop(sent_success(&mut rx).await);
+        assert_eq!(sync::lock(&inner.sub_flow_functions).len(), 2);
+    }
+
+    #[tokio::test]
+    async fn executes_a_registered_sub_flow_function_with_every_parameter() {
+        let (inner, mut rx) = with_function(ReturnsValue(PlainValue::Null));
+        let identifier = inner.register_sub_flow_function(greet_definition(|_ctx, params| {
+            let name = params.first().and_then(PlainValue::as_str).unwrap_or_default();
+            Ok(format!("Hi {name}").into())
+        }));
+
+        handle_execution(
+            inner,
+            request(&identifier, vec![literal_param(serde_json::json!("Ada"))]),
+        )
+        .await;
+
+        assert_eq!(
+            sent_success(&mut rx).await,
+            node_value_execution_result::Value::RawValue(str_value("Hi Ada"))
+        );
+    }
+
+    #[tokio::test]
+    async fn passes_a_plain_json_schema_object_through_unchanged() {
+        let (inner, mut rx) = with_function(returns(|| {
+            SubFlowFunctionDefinition::new(
+                "greet",
+                |_ctx: &FunctionContext, _params: Vec<PlainValue>| -> Result<PlainValue> {
+                    Ok(PlainValue::Null)
+                },
+            )
+            .output(serde_json::json!({"type": "string"}))
+        }));
+
+        handle_execution(inner, request("fn", vec![])).await;
+
+        let node_value_execution_result::Value::SubFlowFunctionResult(result) =
+            sent_success(&mut rx).await
+        else {
+            panic!("expected a sub flow function result");
+        };
+        let output = result.output_schema.expect("an output schema");
+        assert_eq!(output.fields.get("type"), Some(&str_value("string")));
+        assert_eq!(output.fields.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn reports_an_unnamed_sub_flow_function_as_an_error() {
+        let (inner, mut rx) = with_function(returns(|| {
+            SubFlowFunctionDefinition::new(
+                "",
+                |_ctx: &FunctionContext, _params: Vec<PlainValue>| -> Result<PlainValue> {
+                    Ok(PlainValue::Null)
+                },
+            )
+        }));
+
+        handle_execution(inner.clone(), request("fn", vec![])).await;
+
+        assert_eq!(sent_error(&mut rx).await.code, "SUB_FLOW_FUNCTION_MISSING_NAME");
+        assert_eq!(sync::lock(&inner.sub_flow_functions).len(), 0);
+    }
+
+    #[tokio::test]
+    async fn sends_nothing_for_a_function_it_never_minted() {
+        let (inner, mut rx) = test_inner();
+
+        handle_execution(inner, request("not_a_function", vec![])).await;
+
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn fails_the_node_instead_of_running_an_expired_function() {
+        let (inner, mut rx) = test_inner();
+        let identifier = inner.register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
+
+        tokio::time::advance(SUB_FLOW_FUNCTION_TTL).await;
+        handle_execution(inner, request(&identifier, vec![literal_param(serde_json::json!("Ada"))])).await;
+
+        let error = sent_error(&mut rx).await;
+        assert_eq!(error.code, "SUB_FLOW_FUNCTION_EXPIRED");
+        assert!(error.message.contains(&identifier));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn keeps_a_function_invocable_right_up_to_its_lifetime() {
+        let (inner, _rx) = test_inner();
+        let identifier = inner.register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
+
+        tokio::time::advance(SUB_FLOW_FUNCTION_TTL - Duration::from_millis(1)).await;
+
+        assert!(inner.get_sub_flow_function(&identifier).is_some());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn drops_a_function_once_its_lifetime_has_passed() {
+        let (inner, _rx) = test_inner();
+        let identifier = inner.register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
+
+        tokio::time::advance(SUB_FLOW_FUNCTION_TTL).await;
+
+        assert!(inner.get_sub_flow_function(&identifier).is_none());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn frees_an_expired_function_without_waiting_for_a_read() {
+        let (inner, _rx) = test_inner();
+        inner.register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
+        assert_eq!(sync::lock(&inner.sub_flow_functions).len(), 1);
+
+        // The scheduled sweep clears the entry on its own — len() does not prune.
+        tokio::time::advance(SUB_FLOW_FUNCTION_TTL).await;
+        tokio::task::yield_now().await;
+
+        assert_eq!(sync::lock(&inner.sub_flow_functions).len(), 0);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn does_not_extend_a_lifetime_when_the_function_is_invoked() {
+        let (inner, _rx) = test_inner();
+        let identifier = inner.register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
+
+        tokio::time::advance(SUB_FLOW_FUNCTION_TTL / 2).await;
+        assert!(inner.get_sub_flow_function(&identifier).is_some());
+        tokio::time::advance(SUB_FLOW_FUNCTION_TTL / 2).await;
+
+        assert!(inner.get_sub_flow_function(&identifier).is_none());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn expires_entries_in_registration_order() {
+        let (inner, _rx) = test_inner();
+        let first = inner.register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
+        tokio::time::advance(SUB_FLOW_FUNCTION_TTL / 2).await;
+        let second = inner.register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
+
+        tokio::time::advance(SUB_FLOW_FUNCTION_TTL / 2).await;
+
+        assert!(inner.get_sub_flow_function(&first).is_none());
+        assert!(inner.get_sub_flow_function(&second).is_some());
     }
 }
