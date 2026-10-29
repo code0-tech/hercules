@@ -35,6 +35,7 @@ pub const SUB_FLOW_FUNCTION_TTL: Duration = Duration::from_secs(30 * 60);
 /// extra type. Implement the trait by hand for a handler that has to `.await`.
 #[async_trait]
 pub trait SubFlowFunctionHandler: Send + Sync + 'static {
+    #[allow(clippy::double_must_use)] // `async_trait` adds `#[must_use]` to its boxed future.
     async fn run(
         &self,
         context: &FunctionContext,
@@ -222,7 +223,12 @@ pub(crate) struct SubFlowFunctionState {
 }
 
 impl SubFlowFunctionState {
-    pub(crate) fn insert(&mut self, key: String, value: SubFlowFunctionDefinition, expires_at: Instant) {
+    pub(crate) fn insert(
+        &mut self,
+        key: String,
+        value: SubFlowFunctionDefinition,
+        expires_at: Instant,
+    ) {
         // Drop any prior expiry for the key so a replaced key moves to the back
         // and the queue stays ordered by expiry.
         self.expiries.retain(|(existing, _)| existing != &key);

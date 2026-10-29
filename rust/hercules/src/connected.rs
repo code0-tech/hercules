@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tokio::sync::{broadcast, mpsc, oneshot};
+use tokio::time::Instant;
 use tokio_stream::{Stream, StreamExt};
 use tonic::Streaming;
 use tucana::aquila::{
@@ -13,7 +14,6 @@ use tucana::aquila::{
     action_flow_execution_response, action_flow_update, action_node_value,
     action_sub_flow_execution_response, action_transfer_request, action_transfer_response,
 };
-use tokio::time::Instant;
 use tucana::shared::{
     Error as WireError, NodeExecutionResult, NodeValueExecutionResult, node_execution_result,
     node_value_execution_result,
@@ -133,7 +133,11 @@ impl ConnectedInner {
         let now = Instant::now();
         {
             let mut state = sync::lock(&self.sub_flow_functions);
-            state.insert(identifier.clone(), definition, now + self.sub_flow_function_ttl);
+            state.insert(
+                identifier.clone(),
+                definition,
+                now + self.sub_flow_function_ttl,
+            );
             state.prune(now);
         }
         self.schedule_sub_flow_sweep();
@@ -1581,7 +1585,9 @@ mod sub_flow_function_tests {
     use tucana::aquila::{
         ActionExecutionRequest, ActionLiteralValue, ActionNodeValue, action_node_value,
     };
-    use tucana::shared::{Error as WireError, Value, node_execution_result, node_value_execution_result};
+    use tucana::shared::{
+        Error as WireError, Value, node_execution_result, node_value_execution_result,
+    };
 
     use super::*;
     use crate::sub_flow_function::SUB_FLOW_FUNCTION_TTL;
@@ -1694,7 +1700,10 @@ mod sub_flow_function_tests {
         }
     }
 
-    fn request(function_identifier: &str, parameters: Vec<ActionNodeValue>) -> ActionExecutionRequest {
+    fn request(
+        function_identifier: &str,
+        parameters: Vec<ActionNodeValue>,
+    ) -> ActionExecutionRequest {
         ActionExecutionRequest {
             execution_identifier: "exec-1".into(),
             function_identifier: function_identifier.into(),
@@ -1745,7 +1754,10 @@ mod sub_flow_function_tests {
     async fn registers_a_returned_sub_flow_function_and_reports_it() {
         let (inner, mut rx) = with_function(returns(|| {
             greet_definition(|_ctx, params| {
-                let name = params.first().and_then(PlainValue::as_str).unwrap_or_default();
+                let name = params
+                    .first()
+                    .and_then(PlainValue::as_str)
+                    .unwrap_or_default();
                 Ok(format!("Hi {name}").into())
             })
         }));
@@ -1770,12 +1782,18 @@ mod sub_flow_function_tests {
         let output = result.output_schema.expect("an output schema");
         assert_eq!(output.fields.get("type"), Some(&str_value("string")));
         // The identifier Aquila invokes the function by is registered.
-        assert!(inner.get_sub_flow_function(&function.function_identifier).is_some());
+        assert!(
+            inner
+                .get_sub_flow_function(&function.function_identifier)
+                .is_some()
+        );
     }
 
     #[tokio::test]
     async fn gives_each_returned_sub_flow_function_its_own_identifier() {
-        let (inner, mut rx) = with_function(returns(|| greet_definition(|_ctx, _params| Ok(PlainValue::Null))));
+        let (inner, mut rx) = with_function(returns(|| {
+            greet_definition(|_ctx, _params| Ok(PlainValue::Null))
+        }));
 
         handle_execution(inner.clone(), request("fn", vec![])).await;
         handle_execution(inner.clone(), request("fn", vec![])).await;
@@ -1790,7 +1808,10 @@ mod sub_flow_function_tests {
     async fn executes_a_registered_sub_flow_function_with_every_parameter() {
         let (inner, mut rx) = with_function(ReturnsValue(PlainValue::Null));
         let identifier = inner.register_sub_flow_function(greet_definition(|_ctx, params| {
-            let name = params.first().and_then(PlainValue::as_str).unwrap_or_default();
+            let name = params
+                .first()
+                .and_then(PlainValue::as_str)
+                .unwrap_or_default();
             Ok(format!("Hi {name}").into())
         }));
 
@@ -1843,7 +1864,10 @@ mod sub_flow_function_tests {
 
         handle_execution(inner.clone(), request("fn", vec![])).await;
 
-        assert_eq!(sent_error(&mut rx).await.code, "SUB_FLOW_FUNCTION_MISSING_NAME");
+        assert_eq!(
+            sent_error(&mut rx).await.code,
+            "SUB_FLOW_FUNCTION_MISSING_NAME"
+        );
         assert_eq!(sync::lock(&inner.sub_flow_functions).len(), 0);
     }
 
@@ -1859,10 +1883,15 @@ mod sub_flow_function_tests {
     #[tokio::test(start_paused = true)]
     async fn fails_the_node_instead_of_running_an_expired_function() {
         let (inner, mut rx) = test_inner();
-        let identifier = inner.register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
+        let identifier = inner
+            .register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
 
         tokio::time::advance(SUB_FLOW_FUNCTION_TTL).await;
-        handle_execution(inner, request(&identifier, vec![literal_param(serde_json::json!("Ada"))])).await;
+        handle_execution(
+            inner,
+            request(&identifier, vec![literal_param(serde_json::json!("Ada"))]),
+        )
+        .await;
 
         let error = sent_error(&mut rx).await;
         assert_eq!(error.code, "SUB_FLOW_FUNCTION_EXPIRED");
@@ -1872,7 +1901,8 @@ mod sub_flow_function_tests {
     #[tokio::test(start_paused = true)]
     async fn keeps_a_function_invocable_right_up_to_its_lifetime() {
         let (inner, _rx) = test_inner();
-        let identifier = inner.register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
+        let identifier = inner
+            .register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
 
         tokio::time::advance(SUB_FLOW_FUNCTION_TTL - Duration::from_millis(1)).await;
 
@@ -1882,7 +1912,8 @@ mod sub_flow_function_tests {
     #[tokio::test(start_paused = true)]
     async fn drops_a_function_once_its_lifetime_has_passed() {
         let (inner, _rx) = test_inner();
-        let identifier = inner.register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
+        let identifier = inner
+            .register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
 
         tokio::time::advance(SUB_FLOW_FUNCTION_TTL).await;
 
@@ -1905,7 +1936,8 @@ mod sub_flow_function_tests {
     #[tokio::test(start_paused = true)]
     async fn does_not_extend_a_lifetime_when_the_function_is_invoked() {
         let (inner, _rx) = test_inner();
-        let identifier = inner.register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
+        let identifier = inner
+            .register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
 
         tokio::time::advance(SUB_FLOW_FUNCTION_TTL / 2).await;
         assert!(inner.get_sub_flow_function(&identifier).is_some());
@@ -1917,9 +1949,11 @@ mod sub_flow_function_tests {
     #[tokio::test(start_paused = true)]
     async fn expires_entries_in_registration_order() {
         let (inner, _rx) = test_inner();
-        let first = inner.register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
+        let first = inner
+            .register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
         tokio::time::advance(SUB_FLOW_FUNCTION_TTL / 2).await;
-        let second = inner.register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
+        let second = inner
+            .register_sub_flow_function(greet_definition(|_ctx, _params| Ok(PlainValue::Null)));
 
         tokio::time::advance(SUB_FLOW_FUNCTION_TTL / 2).await;
 

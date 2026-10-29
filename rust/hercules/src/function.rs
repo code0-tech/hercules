@@ -42,6 +42,7 @@ pub trait RuntimeFunctionHandler: Send + Sync + 'static {
     /// [`Value`](RuntimeFunctionReturn::Value), or a
     /// [`SubFlowFunctionDefinition`] to hand the flow a function it can invoke
     /// later — see [`RuntimeFunctionReturn`].
+    #[allow(clippy::double_must_use)] // `async_trait` adds `#[must_use]` to its boxed future.
     async fn run(
         &self,
         context: &FunctionContext,
