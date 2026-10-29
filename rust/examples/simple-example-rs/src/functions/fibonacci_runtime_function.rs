@@ -1,5 +1,5 @@
 use hercules_sdk::{
-    async_trait, Arguments, FunctionContext, PlainValue, Result, RuntimeFunctionHandler,
+    async_trait, Arguments, FunctionContext, Result, RuntimeFunctionHandler, RuntimeFunctionReturn,
 };
 
 #[hercules_sdk::runtime_function(
@@ -14,7 +14,11 @@ pub struct FibonacciRuntimeFunction;
 
 #[async_trait]
 impl RuntimeFunctionHandler for FibonacciRuntimeFunction {
-    async fn run(&self, context: &FunctionContext, args: &Arguments) -> Result<PlainValue> {
+    async fn run(
+        &self,
+        context: &FunctionContext,
+        args: &Arguments,
+    ) -> Result<RuntimeFunctionReturn> {
         // Missing or malformed, `args.get` reports it back to Aquila as a
         // runtime error on its own — nothing to check by hand here.
         let n: u64 = args.get("test")?;
@@ -24,7 +28,7 @@ impl RuntimeFunctionHandler for FibonacciRuntimeFunction {
             context.project_id,
             context.execution_id
         );
-        Ok(fib(n).into())
+        Ok(RuntimeFunctionReturn::Value(fib(n).into()))
     }
 }
 
