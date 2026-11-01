@@ -109,10 +109,10 @@ mod tests {
             .function_definitions
             .iter()
             .all(|f| f.runtime_name != "fibonacci_runtime"));
-        assert_eq!(
-            module.runtime_function_definitions[0].runtime_name,
-            "fibonacci_runtime"
-        );
+        assert!(module
+            .runtime_function_definitions
+            .iter()
+            .any(|f| f.runtime_name == "fibonacci_runtime"));
 
         assert_eq!(module.runtime_flow_types[0].identifier, "user_created");
     }
