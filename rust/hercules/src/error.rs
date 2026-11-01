@@ -67,6 +67,30 @@ pub enum HerculesError {
         class: &'static str,
         setting: String,
     },
+
+    /// [`crate::apus::connect_apus`] could not establish the Apus data-plane
+    /// connection (handshake/`REJECT`/IO; see `apus_client::ConnectError`).
+    #[cfg(feature = "apus")]
+    #[error("Apus connect failed: {0}")]
+    ApusConnect(apus_client::ConnectError),
+
+    /// A function handler's error as reported by the Apus data plane
+    /// (`apus_client::ErrorInfo`), or produced by this crate's Apus adapter
+    /// itself (e.g. an unknown method index).
+    #[cfg(feature = "apus")]
+    #[error("Apus error {}{}", .0.code, if .0.message.is_empty() { String::new() } else { format!(": {}", .0.message) })]
+    Apus(apus_client::ErrorInfo),
+
+    /// [`crate::connected::Connected::execute_sub_flow`] was called on a
+    /// connection backed by the Apus transport: a bare execution id has no
+    /// connection-bound sub-flow handle on Apus. Use the sub-flow handle on
+    /// [`crate::types::FunctionContext::apus`] instead.
+    #[cfg(feature = "apus")]
+    #[error(
+        "execute_sub_flow(execution_id, ..) is not supported on the Apus transport: sub-flows \
+         are connection-bound there. Use FunctionContext::apus's sub-flow handles instead."
+    )]
+    ApusSubFlowByIdUnsupported,
 }
 
 impl HerculesError {

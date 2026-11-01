@@ -296,12 +296,42 @@ impl Action {
             events_tx: self.events_tx,
             sub_flow_functions: Default::default(),
             sub_flow_function_ttl: crate::SUB_FLOW_FUNCTION_TTL,
+            #[cfg(feature = "apus")]
+            apus: Default::default(),
+            #[cfg(feature = "apus")]
+            apus_function_names: Vec::new(),
         });
 
         let _ = inner.events_tx.send(HerculesEvent::Connected);
         spawn_dispatch_loop(inner.clone(), connection.responses);
 
         Ok(Connected::new(inner))
+    }
+}
+
+/// Everything [`crate::apus::connect_apus`] needs out of a built [`Action`].
+/// A dedicated extraction step because [`Action::build_module`] needs `&self`
+/// (so it must run first) while the rest of this is only obtainable by
+/// consuming `self`.
+#[cfg(feature = "apus")]
+pub(crate) struct ApusActionParts {
+    pub(crate) identifier: String,
+    pub(crate) version: String,
+    pub(crate) scaling_option: ScalingOption,
+    pub(crate) runtime_functions: HashMap<String, RuntimeFunctionEntry>,
+    pub(crate) events_tx: broadcast::Sender<HerculesEvent>,
+}
+
+#[cfg(feature = "apus")]
+impl Action {
+    pub(crate) fn into_apus_parts(self) -> ApusActionParts {
+        ApusActionParts {
+            identifier: self.identifier,
+            version: self.version,
+            scaling_option: self.scaling_option,
+            runtime_functions: self.runtime_functions,
+            events_tx: self.events_tx,
+        }
     }
 }
 

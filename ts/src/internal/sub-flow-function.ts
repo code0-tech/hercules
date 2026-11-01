@@ -1,4 +1,4 @@
-import {constructValue, type PlainValue} from "@code0-tech/tucana/helpers";
+import {constructValue, toAllowedValue, type PlainValue} from "@code0-tech/tucana/helpers";
 import {SubFlowFunctionResult, type Struct} from "@code0-tech/tucana/shared";
 import type {ZodTypeAny} from "zod";
 import {RuntimeError, type SubFlowFunctionDefinition, type SubFlowFunctionSchema} from "../types";
@@ -43,6 +43,18 @@ export function toStruct(schema: SubFlowFunctionSchema, io: "input" | "output"):
     const json = isZodSchema(schema) ? zodToJsonSchema(schema, io) : schema;
     const value = constructValue(json as PlainValue);
     return value.kind.oneofKind === "structValue" ? value.kind.structValue : undefined;
+}
+
+/**
+ * Convert a declared schema into a plain JSON value (an object, or `{}` when there
+ * is nothing structured to send) — the Apus analogue of {@link toStruct}, used by
+ * `internal/apus-value.ts` to build an `ApusFunction`'s input/output schema, which
+ * (unlike `SubFlowFunctionResult`'s) is a plain value rather than a protobuf
+ * `Struct`.
+ */
+export function schemaToPlainValue(schema: SubFlowFunctionSchema, io: "input" | "output"): PlainValue {
+    const struct = toStruct(schema, io);
+    return struct ? toAllowedValue({kind: {oneofKind: "structValue", structValue: struct}}) : {};
 }
 
 /**

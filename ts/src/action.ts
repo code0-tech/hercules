@@ -4,6 +4,7 @@ import type {GrpcOptions, GrpcTransport} from "@protobuf-ts/grpc-transport";
 import {ActionTransferRequest, type ActionNodeSubFlowValue, type ActionTransferResponse} from "@code0-tech/tucana/aquila";
 import {constructValue, toAllowedValue, type PlainValue} from "@code0-tech/tucana/helpers";
 import type {Value, Error as ProtoError} from "@code0-tech/tucana/shared";
+import {ApusClient, Status, type ApusClientOptions, type TlsOptions} from "@code0-apus/apus";
 import {RuntimeError} from "./types";
 import type {DuplexStreamingCall} from "@protobuf-ts/runtime-rpc";
 import type {FunctionClass} from "./models/function.model";
@@ -19,6 +20,8 @@ import {runtimeEventMap} from "./map/runtime_event.map";
 import type {ConfigurationDefinition, SubFlowFunctionDefinition, Translation} from "./types";
 import {CodeZeroEvent, type CodeZeroEventMap} from "./events";
 import {createConnection} from "./internal/connection";
+import {buildApusFunctions} from "./internal/apus-transport";
+import {toPlainValue} from "./internal/apus-value";
 import {buildModule} from "./internal/module-builder";
 import {ConfigManager} from "./manager/config-manager";
 import {FlowManager} from "./manager/FlowManager";
@@ -42,9 +45,45 @@ export function registeredActions(): readonly Action[] {
     return (globalThis as Record<symbol, unknown>)[ACTION_REGISTRY] as Action[] ?? [];
 }
 
+/**
+ * Options for {@link Action.connectApus}, the Apus v1 data-plane transport
+ * (apus/protocol/SPEC-v1.md in the sibling `apus` repository): a direct action<->
+ * Taurus connection that replaces this SDK's own gRPC data plane (function calls,
+ * flow executions, sub-flows) while Aquila's gRPC control plane — module
+ * registration, per-project configuration, flows — stays exactly as {@link
+ * Action.connect} leaves it; `connectApus` opens that same control-plane stream
+ * itself. See `internal/apus-transport.ts` for how a registered runtime function
+ * answers a `CALL` either way.
+ */
+export interface ApusConnectOptions {
+    /** Aquila's gRPC address for the control plane; falls back to the constructor's `aquilaUrl`. */
+    aquilaUrl?: string;
+    grpcOptions?: GrpcOptions;
+    /** Apus endpoints (`host:port`) to bootstrap the data plane from; `ROUTES` adds the rest. */
+    apusEndpoints: string[];
+    /** The projects of the client certificate, if it is limited to some. */
+    projects?: number[];
+    /** Apus connections kept per Taurus instance. Defaults to 1. */
+    connectionsPerInstance?: number;
+    /** `CALL`s accepted concurrently per connection (0 = no limit). */
+    maxInFlight?: number;
+    maxFrame?: number;
+    streamWindow?: number;
+    scaling?: number;
+    /** Mutual TLS; without it nothing is authenticated (development only). */
+    tls?: TlsOptions;
+    /** How long `executeFlow`/`fire` wait for a usable connection, and the retry window for a moved project. */
+    connectWaitMs?: number;
+    /** How long `connectApus` keeps trying the endpoints. */
+    startupTimeoutMs?: number;
+    log?: (level: "info" | "warn", message: string) => void;
+}
+
 export class Action extends EventEmitter<CodeZeroEventMap> {
     private _transport?: GrpcTransport;
     private _stream?: DuplexStreamingCall<ActionTransferRequest, ActionTransferResponse>;
+    /** Set once {@link Action.connectApus} has connected; `undefined` on the gRPC transport. */
+    private _apus?: ApusClient;
     private readonly _actions = new Map(actions.map(a => [a.packetType, a.handle]));
     // Pending sub flow / flow execution requests awaiting a response, keyed by a
     // per-invocation identifier: sub flow executions use the correlation
@@ -186,7 +225,7 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
         const flowType = Reflect.getMetadata("hercules:identifier", target) as string | undefined;
         if (!flowType) throw new Error(`${target.name} is missing an @Identifier decorator.`);
         const flows = this.flows.filter(flow => flow.type === flowType);
-        return Promise.all(flows.map(flow => this.executeFlow(flow.flowId, payload ?? null)));
+        return Promise.all(flows.map(flow => this.executeFlowInProject(flow.flowId, flow.projectId, payload ?? null)));
     }
 
     /**
@@ -219,8 +258,50 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
 
     /**
      * Execute one of the action's own flows by id and resolve with its result.
+     *
+     * On the Apus transport (after {@link Action.connectApus}) this needs the
+     * flow's project to route `EXEC` on: it is looked up in {@link Action.flows},
+     * this action's own known flows. For a flow not (yet) known there, call
+     * {@link Action.executeFlowInProject} with an explicit project id instead.
      */
     async executeFlow(flowId: string | bigint | number, payload?: PlainValue): Promise<PlainValue> {
+        if (this._apus) {
+            const id = BigInt(flowId);
+            const projectId = this.flows.get(id)?.projectId;
+            if (projectId === undefined) {
+                throw new Error(
+                    `flow ${id} is not a known flow of this action; call executeFlowInProject with an explicit project id instead`,
+                );
+            }
+            return this.executeFlowInProject(id, projectId, payload);
+        }
+        return this._executeFlowGrpc(flowId, payload);
+    }
+
+    /**
+     * Same as {@link Action.executeFlow}, but for a flow in a specific project —
+     * needed on the Apus transport whenever `flowId` is not (yet) one of this
+     * action's known flows there, since Apus's `EXEC` needs a project id to route
+     * on (unlike the gRPC transport, whose request carries none; there
+     * `projectId` is accepted but unused, identical to {@link Action.executeFlow}).
+     */
+    async executeFlowInProject(
+        flowId: string | bigint | number,
+        projectId: bigint | number,
+        payload?: PlainValue,
+    ): Promise<PlainValue> {
+        if (!this._apus) return this._executeFlowGrpc(flowId, payload);
+        const executionId = randomUUID();
+        const execution = this._apus.execute({
+            flowId: Number(flowId),
+            projectId: Number(projectId),
+            executionId,
+            input: payload ?? null,
+        });
+        return toPlainValue(await execution);
+    }
+
+    private async _executeFlowGrpc(flowId: string | bigint | number, payload?: PlainValue): Promise<PlainValue> {
         if (!this._stream) throw new Error("Not connected. Call connect() first.");
         const executionIdentifier = randomUUID();
         const result = this._awaitExecutionResponse(executionIdentifier);
@@ -291,6 +372,60 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
 
         this.emit(CodeZeroEvent.connected, this);
         await this._processStream();
+    }
+
+    /**
+     * Connects over Apus instead of this SDK's own gRPC data plane: Aquila's gRPC
+     * control plane is opened exactly like {@link Action.connect} does (module,
+     * per-project configuration, flows — unchanged), and a direct Apus connection
+     * is opened to every Taurus instance that serves this action's projects. See
+     * the {@link ApusConnectOptions} docs and `apus/protocol/SPEC-v1.md` in the
+     * sibling `apus` repository for the protocol itself.
+     *
+     * Unlike {@link Action.connect}, this resolves once both planes are up; the
+     * gRPC control stream keeps being processed in the background afterwards
+     * (errors from it are emitted as {@link CodeZeroEvent.error} rather than
+     * rejecting the already-resolved promise).
+     */
+    async connectApus(authToken: string, options: ApusConnectOptions): Promise<void> {
+        if (isExportMode()) return;
+        const url = options.aquilaUrl ?? this._aquilaUrl;
+        if (!url) throw new Error("aquilaUrl must be provided in the constructor or connectApus()");
+
+        try {
+            const {transport, stream} = await createConnection(this.buildModule(), authToken, url, options.grpcOptions);
+            this._transport = transport;
+            this._stream = stream;
+        } catch (err) {
+            this.emit(CodeZeroEvent.error, err as Error);
+            throw err;
+        }
+        this.emit(CodeZeroEvent.connected, this);
+        // Not awaited: this is the gRPC control-plane stream's lifetime, running in
+        // the background for as long as the process does (mirrors Action.connect,
+        // which only returns because it has nothing else left to do after).
+        void this._processStream().catch(err => this.emit(CodeZeroEvent.error, err as Error));
+
+        const apusOptions: ApusClientOptions = {
+            endpoints: options.apusEndpoints,
+            action: this._identifier,
+            version: this._version,
+            functions: buildApusFunctions(this),
+            projects: options.projects,
+            connectionsPerInstance: options.connectionsPerInstance,
+            maxInFlight: options.maxInFlight,
+            maxFrame: options.maxFrame,
+            streamWindow: options.streamWindow,
+            scaling: options.scaling,
+            tls: options.tls,
+            connectWaitMs: options.connectWaitMs,
+            startupTimeoutMs: options.startupTimeoutMs,
+            log: options.log,
+        };
+        const apus = new ApusClient(apusOptions);
+        await apus.connect();
+        apus.setStatus(Status.RUNNING);
+        this._apus = apus;
     }
 
     private async _processStream() {

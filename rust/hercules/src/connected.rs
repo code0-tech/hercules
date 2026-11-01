@@ -93,6 +93,24 @@ pub(crate) struct ConnectedInner {
     /// How long a registered sub flow function stays invocable. Configurable
     /// only so tests can shorten it; production uses [`SUB_FLOW_FUNCTION_TTL`].
     pub(crate) sub_flow_function_ttl: Duration,
+    /// Populated instead of the gRPC fields above when this `Connected` is
+    /// backed by the Apus data plane (built by [`crate::apus::connect_apus`]);
+    /// left unset for every gRPC-connected `Connected` — the only transport
+    /// in a default build. A `OnceLock` rather than a field set at
+    /// construction time because the live `ApusClient` only exists once
+    /// `ApusClient::connect` returns, while the very same `Arc<ConnectedInner>`
+    /// must already be handed to it as the call handler beforehand; Apus
+    /// only delivers `CALL`s once the action reports
+    /// [`apus_client::protocol::status::RUNNING`], which happens after this
+    /// is set, so every read sees it populated.
+    #[cfg(feature = "apus")]
+    pub(crate) apus: std::sync::OnceLock<crate::apus::ApusBacking>,
+    /// Function runtime names in method-index order, as negotiated over
+    /// Apus `HELLO` — the single source of truth
+    /// [`crate::apus::handler::ApusHandler`] resolves a `CALL`'s `u16 method`
+    /// against. Empty for a gRPC-connected `Connected`.
+    #[cfg(feature = "apus")]
+    pub(crate) apus_function_names: Vec<String>,
 }
 
 impl ConnectedInner {
@@ -266,7 +284,21 @@ impl Connected {
     /// Returns a point-in-time snapshot of outbound queue pressure and
     /// outstanding executions. The saturation counter is cumulative for the
     /// lifetime of this connection.
+    ///
+    /// On the Apus transport there is no outbound request queue to measure
+    /// (an `execute_flow` call drives its own request directly), so every
+    /// field is a best-effort zero rather than meaningful pressure data.
     pub fn metrics(&self) -> ConnectedMetrics {
+        #[cfg(feature = "apus")]
+        if self.inner.apus.get().is_some() {
+            return ConnectedMetrics {
+                queue_depth: 0,
+                queue_capacity: 0,
+                queue_saturation_count: 0,
+                pending_flow_executions: 0,
+                pending_sub_flow_executions: 0,
+            };
+        }
         let queue_capacity = self.inner.request_tx.max_capacity();
         ConnectedMetrics {
             queue_depth: queue_capacity - self.inner.request_tx.capacity(),
@@ -280,6 +312,10 @@ impl Connected {
     /// The configuration Aquila has resolved for `project_id`, if any has
     /// been pushed down yet.
     pub fn config(&self, project_id: i64) -> Option<ProjectConfiguration> {
+        #[cfg(feature = "apus")]
+        if let Some(apus) = self.inner.apus.get() {
+            return apus.config(project_id);
+        }
         sync::read(&self.inner.configs).get(&project_id).cloned()
     }
 
@@ -302,6 +338,24 @@ impl Connected {
         payload: PlainValue,
     ) -> Result<Vec<PlainValue>> {
         let identifier = identifier.into();
+        #[cfg(feature = "apus")]
+        if let Some(apus) = self.inner.apus.get() {
+            let matches: Vec<(i64, i64)> = apus
+                .flows()
+                .iter()
+                .filter(|flow| flow.r#type == identifier)
+                .map(|flow| (flow.flow_id, flow.project_id))
+                .collect();
+            let mut results = Vec::with_capacity(matches.len());
+            for (flow_id, project_id) in matches {
+                results.push(
+                    self.execute_flow_in_project(flow_id.to_string(), project_id, payload.clone())
+                        .await?,
+                );
+            }
+            return Ok(results);
+        }
+
         let flow_ids: Vec<i64> = sync::read(&self.inner.flows)
             .values()
             .filter(|flow| flow.r#type == identifier)
@@ -321,13 +375,25 @@ impl Connected {
     /// This action's own flows, as last pushed down by Aquila. Kept in sync
     /// via `ActionFlowUpdate` messages — see [`HerculesEvent::FlowUpserted`]
     /// / [`HerculesEvent::FlowDeleted`] to react to changes as they happen.
+    ///
+    /// On the Apus transport this is backed by the same flow snapshot
+    /// `apus_client::control::ControlPlane` keeps (Aquila's control plane is
+    /// unchanged there too), converted to the same `ActionFlow` shape.
     pub fn flows(&self) -> Vec<ActionFlow> {
+        #[cfg(feature = "apus")]
+        if let Some(apus) = self.inner.apus.get() {
+            return apus.flows();
+        }
         sync::read(&self.inner.flows).values().cloned().collect()
     }
 
     /// A single one of this action's flows by id, if Aquila has pushed it
     /// down.
     pub fn flow(&self, flow_id: i64) -> Option<ActionFlow> {
+        #[cfg(feature = "apus")]
+        if let Some(apus) = self.inner.apus.get() {
+            return apus.flows().into_iter().find(|flow| flow.flow_id == flow_id);
+        }
         sync::read(&self.inner.flows).get(&flow_id).cloned()
     }
 
@@ -409,6 +475,33 @@ impl Connected {
         .await
     }
 
+    /// Runs one of this action's own flows in a specific project and awaits
+    /// its result, bypassing the project lookup [`Connected::execute_flow`]
+    /// does against this action's known flows.
+    ///
+    /// Needed on the Apus transport whenever `flow_id` is not (yet) one of
+    /// this action's known flows there — Apus's `EXEC` needs a project id to
+    /// route on, unlike gRPC's `ActionFlowExecutionRequest`, which carries
+    /// none. On the gRPC transport `project_id` is accepted but unused
+    /// (identical to [`Connected::execute_flow`]) since the wire request has
+    /// nowhere to carry it.
+    pub async fn execute_flow_in_project(
+        &self,
+        flow_id: impl Into<String>,
+        project_id: i64,
+        payload: PlainValue,
+    ) -> Result<PlainValue> {
+        let flow_id = flow_id.into();
+        #[cfg(feature = "apus")]
+        if let Some(apus) = self.inner.apus.get() {
+            let flow_id_num = parse_apus_flow_id(&flow_id)?;
+            let execution_id = self.inner.next_execution_id();
+            return apus.execute_flow(flow_id_num, project_id, execution_id, payload).await;
+        }
+        let _ = project_id;
+        self.execute_flow(flow_id, payload).await
+    }
+
     async fn execute_flow_with_id_inner(
         &self,
         execution_identifier: String,
@@ -416,6 +509,18 @@ impl Connected {
         payload: PlainValue,
         queue_wait_timeout: Option<Duration>,
     ) -> Result<PlainValue> {
+        #[cfg(feature = "apus")]
+        if let Some(apus) = self.inner.apus.get() {
+            let flow_id_num = parse_apus_flow_id(&flow_id)?;
+            let project_id = apus.project_for_flow(flow_id_num).ok_or_else(|| {
+                HerculesError::Other(format!(
+                    "flow {flow_id_num} is not a known flow of this action; call Connected::execute_flow_in_project with an explicit project id instead"
+                ))
+            })?;
+            let _ = queue_wait_timeout; // No outbound queue to wait for capacity on; Apus's `execute` drives its own request directly.
+            return apus.execute_flow(flow_id_num, project_id, execution_identifier, payload).await;
+        }
+
         let (tx, rx) = oneshot::channel();
         let token = self.inner.next_pending_token();
         sync::lock(&self.inner.pending_flow_executions).insert(
@@ -459,6 +564,16 @@ impl Connected {
         execution_identifier: impl Into<String>,
         parameters: Vec<PlainValue>,
     ) -> Result<PlainValue> {
+        #[cfg(feature = "apus")]
+        if self.inner.apus.get().is_some() {
+            // Apus sub-flows are connection-bound (`SUBFLOW` must be sent on
+            // the connection the originating `CALL` arrived on); a bare
+            // execution id has no connection to send it on. Callers on this
+            // transport get the connection-bound handle via
+            // `FunctionContext::apus` / `ApusCall::invoke_sub_flow` instead.
+            let _ = (execution_identifier, parameters);
+            return Err(HerculesError::ApusSubFlowByIdUnsupported);
+        }
         let execution_identifier = execution_identifier.into();
         // Scope this individual invocation with a fresh correlation identifier so
         // its response can be matched even when the same sub flow is executed
@@ -489,6 +604,16 @@ impl Connected {
 
         rx.await.map_err(|_| HerculesError::StreamClosed)?
     }
+}
+
+/// Parses a flow id string into the `i64` Apus's `EXEC` needs. Hercules's
+/// own flow-id parameter stays `impl Into<String>` for source compatibility
+/// with the gRPC transport, where it is an opaque wire string.
+#[cfg(feature = "apus")]
+fn parse_apus_flow_id(flow_id: &str) -> Result<i64> {
+    flow_id
+        .parse()
+        .map_err(|_| HerculesError::Other(format!("flow id {flow_id:?} is not a valid Apus flow id (an i64)")))
 }
 
 /// Caller-initiated work is optional admission: fail fast so an overloaded
@@ -764,6 +889,8 @@ async fn run_target(
                 matched_config,
                 connected: Connected::new(inner.clone()),
                 sub_flow_parameters,
+                #[cfg(feature = "apus")]
+                apus: None,
             };
             handler.run(&context, &Arguments::new(literals)).await
         }
@@ -775,6 +902,8 @@ async fn run_target(
                 matched_config,
                 connected: Connected::new(inner.clone()),
                 sub_flow_parameters: HashMap::new(),
+                #[cfg(feature = "apus")]
+                apus: None,
             };
             definition
                 .handler
@@ -1092,6 +1221,10 @@ mod tests {
             events_tx,
             sub_flow_functions: Default::default(),
             sub_flow_function_ttl: crate::sub_flow_function::SUB_FLOW_FUNCTION_TTL,
+            #[cfg(feature = "apus")]
+            apus: Default::default(),
+            #[cfg(feature = "apus")]
+            apus_function_names: Vec::new(),
         });
         (inner, request_rx)
     }
@@ -1673,6 +1806,10 @@ mod sub_flow_function_tests {
             events_tx,
             sub_flow_functions: Default::default(),
             sub_flow_function_ttl: SUB_FLOW_FUNCTION_TTL,
+            #[cfg(feature = "apus")]
+            apus: Default::default(),
+            #[cfg(feature = "apus")]
+            apus_function_names: Vec::new(),
         });
         (inner, request_rx)
     }

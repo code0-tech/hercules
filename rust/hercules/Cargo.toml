@@ -22,5 +22,15 @@ inventory.workspace = true
 uuid.workspace = true
 jsonwebtoken.workspace = true
 
+# Apus data-plane transport (feature `apus`), kept out of the default build:
+# a direct action<->Taurus connection (see ../../../apus/protocol/SPEC-v1.md)
+# that replaces hercules's own gRPC data plane while Aquila's gRPC control
+# plane stays as-is. Path dependency on the sibling `apus` repository.
+apus-client = { path = "../../../apus/rust/apus-client", optional = true }
+
+[features]
+default = []
+apus = ["dep:apus-client"]
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "test-util"] }

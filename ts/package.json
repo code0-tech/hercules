@@ -35,6 +35,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@code0-apus/apus": "file:../../apus/ts/apus"
   },
   "devDependencies": {
     "@emnapi/core": "^1.11.1",
