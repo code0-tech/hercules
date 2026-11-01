@@ -4,9 +4,9 @@
 use tucana::shared::{
     self, DataTypeNumberRangeRuleConfig, DataTypeRegexRuleConfig, DefinitionDataType,
     DefinitionDataTypeRule, FlowType, FlowTypeSetting, FunctionDefinition, Module,
-    ModuleConfigurationDefinition, ParameterDefinition, RuntimeFlowType, RuntimeFlowTypeSetting,
-    RuntimeFunctionDefinition, RuntimeParameterDefinition, definition_data_type_rule,
-    flow_type_setting, runtime_flow_type_setting,
+    ModuleConfigurationDefinition, ModuleDefinition, ParameterDefinition, RuntimeFlowType,
+    RuntimeFlowTypeSetting, RuntimeFunctionDefinition, RuntimeParameterDefinition,
+    definition_data_type_rule, flow_type_setting, runtime_flow_type_setting,
 };
 
 use crate::data_type::{DataTypeDef, DataTypeRule};
@@ -24,6 +24,7 @@ pub struct ModuleBuildData<'a> {
     pub documentation: &'a str,
     pub name: &'a [Translation],
     pub configuration_definitions: &'a [ConfigurationDefinition],
+    pub definitions: &'a [ModuleDefinition],
     pub data_types: Vec<&'a DataTypeDef>,
     pub events: Vec<&'a EventDef>,
     pub runtime_events: Vec<&'a RuntimeEventMeta>,
@@ -305,7 +306,7 @@ pub fn build_module(data: ModuleBuildData) -> Module {
                 design: f.design.clone(),
             })
             .collect(),
-        definitions: vec![],
+        definitions: data.definitions.to_vec(),
         definition_source: "action".to_string(),
     }
 }

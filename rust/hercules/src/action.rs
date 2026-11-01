@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use tokio::sync::broadcast;
 use tokio_stream::Stream;
-use tucana::shared::Module;
+use tucana::shared::{Module, ModuleDefinition};
 
 use crate::connected::{Connected, ConnectedInner, RuntimeFunctionEntry, spawn_dispatch_loop};
 use crate::connection;
@@ -49,6 +49,7 @@ pub struct Action {
     documentation: String,
     name: Vec<Translation>,
     configuration_definitions: Vec<ConfigurationDefinition>,
+    module_definitions: Vec<ModuleDefinition>,
 
     functions: HashMap<String, FunctionDef>,
     runtime_functions: HashMap<String, RuntimeFunctionEntry>,
@@ -77,6 +78,7 @@ impl Action {
             documentation: String::new(),
             name: Vec::new(),
             configuration_definitions: Vec::new(),
+            module_definitions: Vec::new(),
             functions: HashMap::new(),
             runtime_functions: HashMap::new(),
             data_types: HashMap::new(),
@@ -132,6 +134,16 @@ impl Action {
 
     pub fn configuration(mut self, definition: ConfigurationDefinition) -> Self {
         self.configuration_definitions.push(definition);
+        self
+    }
+
+    /// Publishes a runtime-computed fact about this action — e.g. the
+    /// externally reachable host/port/protocol a REST-style action serves
+    /// webhooks on. Unlike [`Action::configuration`], this isn't a value a
+    /// user edits; it's whatever the action itself resolved (typically from
+    /// its environment) at startup.
+    pub fn definition(mut self, definition: ModuleDefinition) -> Self {
+        self.module_definitions.push(definition);
         self
     }
 
@@ -222,6 +234,7 @@ impl Action {
             documentation: &self.documentation,
             name: &self.name,
             configuration_definitions: &self.configuration_definitions,
+            definitions: &self.module_definitions,
             data_types: self.data_types.values().collect(),
             events: self.events.values().collect(),
             runtime_events: self.runtime_events.values().collect(),
@@ -289,5 +302,39 @@ impl Action {
         spawn_dispatch_loop(inner.clone(), connection.responses);
 
         Ok(Connected::new(inner))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tucana::shared::{Endpoint, module_definition};
+
+    use super::*;
+
+    #[test]
+    fn definition_is_carried_through_to_the_built_module() {
+        let module = Action::new("example-action", "0.1.0")
+            .definition(ModuleDefinition {
+                flow_type_identifier: vec!["REST".to_string()],
+                value: Some(module_definition::Value::Endpoint(Endpoint {
+                    host: "hooks.example.com".to_string(),
+                    port: 443,
+                    endpoint: "/${{project_slug}}${{httpURL}}".to_string(),
+                    protocol: "https".to_string(),
+                })),
+            })
+            .build_module();
+
+        assert_eq!(module.definitions.len(), 1);
+        assert_eq!(module.definitions[0].flow_type_identifier, ["REST"]);
+        assert_eq!(
+            module.definitions[0].value,
+            Some(module_definition::Value::Endpoint(Endpoint {
+                host: "hooks.example.com".to_string(),
+                port: 443,
+                endpoint: "/${{project_slug}}${{httpURL}}".to_string(),
+                protocol: "https".to_string(),
+            }))
+        );
     }
 }
