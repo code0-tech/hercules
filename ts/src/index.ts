@@ -22,3 +22,7 @@ export * from "./models/datatype.model"
 export * from "./models/event.model"
 export * from "./models/runtime_event.model"
 export * from "./action"
+// Re-exported so callers can construct `ApusConnectOptions.tls` (Action.connectApus,
+// the Apus v1 data-plane transport) without a separate dependency on the sibling
+// `apus` repo's ts/apus package.
+export type {TlsOptions} from "@code0-apus/apus"
