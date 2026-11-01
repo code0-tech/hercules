@@ -202,6 +202,53 @@ pub(crate) fn build_sub_flow_function_result(
     })
 }
 
+/// Converts a declared schema into an Apus value (an object, or `{}` when
+/// there is nothing structured to send) — the Apus analogue of [`to_struct`],
+/// used by [`build_apus_function_value`].
+#[cfg(feature = "apus")]
+fn schema_to_apus(schema: Option<&SubFlowFunctionSchema>) -> apus_client::ApusValue {
+    match schema {
+        Some(SubFlowFunctionSchema::Struct(s)) => {
+            let value = tucana::shared::Value {
+                kind: Some(Kind::StructValue(s.clone())),
+            };
+            crate::apus::plain_to_apus(&crate::value::to_allowed_value(value))
+        }
+        Some(SubFlowFunctionSchema::Json(json)) => crate::apus::plain_to_apus(json),
+        None => apus_client::ApusValue::Object(Vec::new()),
+    }
+}
+
+/// The Apus analogue of [`build_sub_flow_function_result`]: registers the
+/// sub flow function on the connection (the exact same TTL-bounded registry
+/// gRPC execution uses) and builds the `ApusValue::Function` that reports it
+/// back as a `RETURN`'s whole value.
+#[cfg(feature = "apus")]
+pub(crate) fn build_apus_function_value(
+    inner: &Arc<ConnectedInner>,
+    definition: SubFlowFunctionDefinition,
+) -> Result<apus_client::ApusValue> {
+    if definition.name.is_empty() {
+        return Err(HerculesError::runtime(
+            "SUB_FLOW_FUNCTION_MISSING_NAME",
+            Some("A sub flow function returned from a run block must declare a name".to_string()),
+        ));
+    }
+    let name = definition.name.clone();
+    let description = definition.description.clone();
+    let input_schema = schema_to_apus(definition.input_schema.as_ref());
+    let output_schema = schema_to_apus(definition.output_schema.as_ref());
+    let identifier = inner.register_sub_flow_function(definition);
+    Ok(apus_client::ApusValue::Function {
+        identifier,
+        definition_source: "action".to_string(),
+        input_schema: Box::new(input_schema),
+        output_schema: Box::new(output_schema),
+        name,
+        description,
+    })
+}
+
 /// Sub flow functions a runtime function returned at execution time, keyed by
 /// the identifier reported to Aquila.
 ///

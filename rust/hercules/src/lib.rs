@@ -26,7 +26,14 @@
 //! # }
 //! ```
 
+// `apus_client::ErrorInfo` (feature `apus`) is the error of every Apus
+// request; boxing it would only add an allocation per call — the same
+// rationale `apus_client` itself documents for the identical lint.
+#![cfg_attr(feature = "apus", allow(clippy::result_large_err))]
+
 mod action;
+#[cfg(feature = "apus")]
+mod apus;
 mod arguments;
 mod auth;
 mod connected;
@@ -47,6 +54,12 @@ mod types;
 mod value;
 
 pub use action::{Action, DEFAULT_REQUEST_QUEUE_CAPACITY};
+/// Apus v1 data-plane transport (feature `apus`): a direct action<->Taurus
+/// connection that replaces this SDK's own gRPC data plane while Aquila's
+/// gRPC control plane stays unchanged. See the module docs for the exact
+/// boundary and known gaps versus the default gRPC transport.
+#[cfg(feature = "apus")]
+pub use apus::{ApusCall, ApusSettings, connect_apus};
 pub use arguments::Arguments;
 pub use connected::{Connected, ConnectedMetrics};
 pub use data_type::{DataType, DataTypeDef, DataTypeRule};
@@ -82,6 +95,12 @@ pub use schemars::JsonSchema;
 pub use serde_json;
 
 pub use hercules_macros::{data_type, event, function, runtime_event, runtime_function};
+
+/// Re-exported (feature `apus`) so callers can name Apus-specific types
+/// (e.g. `apus_client::protocol::tls::TlsConnector` for [`ApusSettings::tls`])
+/// without adding a separate path dependency on the sibling `apus` repo.
+#[cfg(feature = "apus")]
+pub use apus_client;
 
 /// Re-export of the wire types this SDK sends/receives, for callers who want
 /// to inspect [`HerculesEvent`] payloads in full.

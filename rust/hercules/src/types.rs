@@ -51,7 +51,19 @@ pub struct FunctionContext {
     /// literal value, keyed by the parameter's `runtime_name` and mapping
     /// to the `execution_identifier` a handler should pass to
     /// [`Connected::execute_sub_flow`] to run that sub flow.
+    ///
+    /// Kept populated on the Apus transport too, for source compatibility —
+    /// but [`Connected::execute_sub_flow`] cannot act on these ids there
+    /// (sub-flows are connection-bound on Apus); use [`FunctionContext::apus`]
+    /// instead.
     pub sub_flow_parameters: HashMap<String, String>,
+    /// Set only when this call arrived over the Apus data plane (feature
+    /// `apus`); `None` for calls that arrived over Aquila's gRPC control
+    /// plane (the fallback path, or the whole gRPC transport). Lets a
+    /// handler invoke a sub-flow handle contextually, on the connection the
+    /// call came in on — see [`crate::apus::ApusCall`].
+    #[cfg(feature = "apus")]
+    pub apus: Option<crate::apus::ApusCall>,
 }
 
 /// The configuration values Aquila has resolved for a single project,
