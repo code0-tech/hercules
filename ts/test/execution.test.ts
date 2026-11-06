@@ -7,13 +7,16 @@ import {Action} from "../src/action";
 import {SUB_FLOW_FUNCTION_TTL_MS} from "../src/manager/SubFlowFunctionManager";
 import {handle} from "../src/actions/Execution";
 import type {RuntimeFunctionProps} from "../src/models/runtime_function.model";
-import type {SubFlowFunctionDefinition} from "../src/types";
+import type {SubFlow, SubFlowFunctionDefinition} from "../src/types";
 
 const str = (stringValue: string): Value => ({kind: {oneofKind: "stringValue", stringValue}});
 const list = (...values: Value[]): Value => ({kind: {oneofKind: "listValue", listValue: {values}}});
 const struct = (fields: Record<string, Value>): Value => ({kind: {oneofKind: "structValue", structValue: {fields}}});
 
 const literalParam = (value: Value) => ({value: {oneofKind: "literalValue" as const, literalValue: {value, references: []}}});
+
+const subFlowParam = (subFlow: {executionIdentifier: string; name?: string; description?: string}) =>
+    ({value: {oneofKind: "subFlow" as const, subFlow}});
 
 function runtimeFunction(props: Partial<RuntimeFunctionProps> & Pick<RuntimeFunctionProps, "handler">): RuntimeFunctionProps {
     return {runtimeName: "fn", signature: "(): STRING", parameters: [], ...props};
@@ -108,9 +111,29 @@ describe("execution results", () => {
                 type: str("string"),
             },
         });
-        expect(result.function?.definitionSource).toBe("action");
+        expect(result.function?.definitionSource).toBe(`action.${action.identifier}`);
         // The identifier Aquila invokes the function by is registered on the action.
         expect(action.subFlowFunctions.has(result.function!.functionIdentifier)).toBe(true);
+    });
+
+    it("hands a sub flow parameter to the handler with the caller's name and description", async () => {
+        const seen: {name?: string; description?: string}[] = [];
+        action.runtimeFunctions.set("fn", runtimeFunction({
+            parameters: [{runtimeName: "callback", type: "CONSUMER<STRING>"}],
+            handler: (callback: SubFlow) => {
+                seen.push({name: callback.name, description: callback.description});
+                return "ok";
+            },
+        }));
+
+        handle(action, request("fn", [subFlowParam({
+            executionIdentifier: "sub-1",
+            name: "on_each_row",
+            description: "Runs for every row",
+        })]));
+        await new Promise(resolve => setImmediate(resolve));
+
+        expect(seen).toEqual([{name: "on_each_row", description: "Runs for every row"}]);
     });
 
     it("gives each returned sub flow function its own identifier", async () => {

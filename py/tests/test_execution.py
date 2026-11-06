@@ -10,6 +10,7 @@ from hercules.manager.sub_flow_function import (
     SUB_FLOW_FUNCTION_TTL_SECONDS,
     SubFlowFunctionManager,
 )
+from hercules.models.function import FunctionParameterProps
 from hercules.models.runtime_function import RuntimeFunctionProps
 from tucana.generated.aquila import action_pb2
 from tucana.generated.shared import struct_pb2
@@ -30,6 +31,12 @@ def _str(string_value):
 def _literal_param(value):
     return action_pb2.ActionNodeValue(
         literal_value=action_pb2.ActionLiteralValue(value=value, references=[])
+    )
+
+
+def _sub_flow_param(**kwargs):
+    return action_pb2.ActionNodeValue(
+        sub_flow=action_pb2.ActionNodeSubFlowValue(**kwargs)
     )
 
 
@@ -185,6 +192,39 @@ def test_passes_a_plain_json_schema_dict_through_unchanged(action, sent):
 
     result = _success(sent).sub_flow_function_result
     assert result.output_schema == struct_pb2.Struct(fields={"type": _str("string")})
+
+
+def test_hands_a_sub_flow_parameter_to_the_handler_with_its_name_and_description(
+    action, sent
+):
+    seen = []
+
+    def handler(callback):
+        seen.append((callback.name, callback.description))
+        return "ok"
+
+    action.runtime_functions.set(
+        "fn",
+        _runtime_function(
+            handler, parameters=[FunctionParameterProps(runtime_name="callback")]
+        ),
+    )
+
+    _run_handle(
+        action,
+        _request(
+            "fn",
+            [
+                _sub_flow_param(
+                    execution_identifier="sub-1",
+                    name="on_each_row",
+                    description="Runs for every row",
+                )
+            ],
+        ),
+    )
+
+    assert seen == [("on_each_row", "Runs for every row")]
 
 
 def test_gives_each_returned_sub_flow_function_its_own_identifier(action, sent):

@@ -3,6 +3,7 @@ import type {Value} from "@code0-tech/tucana/shared";
 import type {ActionLiteralValue, ActionNodeValue} from "@code0-tech/tucana/aquila";
 import {resolveLiteral, resolveNodeValue} from "../src/internal/literal";
 import type {Action} from "../src/action";
+import type {SubFlow} from "../src/types";
 
 // Minimal Value builders so the tests read like the data they describe.
 const str = (stringValue: string): Value => ({kind: {oneofKind: "stringValue", stringValue}});
@@ -91,7 +92,7 @@ describe("resolveNodeValue", () => {
         expect(resolveNodeValue(noopAction, undefined)).toBeUndefined();
     });
 
-    it("wraps a sub flow node in a caller exposing its schema", async () => {
+    it("wraps a sub flow node in a caller exposing its schema and metadata", async () => {
         const calls: unknown[][] = [];
         const action = {
             executeSubFlow: (subFlow: unknown, ...args: unknown[]) => {
@@ -99,13 +100,29 @@ describe("resolveNodeValue", () => {
                 return Promise.resolve("done");
             },
         } as unknown as Action;
-        const node: ActionNodeValue = {
-            value: {oneofKind: "subFlow", subFlow: {executionIdentifier: "sf", inputSchema: {fields: {}}}},
+        const subFlow = {
+            executionIdentifier: "sf",
+            inputSchema: {fields: {}},
+            name: "greet",
+            description: "Greets a name",
         };
-        const caller = resolveNodeValue(action, node) as ((...args: unknown[]) => Promise<unknown>) & {inputSchema?: unknown};
+        const node: ActionNodeValue = {value: {oneofKind: "subFlow", subFlow}};
+        const caller = resolveNodeValue(action, node) as SubFlow;
         expect(typeof caller).toBe("function");
         expect(caller.inputSchema).toEqual({fields: {}});
+        // `name` overrides the wrapping function's intrinsic name.
+        expect(caller.name).toBe("greet");
+        expect(caller.description).toBe("Greets a name");
         await expect(caller("a")).resolves.toBe("done");
-        expect(calls).toEqual([[{executionIdentifier: "sf", inputSchema: {fields: {}}}, "a"]]);
+        expect(calls).toEqual([[subFlow, "a"]]);
+    });
+
+    it("leaves a sub flow's metadata undefined when the caller omitted it", () => {
+        const node: ActionNodeValue = {
+            value: {oneofKind: "subFlow", subFlow: {executionIdentifier: "sf"}},
+        };
+        const caller = resolveNodeValue(noopAction, node) as SubFlow;
+        expect(caller.name).toBeUndefined();
+        expect(caller.description).toBeUndefined();
     });
 });

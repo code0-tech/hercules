@@ -25,7 +25,7 @@ _SOLE_REFERENCE_PATTERN = re.compile(r"\A\$\{([^}]+)\}\Z")
 
 
 def to_sub_flow_caller(action, sub_flow):
-    """Wrap a sub flow value in an awaitable caller exposing its declared I/O schema."""
+    """Wrap a sub flow value in an awaitable caller exposing its declared metadata."""
 
     async def caller(*args):
         return await action.execute_sub_flow(sub_flow, *args)
@@ -33,6 +33,12 @@ def to_sub_flow_caller(action, sub_flow):
     # Expose the sub flow's declared I/O so the handler can inspect it.
     caller.input_schema = sub_flow.input_schema
     caller.output_schema = sub_flow.output_schema
+    # ``name``/``description`` are ``optional`` on the wire, so an unset field is
+    # surfaced as ``None`` rather than protobuf's empty-string default.
+    caller.name = sub_flow.name if sub_flow.HasField("name") else None
+    caller.description = (
+        sub_flow.description if sub_flow.HasField("description") else None
+    )
     return caller
 
 

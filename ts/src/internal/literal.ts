@@ -14,14 +14,24 @@ const SOLE_REFERENCE_PATTERN = /^\$\{([^}]+)\}$/;
 
 /**
  * Wrap a sub flow value in a caller that executes it and exposes its declared I/O
- * schema (either may be undefined if the caller omitted it).
+ * schema plus the name and description the caller gave it (each may be undefined if
+ * the caller omitted it).
  */
 export function toSubFlowCaller(action: Action, subFlow: ActionNodeSubFlowValue): SubFlow {
     const caller = (...args: PlainValue[]) => action.executeSubFlow(subFlow, ...args);
-    return Object.assign(caller, {
+    const withSchemas = Object.assign(caller, {
         inputSchema: subFlow.inputSchema,
         outputSchema: subFlow.outputSchema,
+        description: subFlow.description,
     });
+    // `name` is an own, non-writable property of every function, so assigning it
+    // would throw — it has to be redefined rather than set.
+    return Object.defineProperty(withSchemas, "name", {
+        value: subFlow.name,
+        writable: false,
+        enumerable: true,
+        configurable: true,
+    }) as SubFlow;
 }
 
 /**

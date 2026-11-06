@@ -17,12 +17,19 @@ export interface Translation {
  * A sub flow passed as a parameter (e.g. a CONSUMER). Call it with the sub flow's
  * parameters to execute it and await its result. The input/output schema declared
  * for the sub flow by the caller are exposed via {@link SubFlow.inputSchema} and
- * {@link SubFlow.outputSchema} (either may be undefined if the caller omitted it).
+ * {@link SubFlow.outputSchema}, and the human-readable name and description the
+ * caller gave it via {@link SubFlow.name} and {@link SubFlow.description}. All four
+ * are optional on the wire and may be undefined if the caller omitted them.
+ *
+ * Note that `name` shadows the intrinsic `Function.name` of the underlying caller:
+ * it is the sub flow's declared name, not the name of the wrapping function.
  */
 export interface SubFlow<R extends PlainValue = PlainValue> {
     (...args: PlainValue[]): Promise<R>;
     readonly inputSchema?: Struct;
     readonly outputSchema?: Struct;
+    readonly name?: string;
+    readonly description?: string;
 }
 
 /**

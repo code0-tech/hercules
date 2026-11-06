@@ -42,12 +42,15 @@ class SubFlow(Protocol):
 
     Call it with the sub flow's parameters to execute it and await its result.
     The input/output schema declared for the sub flow by the caller are exposed
-    via :attr:`input_schema` / :attr:`output_schema` (either may be ``None`` if
-    the caller omitted it).
+    via :attr:`input_schema` / :attr:`output_schema`, and the human-readable name
+    and description it was given via :attr:`name` / :attr:`description`. All four
+    are optional on the wire and are ``None`` if the caller omitted them.
     """
 
     input_schema: Optional[Struct]
     output_schema: Optional[Struct]
+    name: Optional[str]
+    description: Optional[str]
 
     def __call__(self, *args: PlainValue) -> Awaitable[PlainValue]: ...
 

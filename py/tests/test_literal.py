@@ -121,7 +121,7 @@ class TestResolveNodeValue:
     def test_returns_none_for_absent_node(self):
         assert resolve_node_value(_NOOP_ACTION, None) is None
 
-    def test_wraps_sub_flow_node_in_caller_exposing_schema(self):
+    def test_wraps_sub_flow_node_in_caller_exposing_schema_and_metadata(self):
         calls = []
 
         class _Action:
@@ -130,10 +130,25 @@ class TestResolveNodeValue:
                 return "done"
 
         node = action_pb2.ActionNodeValue(
-            sub_flow=action_pb2.ActionNodeSubFlowValue(execution_identifier="sf")
+            sub_flow=action_pb2.ActionNodeSubFlowValue(
+                execution_identifier="sf",
+                name="greet",
+                description="Greets a name",
+            )
         )
         caller = resolve_node_value(_Action(), node)
         assert callable(caller)
         assert caller.input_schema == node.sub_flow.input_schema
+        assert caller.name == "greet"
+        assert caller.description == "Greets a name"
         assert asyncio.get_event_loop().run_until_complete(caller("a")) == "done"
         assert calls == [(node.sub_flow, "a")]
+
+    def test_sub_flow_metadata_is_none_when_omitted(self):
+        node = action_pb2.ActionNodeValue(
+            sub_flow=action_pb2.ActionNodeSubFlowValue(execution_identifier="sf")
+        )
+        caller = resolve_node_value(_NOOP_ACTION, node)
+        # ``optional`` on the wire: an unset field is ``None``, not ``""``.
+        assert caller.name is None
+        assert caller.description is None
