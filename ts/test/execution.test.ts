@@ -67,6 +67,69 @@ const subFlowFunction = (run: SubFlowFunctionDefinition["run"]): SubFlowFunction
     run,
 });
 
+describe("executing a flow", () => {
+    let action: Action;
+    let sent: ActionTransferRequest[];
+
+    beforeEach(() => ({action, sent} = stubAction()));
+
+    /** The flow execution the action sent. */
+    function sentFlowExecution(index = 0) {
+        const {data} = sent[index];
+        if (data.oneofKind !== "flowExecution") throw new Error(`expected a flow execution, got ${data.oneofKind}`);
+        return data.flowExecution;
+    }
+
+    it("reserves an execution id per run", () => {
+        const first = action.reserveExecutionId();
+
+        expect(first).not.toEqual(action.reserveExecutionId());
+        expect(first).toMatch(/^[0-9a-f-]{36}$/);
+    });
+
+    it("starts a flow under the id it was given, so a node can be matched to this run", async () => {
+        const executionId = action.reserveExecutionId();
+
+        const result = action.executeFlowWithId(executionId, 7n, {hello: "world"});
+        await new Promise(resolve => setImmediate(resolve));
+
+        expect(sentFlowExecution().executionIdentifier).toEqual(executionId);
+        expect(sentFlowExecution().flowId).toEqual("7");
+
+        // The very id a runtime function of the flow reports as its execution id.
+        action.resolveExecutionResponse(executionId, {oneofKind: "success", success: str("done")});
+        await expect(result).resolves.toEqual("done");
+    });
+
+    it("reserves its own id when none was given", async () => {
+        const result = action.executeFlow(7);
+        await new Promise(resolve => setImmediate(resolve));
+        const {executionIdentifier} = sentFlowExecution();
+
+        expect(executionIdentifier).toMatch(/^[0-9a-f-]{36}$/);
+        action.resolveExecutionResponse(executionIdentifier, {oneofKind: "success", success: str("done")});
+        await expect(result).resolves.toEqual("done");
+    });
+
+    it("keeps two runs of one flow apart", async () => {
+        const [first, second] = [action.reserveExecutionId(), action.reserveExecutionId()];
+
+        const runs = Promise.all([action.executeFlowWithId(first, 7n), action.executeFlowWithId(second, 7n)]);
+        await new Promise(resolve => setImmediate(resolve));
+
+        // Answered out of order, which is what the identifiers are for.
+        action.resolveExecutionResponse(second, {oneofKind: "success", success: str("second")});
+        action.resolveExecutionResponse(first, {oneofKind: "success", success: str("first")});
+        await expect(runs).resolves.toEqual(["first", "second"]);
+    });
+
+    it("needs a connection", async () => {
+        const offline = new Action("my_action", "1.0.0", undefined, "me", "icon", "docs", []);
+
+        await expect(offline.executeFlowWithId("exec-1", 7n)).rejects.toThrow(/Not connected/);
+    });
+});
+
 describe("execution results", () => {
     let action: Action;
     let sent: ActionTransferRequest[];

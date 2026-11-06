@@ -218,11 +218,38 @@ export class Action extends EventEmitter<CodeZeroEventMap> {
     }
 
     /**
+     * Reserve a locally-unique execution id ahead of starting a flow.
+     *
+     * Only needed by callers that must correlate an out-of-band signal - e.g. a
+     * runtime function the flow calls mid-execution, whose
+     * {@link FunctionContext.executionId} is the flow's own execution id - back to
+     * this specific run, and so need the id fixed *before* the flow starts: pass it
+     * to {@link Action.executeFlowWithId} instead of {@link Action.executeFlow},
+     * which reserves its own.
+     */
+    reserveExecutionId(): string {
+        return randomUUID();
+    }
+
+    /**
      * Execute one of the action's own flows by id and resolve with its result.
      */
-    async executeFlow(flowId: string | bigint | number, payload?: PlainValue): Promise<PlainValue> {
+    executeFlow(flowId: string | bigint | number, payload?: PlainValue): Promise<PlainValue> {
+        return this.executeFlowWithId(this.reserveExecutionId(), flowId, payload);
+    }
+
+    /**
+     * Same as {@link Action.executeFlow}, but for a caller that already reserved
+     * `executionIdentifier` via {@link Action.reserveExecutionId}.
+     */
+    async executeFlowWithId(
+        executionIdentifier: string,
+        flowId: string | bigint | number,
+        payload?: PlainValue,
+    ): Promise<PlainValue> {
         if (!this._stream) throw new Error("Not connected. Call connect() first.");
-        const executionIdentifier = randomUUID();
+        // Registered before the request is sent, so a response that arrives while
+        // this is still awaiting the send finds its pending execution.
         const result = this._awaitExecutionResponse(executionIdentifier);
         const request = ActionTransferRequest.create({
             data: {
