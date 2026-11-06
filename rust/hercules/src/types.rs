@@ -5,6 +5,9 @@
 use std::collections::HashMap;
 use std::fmt;
 
+use tucana::aquila::ActionNodeSubFlowValue;
+use tucana::shared::Struct;
+
 use crate::connected::Connected;
 
 /// A JSON-like value flowing across the wire (event payloads, function
@@ -48,10 +51,39 @@ pub struct FunctionContext {
     /// still running. Cheap to clone (`Arc`-backed).
     pub connected: Connected,
     /// Parameters that resolved to a sub flow reference instead of a
-    /// literal value, keyed by the parameter's `runtime_name` and mapping
-    /// to the `execution_identifier` a handler should pass to
-    /// [`Connected::execute_sub_flow`] to run that sub flow.
-    pub sub_flow_parameters: HashMap<String, String>,
+    /// literal value, keyed by the parameter's `runtime_name`. Each carries
+    /// the `execution_identifier` a handler should pass to
+    /// [`Connected::execute_sub_flow`] to run that sub flow, plus the
+    /// metadata the caller declared for it.
+    pub sub_flow_parameters: HashMap<String, SubFlowParameter>,
+}
+
+/// A sub flow handed to a runtime function as a parameter (e.g. a CONSUMER).
+/// Run it by passing [`SubFlowParameter::execution_identifier`] to
+/// [`Connected::execute_sub_flow`].
+///
+/// `name`/`description` are the human-readable metadata the caller declared
+/// for the sub flow and `input_schema`/`output_schema` its declared I/O. All
+/// four are optional on the wire and are `None` when the caller omitted them.
+#[derive(Debug, Clone, Default)]
+pub struct SubFlowParameter {
+    pub execution_identifier: String,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub input_schema: Option<Struct>,
+    pub output_schema: Option<Struct>,
+}
+
+impl From<ActionNodeSubFlowValue> for SubFlowParameter {
+    fn from(value: ActionNodeSubFlowValue) -> Self {
+        Self {
+            execution_identifier: value.execution_identifier,
+            name: value.name,
+            description: value.description,
+            input_schema: value.input_schema,
+            output_schema: value.output_schema,
+        }
+    }
 }
 
 /// The configuration values Aquila has resolved for a single project,

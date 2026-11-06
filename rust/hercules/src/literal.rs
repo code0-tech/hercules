@@ -351,6 +351,8 @@ mod tests {
                     execution_identifier: "x".into(),
                     input_schema: None,
                     output_schema: None,
+                    name: None,
+                    description: None,
                 })),
             }),
         };
@@ -370,12 +372,19 @@ mod tests {
                     execution_identifier: "x".into(),
                     input_schema: None,
                     output_schema: None,
+                    name: Some("greet".into()),
+                    description: Some("Greets a name".into()),
                 })),
             }),
         };
         let result = resolve_literal(literal(Some(str("${run}")), vec![sub_flow_ref])).unwrap();
         match result {
-            ResolvedValue::SubFlow(sub_flow) => assert_eq!(sub_flow.execution_identifier, "x"),
+            ResolvedValue::SubFlow(sub_flow) => {
+                assert_eq!(sub_flow.execution_identifier, "x");
+                // Adopted verbatim: the caller's metadata is not dropped.
+                assert_eq!(sub_flow.name.as_deref(), Some("greet"));
+                assert_eq!(sub_flow.description.as_deref(), Some("Greets a name"));
+            }
             ResolvedValue::Literal(v) => panic!("expected a sub flow, got {v:?}"),
         }
     }
@@ -392,6 +401,8 @@ mod tests {
                     execution_identifier: "x".into(),
                     input_schema: None,
                     output_schema: None,
+                    name: None,
+                    description: None,
                 })),
             }),
         };

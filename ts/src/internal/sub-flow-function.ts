@@ -63,7 +63,7 @@ export function buildSubFlowFunctionResult(
     }
     const functionIdentifier = action.registerSubFlowFunction(definition);
     return SubFlowFunctionResult.create({
-        function: {functionIdentifier, definitionSource: "action"},
+        function: {functionIdentifier, definitionSource: `action.${action.identifier}`},
         name: definition.name,
         description: definition.description ?? "",
         inputSchema: toStruct(definition.inputSchema ?? {}, "input"),

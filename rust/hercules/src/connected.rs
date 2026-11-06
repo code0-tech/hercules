@@ -29,7 +29,7 @@ use crate::sub_flow_function::{
     SubFlowFunctionDefinition, SubFlowFunctionState, build_sub_flow_function_result,
 };
 use crate::sync;
-use crate::types::{FunctionContext, PlainValue, ProjectConfiguration};
+use crate::types::{FunctionContext, PlainValue, ProjectConfiguration, SubFlowParameter};
 use crate::value::{construct_value, to_allowed_value};
 
 pub(crate) struct RuntimeFunctionEntry {
@@ -881,11 +881,11 @@ struct ResolvedParameters {
     /// by `runtime_name`. Handed to the handler as its [`Arguments`].
     literals: HashMap<String, PlainValue>,
     /// Parameters that arrived as a reference to a sub flow instead of a
-    /// literal, keyed by `runtime_name` and mapping to the
+    /// literal, keyed by `runtime_name`. Carries the
     /// `execution_identifier` a handler can pass to
-    /// [`Connected::execute_sub_flow`]. Surfaced via
-    /// [`FunctionContext::sub_flow_parameters`].
-    sub_flow_parameters: HashMap<String, String>,
+    /// [`Connected::execute_sub_flow`] plus the metadata the caller
+    /// declared. Surfaced via [`FunctionContext::sub_flow_parameters`].
+    sub_flow_parameters: HashMap<String, SubFlowParameter>,
 }
 
 /// Resolves positional wire parameters into name-keyed maps, using `meta`'s
@@ -915,18 +915,13 @@ fn resolve_parameters(
                     // sub flow reference — route it the same way a top-level
                     // `ActionNodeValue::SubFlow` is routed below.
                     ResolvedValue::SubFlow(sub_flow) => {
-                        sub_flow_parameters.insert(
-                            param_meta.runtime_name.clone(),
-                            sub_flow.execution_identifier,
-                        );
+                        sub_flow_parameters
+                            .insert(param_meta.runtime_name.clone(), sub_flow.into());
                     }
                 }
             }
             Some(action_node_value::Value::SubFlow(sub_flow)) => {
-                sub_flow_parameters.insert(
-                    param_meta.runtime_name.clone(),
-                    sub_flow.execution_identifier,
-                );
+                sub_flow_parameters.insert(param_meta.runtime_name.clone(), sub_flow.into());
             }
             None => {}
         }
@@ -1241,6 +1236,8 @@ mod tests {
                     execution_identifier: "sub-xyz".into(),
                     input_schema: None,
                     output_schema: None,
+                    name: Some("greet".into()),
+                    description: Some("Greets a name".into()),
                 })),
             },
             ActionNodeValue { value: None },
@@ -1256,10 +1253,14 @@ mod tests {
         assert!(!resolved.literals.contains_key("sub_flow_param"));
         assert!(!resolved.literals.contains_key("unset_param"));
 
-        assert_eq!(
-            resolved.sub_flow_parameters.get("sub_flow_param"),
-            Some(&"sub-xyz".to_string())
-        );
+        let sub_flow = resolved
+            .sub_flow_parameters
+            .get("sub_flow_param")
+            .expect("the sub flow parameter is routed by its runtime name");
+        assert_eq!(sub_flow.execution_identifier, "sub-xyz");
+        // The metadata the caller declared travels along with the identifier.
+        assert_eq!(sub_flow.name.as_deref(), Some("greet"));
+        assert_eq!(sub_flow.description.as_deref(), Some("Greets a name"));
         assert!(!resolved.sub_flow_parameters.contains_key("literal_param"));
     }
 
@@ -1583,7 +1584,8 @@ mod sub_flow_function_tests {
 
     use schemars::JsonSchema;
     use tucana::aquila::{
-        ActionExecutionRequest, ActionLiteralValue, ActionNodeValue, action_node_value,
+        ActionExecutionRequest, ActionLiteralValue, ActionNodeSubFlowValue, ActionNodeValue,
+        action_node_value,
     };
     use tucana::shared::{
         Error as WireError, Value, node_execution_result, node_value_execution_result,
@@ -1628,6 +1630,22 @@ mod sub_flow_function_tests {
 
     fn returns(factory: impl Fn() -> SubFlowFunctionDefinition + Send + Sync + 'static) -> Returns {
         Returns(Box::new(factory))
+    }
+
+    /// A runtime function that records the sub flow parameters it was handed.
+    struct RecordsSubFlows(Arc<Mutex<Vec<SubFlowParameter>>>);
+
+    #[async_trait::async_trait]
+    impl RuntimeFunctionHandler for RecordsSubFlows {
+        async fn run(
+            &self,
+            context: &FunctionContext,
+            _args: &Arguments,
+        ) -> Result<RuntimeFunctionReturn> {
+            let mut seen = sync::lock(&self.0);
+            seen.extend(context.sub_flow_parameters.values().cloned());
+            Ok(PlainValue::from("ok").into())
+        }
     }
 
     /// A runtime function returning raw data.
@@ -1748,6 +1766,38 @@ mod sub_flow_function_tests {
             sent_success(&mut rx).await,
             node_value_execution_result::Value::RawValue(str_value("hello"))
         );
+    }
+
+    #[tokio::test]
+    async fn hands_a_sub_flow_parameter_to_the_handler_with_its_name_and_description() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let mut entry = entry(RecordsSubFlows(seen.clone()));
+        // The parameter's `runtime_name` is what the sub flow is keyed by.
+        entry.meta.parameters = vec![ParameterMeta {
+            runtime_name: "callback".into(),
+            ..Default::default()
+        }];
+        let (inner, mut rx) = test_inner_with(HashMap::from([("fn".to_string(), entry)]));
+
+        let parameters = vec![ActionNodeValue {
+            value: Some(action_node_value::Value::SubFlow(ActionNodeSubFlowValue {
+                execution_identifier: "sub-1".into(),
+                input_schema: None,
+                output_schema: None,
+                name: Some("on_each_row".into()),
+                description: Some("Runs for every row".into()),
+            })),
+        }];
+        handle_execution(inner, request("fn", parameters)).await;
+
+        // Drain the handler's result before inspecting what it recorded.
+        drop(sent_success(&mut rx).await);
+
+        let seen = sync::lock(&seen);
+        assert_eq!(seen.len(), 1);
+        assert_eq!(seen[0].execution_identifier, "sub-1");
+        assert_eq!(seen[0].name.as_deref(), Some("on_each_row"));
+        assert_eq!(seen[0].description.as_deref(), Some("Runs for every row"));
     }
 
     #[tokio::test]

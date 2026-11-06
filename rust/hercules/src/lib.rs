@@ -65,7 +65,7 @@ pub use sub_flow_function::{
 };
 pub use types::{
     ConfigurationDefinition, FunctionContext, PlainValue, ProjectConfiguration, ScalingOption,
-    Translation, UniquenessScope,
+    SubFlowParameter, Translation, UniquenessScope,
 };
 
 /// Re-exported so `#[hercules_sdk::runtime_function]`-annotated types can

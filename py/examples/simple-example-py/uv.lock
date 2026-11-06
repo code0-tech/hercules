@@ -28,7 +28,7 @@ requires-dist = [
     { name = "grpcio", specifier = ">=1.64" },
     { name = "protobuf", specifier = ">=5.0" },
     { name = "pydantic", specifier = ">=2" },
-    { name = "tucana", specifier = ">=0.0.80" },
+    { name = "tucana", specifier = ">=0.0.84" },
 ]
 provides-extras = ["codegen"]
 
@@ -396,15 +396,15 @@ wheels = [
 
 [[package]]
 name = "tucana"
-version = "0.0.80"
+version = "0.0.84"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "grpcio" },
     { name = "protobuf" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/41/56/a409c44d53bf4f63a77d6c0d9e5dadaac3a59cfa02e89f3b00cfb85849a5/tucana-0.0.80.tar.gz", hash = "sha256:b249fbb505306d1ffd77fbdc6ac769bae25a82a9c9e2776d5062ea1b7bce1b2f", size = 21834, upload-time = "2026-08-04T14:09:37.11Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e6/ba/35d8dbf8faf7852e39b27e8999c4bc9c38720082254d73d299f1b1f2b253/tucana-0.0.84.tar.gz", hash = "sha256:7a94cf16b8289f9f3d7419701a8bbc165ab5e68a63cf4a74a9c37f650d5e6b09", size = 23160, upload-time = "2026-11-06T15:25:43.592Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d7/8f/cdcf8e5d6c520ceca0816a83df7dfb9b8d3dcf5cb697c269f88c21b9e373/tucana-0.0.80-py3-none-any.whl", hash = "sha256:6c6331d31cb59455e7c0839720273eb6347daed093f502dbd73e0b3b81e40fda", size = 66111, upload-time = "2026-08-04T14:09:37.98Z" },
+    { url = "https://files.pythonhosted.org/packages/cd/d0/3b71c10ddb3d1e09d72cb46dced3181d88e9ac03ce9104952f9b65121c88/tucana-0.0.84-py3-none-any.whl", hash = "sha256:64fde8e8d29474e1c71e7018c6eecaabf5fae18d6f6aed68eacd51adadef9aa8", size = 72921, upload-time = "2026-11-06T15:25:44.558Z" },
 ]
 
 [[package]]
