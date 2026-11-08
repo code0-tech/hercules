@@ -191,6 +191,10 @@ pub(crate) fn build_sub_flow_function_result(
     let output_schema = to_struct(definition.output_schema.as_ref());
     let function_identifier = inner.register_sub_flow_function(definition);
     Ok(SubFlowFunctionResult {
+        // Scopes the function to a sub flow on Aquila's side. An action never
+        // knows that scope: the execution request it answers carries only the
+        // function identifier, so the field stays empty.
+        subflow_identifier: String::new(),
         function: Some(WireSubFlowFunction {
             function_identifier,
             definition_source: Some("action".to_string()),
